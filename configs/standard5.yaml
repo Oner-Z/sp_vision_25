@@ -1,0 +1,49 @@
+enemy_color: "red"
+#enemy_color: "blue"
+
+classify_model: "assets/tiny_resnet.onnx"
+# model: "assets/buff.onnx"  # IOU:0.80  0.63      30FPS
+# model: "assets/mybuff_int8_openvino_model/mybuff.xml"  # IOU: 0.76 0.66
+
+# model: "assets/2ns_int8_openvino_model/2ns_int8.xml"  # IOU:
+model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.   0.75
+
+# records/Big/2024-05-14_11-02-21
+
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 2
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+min_detect_count: 5
+max_temp_lost_count: 10
+
+yaw_offset: -1.0 # degree
+pitch_offset: 0.8 # degree
+comming_angle: 50 # degree
+leaving_angle: 30 # degree
+
+camera_name: "hikrobot"
+exposure_ms: 6
+gain: 16.98
+
+# 重投影误差: 0.1712px
+camera_matrix: [1606.4621945373342, 0, 718.35189471286367, 0, 1607.7959825661596, 556.20295066305948, 0, 0, 1]
+distort_coeffs: [-0.11902379858301006, 0.10035853057524424, 5.8754877878169769e-05, -0.00053565612841224299, 0]
+
+#  0 -1  0
+#  1  0  0
+#  0  0  1
+R_gimbal2imubody: [0, -1, 0, 1, 0, 0, 0, 0, 1]
+
+# 相机同理想情况的偏角: yaw-1.59 pitch-1.60 roll1.05 degree
+# 标定板到世界坐标系原点的水平距离: 1.93 m
+# 标定板同竖直摆放时的偏角: yaw124.78 pitch4.44 roll-0.11 degree
+R_camera2gimbal: [0.027267568387732109, -0.028387897204956207, 0.9992250031932256, -0.99945925786737388, 0.017601037375940945, 0.027774004869464585, -0.018375842223382517, -0.99944200971120467, -0.027892609182537321]
+t_camera2gimbal: [0.16178923859264377, 0.0087158510748920111, 0.041013431906320397]

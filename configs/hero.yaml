@@ -1,0 +1,33 @@
+R_gimbal2imubody: [-1, 0, 0, 0, -1, 0, 0, 0, 1]
+
+# 重投影误差: 0.0951px
+camera_matrix: [1651.6585649926187, 0, 622.73571674284017, 0, 1653.3885001609801, 495.64538699532733, 0, 0, 1]
+distort_coeffs: [-0.47715332284611922, 0.22267867395306484, -0.0022184119883251656, 0.0022384624293930594, 0]
+
+# 相机同理想情况的偏角: yaw-0.02 pitch-1.71 roll-1.95 degree
+# 标定板到世界坐标系原点的水平距离: 1.21 m
+# 标定板同竖直摆放时的偏角: yaw45.15 pitch5.50 roll0.56 degree
+R_camera2gimbal: [0.001393978231025986, -0.029854383525101256, 0.99955328652805076, -0.99941805999300215, -0.034108660244492245, 0.00037504153096244405, 0.034082226812747682, -0.9989721292812237, -0.029884556794814037]
+t_camera2gimbal: [0.16985884380536476, 0.008821463993015739, 0.053228300302069015]
+
+model: "assets/mlp.onnx"
+
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 2
+max_lightbar_ratio: 10
+min_armor_ratio: 1
+max_armor_ratio: 6
+max_side_ratio: 2
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+enemy_color: "red"
+# enemy_color: "blue"
+min_detect_count: 5
+max_temp_lost_count: 10
+
+yaw_offset: 0.7 # degree -left
+pitch_offset: 1.5 # degree +up 
+comming_angle: 60 # degree
+leaving_angle: 10 # degree

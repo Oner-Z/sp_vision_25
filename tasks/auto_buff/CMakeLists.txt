@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.16)
+# set(OpenVINO_DIR "/opt/intel/openvino_2023.3.0/runtime/cmake/")
+
+find_package(OpenVINO REQUIRED)
+
+add_library(auto_buff OBJECT 
+    yolov8kp.cpp
+    buff_type.cpp
+    buff_detector.cpp
+    buff_solver.cpp
+    buff_aimer.cpp
+    buff_target.cpp
+)
+
+target_link_libraries(auto_buff openvino::runtime)
