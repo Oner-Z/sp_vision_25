@@ -27,6 +27,7 @@ const std::string keys =
   "{config-path c  | configs/standard5.yaml | yaml配置文件的路径}"
   "{start-index s  | 0                      | 视频起始帧下标    }"
   "{end-index e    | 0                      | 视频结束帧下标    }"
+  "{show-iou i     | 1                      | 显示predict位置计算iou}"
   "{@input-path    |                        | avi和txt文件的路径}";
 
 double computeIOU(
@@ -70,6 +71,7 @@ int main(int argc, char * argv[])
   auto config_path = cli.get<std::string>("config-path");
   auto start_index = cli.get<int>("start-index");
   auto end_index = cli.get<int>("end-index");
+  auto show_iou = cli.get<bool>("show-iou");
 
   // 初始化绘图器和退出器
   tools::Plotter plotter;
@@ -192,7 +194,7 @@ int main(int argc, char * argv[])
       data["R_pitch"] = x[2] * 57.3;
       data["R_dis"] = x[3];
       data["yaw"] = x[4] * 57.3;
-
+      // pitch = 0
       data["angle"] = x[5] * 57.3;
       data["spd"] = x[6] * 57.3;
       if (x.size() >= 10) {
@@ -216,7 +218,7 @@ int main(int argc, char * argv[])
 
     ///
 
-    if (!target.is_unsolve()) {
+    if (!target.is_unsolve() && show_iou) {
       // 显示预测buff点位
       double angle = target.ekf_x()[5] - target_pre.ekf_x()[5];
       // cv::Point2f pre_in_img =
@@ -284,6 +286,7 @@ int main(int argc, char * argv[])
   cv::destroyAllWindows();
   text.close();  // 关闭文件
 
+  if (!show_iou) return 0;
   double mean = 0, variance = 0;
   for (double i : ious) {
     mean += i;
