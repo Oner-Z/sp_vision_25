@@ -1,14 +1,19 @@
+camera_name: "hikrobot"
+exposure_ms: 3
+gain: 16
+
 enemy_color: "red"
 #enemy_color: "blue"
 
 classify_model: "assets/tiny_resnet.onnx"
 # model: "assets/buff.onnx"  # IOU:0.80  0.63      30FPS
+# model: "assets/my_buff_int8_openvino_model/my_buff_int8.xml"  # IOU:0.73  0.62 records/Big/2024-05-14_11-02-21
 # model: "assets/mybuff_int8_openvino_model/mybuff.xml"  # IOU: 0.76 0.66
+# model: "assets/best_int8_openvino_model/best.xml"  # IOU: 0.75 0.64
 
 # model: "assets/2ns_int8_openvino_model/2ns_int8.xml"  # IOU:
-model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.   0.75
 
-# records/Big/2024-05-14_11-02-21
+model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.82   0.75
 
 threshold: 150
 max_angle_error: 45 # degree
@@ -24,8 +29,8 @@ min_confidence: 0.8
 min_detect_count: 5
 max_temp_lost_count: 10
 
-yaw_offset: -1.0 # degree
-pitch_offset: 0.8 # degree
+yaw_offset: -0.5 # degree
+pitch_offset: 2 # degree
 comming_angle: 50 # degree
 leaving_angle: 30 # degree
 
@@ -33,17 +38,17 @@ camera_name: "hikrobot"
 exposure_ms: 6
 gain: 16.98
 
-# 重投影误差: 0.1712px
-camera_matrix: [1606.4621945373342, 0, 718.35189471286367, 0, 1607.7959825661596, 556.20295066305948, 0, 0, 1]
-distort_coeffs: [-0.11902379858301006, 0.10035853057524424, 5.8754877878169769e-05, -0.00053565612841224299, 0]
-
+# 重投影误差: 0.1566px
+camera_matrix: [1606.4155249934593, 0, 741.44388996013845, 0, 1610.5731107532686, 566.83709079995151, 0, 0, 1]
+distort_coeffs: [-0.11513719669045987, 0.092688520661560581, -0.0012388523488981705, 0.0015810699816814276, 0]
 #  0 -1  0
 #  1  0  0
 #  0  0  1
 R_gimbal2imubody: [0, -1, 0, 1, 0, 0, 0, 0, 1]
 
 # 相机同理想情况的偏角: yaw-1.59 pitch-1.60 roll1.05 degree
-# 标定板到世界坐标系原点的水平距离: 1.93 m
-# 标定板同竖直摆放时的偏角: yaw124.78 pitch4.44 roll-0.11 degree
-R_camera2gimbal: [0.027267568387732109, -0.028387897204956207, 0.9992250031932256, -0.99945925786737388, 0.017601037375940945, 0.027774004869464585, -0.018375842223382517, -0.99944200971120467, -0.027892609182537321]
-t_camera2gimbal: [0.16178923859264377, 0.0087158510748920111, 0.041013431906320397]
+# R_camera2gimbal: [0.027267568387732109, -0.028387897204956207, 0.9992250031932256, -0.99945925786737388, 0.017601037375940945, 0.027774004869464585, -0.018375842223382517, -0.99944200971120467, -0.027892609182537321]
+# t_camera2gimbal: [0.16178923859264377, 0.0087158510748920111, 0.041013431906320397]
+# 相机同理想情况的偏角: yaw-0.80 pitch-2.47 roll1.36 degree
+R_camera2gimbal: [0.012997257633028392, -0.043341609952616864, 0.99897576354020523, -0.99963529299816278, 0.02308829954517444, 0.014007548557465959, -0.023671761372955583, -0.9987934898019849, -0.043025718386499046]
+t_camera2gimbal: [0.1839661896673325, -0.00033166343429191336, 0.033932411575192889]
