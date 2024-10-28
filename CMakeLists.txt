@@ -18,3 +18,35 @@ include_directories(${PROJECT_SOURCE_DIR})
 
 add_subdirectory(tools)
 add_subdirectory(io)
+add_subdirectory(tasks/auto_aim)
+
+add_executable(camera_test examples/camera_test.cpp)
+# add_executable(cboard_test examples/cboard_test.cpp)
+target_link_libraries(camera_test ${OpenCV_LIBS} fmt::fmt tools io)
+# target_link_libraries(cboard_test ${OpenCV_LIBS} fmt::fmt tools)
+
+add_executable(fast_recorder examples/fast_recorder.cpp)
+target_link_libraries(fast_recorder ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io)
+
+add_executable(auto_aim_test examples/auto_aim_test.cpp)
+target_link_libraries(auto_aim_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
+add_executable(armor_detector_video examples/armor_detector_video.cpp)
+target_link_libraries(armor_detector_video ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
+
+add_executable(capture examples/capture.cpp)
+add_executable(calibrate_camera examples/calibrate_camera.cpp)
+add_executable(calibrate_handeye examples/calibrate_handeye.cpp)
+add_executable(calibrate_robotworld_handeye examples/calibrate_robotworld_handeye.cpp)
+target_link_libraries(capture ${OpenCV_LIBS} fmt::fmt tools io)
+target_link_libraries(calibrate_camera ${OpenCV_LIBS} fmt::fmt yaml-cpp tools)
+target_link_libraries(calibrate_handeye ${OpenCV_LIBS} fmt::fmt yaml-cpp tools)
+target_link_libraries(calibrate_robotworld_handeye ${OpenCV_LIBS} fmt::fmt yaml-cpp tools)
+
+add_executable(split examples/split_vedio.cpp)
+target_link_libraries(split ${OpenCV_LIBS} fmt::fmt yaml-cpp tools)
+
+add_executable(auto_aim_debug src/auto_aim_debug.cpp)
+target_link_libraries(auto_aim_debug ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
+
+add_executable(standard src/standard.cpp)
+target_link_libraries(standard ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
