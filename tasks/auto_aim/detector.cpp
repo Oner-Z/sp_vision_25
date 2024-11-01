@@ -10,23 +10,6 @@
 
 namespace auto_aim
 {
-Voter::Voter() : count_(COLORS.size() * ARMOR_NAMES.size() * ARMOR_TYPES.size(), 0) {}
-
-void Voter::vote(const Color color, const ArmorName name, const ArmorType type)
-{
-  count_[index(color, name, type)] += 1;
-}
-
-std::size_t Voter::count(const Color color, const ArmorName name, const ArmorType type)
-{
-  return count_[index(color, name, type)];
-}
-
-std::size_t Voter::index(const Color color, const ArmorName name, const ArmorType type) const
-{
-  return color * (ARMOR_NAMES.size() * ARMOR_TYPES.size()) + name * ARMOR_TYPES.size() + type;
-}
-
 Detector::Detector(const std::string & config_path, bool debug)
 : classifier_(config_path), debug_(debug)
 {
@@ -159,18 +142,24 @@ bool Detector::check_name(const Armor & armor) const
   // 保存不确定的图案，用于分类器的迭代
   if (name_ok && !confidence_ok) save(armor);
 
+  // 出现 5号 则显示 debug 信息。但不过滤。
+  if (armor.name == ArmorName::five) tools::logger()->debug("See pattern 5");
+
   return name_ok && confidence_ok;
 }
 
 bool Detector::check_type(const Armor & armor) const
 {
-  auto name_ok = (armor.type == ArmorType::small)
+  auto name_ok = armor.type == ArmorType::small
                    ? (armor.name != ArmorName::one && armor.name != ArmorName::base)
-                   : (armor.name != ArmorName::two && armor.name != ArmorName::sentry &&
-                      armor.name != ArmorName::outpost);
+                   : (armor.name == ArmorName::one || armor.name == ArmorName::base);
 
   // 保存异常的图案，用于分类器的迭代
-  if (!name_ok) save(armor);
+  if (!name_ok) {
+    tools::logger()->debug(
+      "see strange armor: {} {}", ARMOR_TYPES[armor.type], ARMOR_NAMES[armor.name]);
+    save(armor);
+  }
 
   return name_ok;
 }
@@ -209,29 +198,20 @@ cv::Mat Detector::get_pattern(const cv::Mat & bgr_img, const Armor & armor) cons
 
 ArmorType Detector::get_type(const Armor & armor)
 {
-  auto big = voter_.count(armor.color, armor.name, ArmorType::big);
-  auto small = voter_.count(armor.color, armor.name, ArmorType::small);
-
   /// 优先根据当前armor.ratio判断
+  /// TODO: 25赛季是否还需要根据比例判断大小装甲？能否根据图案直接判断？
 
   if (armor.ratio > 3.0) {
-    // 最多领先100票
-    if (big - small < 100) voter_.vote(armor.color, armor.name, ArmorType::big);
+    // tools::logger()->debug(
+    //   "[Detector] get armor type by ratio: BIG {} {:.2f}", ARMOR_NAMES[armor.name], armor.ratio);
     return ArmorType::big;
   }
 
   if (armor.ratio < 2.5) {
-    // 最多领先100票
-    if (small - big < 100) voter_.vote(armor.color, armor.name, ArmorType::small);
+    // tools::logger()->debug(
+    //   "[Detector] get armor type by ratio: SMALL {} {:.2f}", ARMOR_NAMES[armor.name], armor.ratio);
     return ArmorType::small;
   }
-
-  // 如果无法通过armor.ratio判断，则根据选票决定
-  if (big != small) {
-    return (big > small) ? ArmorType::big : ArmorType::small;
-  }
-
-  /// 如果选票相等，则根据装甲板类型判断
 
   tools::logger()->debug("[Detector] get armor type by name: {}", ARMOR_NAMES[armor.name]);
 
@@ -240,14 +220,8 @@ ArmorType Detector::get_type(const Armor & armor)
     return ArmorType::big;
   }
 
-  // 工程、哨兵、前哨站只能是小装甲板
-  if (
-    armor.name == ArmorName::two || armor.name == ArmorName::sentry ||
-    armor.name == ArmorName::outpost) {
-    return ArmorType::small;
-  }
-
-  // 步兵假设为小装甲板
+  // 其他所有（工程、哨兵、前哨站、步兵）都是小装甲板
+  /// TODO: 基地顶装甲是小装甲板
   return ArmorType::small;
 }
 

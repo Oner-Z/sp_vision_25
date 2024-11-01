@@ -29,7 +29,7 @@ std::list<Target> Tracker::track(
   last_timestamp_ = t;
 
   // 时间间隔过长，说明可能发生了相机离线
-  if (state_ != "lost" && dt > 0.1) {
+  if (state_ != "lost" && dt > 0.3) {
     tools::logger()->warn("[Tracker] Large dt: {:.3f}s", dt);
     state_ = "lost";
   }
