@@ -23,7 +23,7 @@ public:
   Target() = default;
   Target(
     const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-    Eigen::VectorXd P0_dig);
+    Eigen::VectorXd P0_dig, double v1 = 100.0, double v2 = 400.0);
 
   void predict(std::chrono::steady_clock::time_point t);
   void update(const Armor & armor, std::chrono::steady_clock::time_point t);
@@ -37,9 +37,10 @@ private:
   int armor_num_;
   tools::ExtendedKalmanFilter ekf_;
   std::chrono::steady_clock::time_point t_;
+  std::chrono::steady_clock::time_point t_last_update_;
 
-  double outpost_last_seen_yaw_;
-  std::chrono::steady_clock::time_point outpost_last_seen_t_;  // 用于前哨站装甲板跳变检测
+  double v1_;  // 加速度方差
+  double v2_;  // 角加速度方差
 
   void update_ypda(const Armor & armor, int id);  // yaw pitch distance angle
 

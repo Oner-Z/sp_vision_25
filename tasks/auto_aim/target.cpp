@@ -7,8 +7,15 @@ namespace auto_aim
 {
 Target::Target(
   const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-  Eigen::VectorXd P0_dig)
-: name(armor.name), armor_type(armor.type), jumped(false), last_id(0), armor_num_(armor_num), t_(t)
+  Eigen::VectorXd P0_dig, double v1, double v2)
+: name(armor.name),
+  armor_type(armor.type),
+  jumped(false),
+  last_id(0),
+  armor_num_(armor_num),
+  t_(t),
+  v1_(v1),
+  v2_(v2)
 {
   auto r = radius;
 
@@ -36,11 +43,6 @@ Target::Target(
   };
 
   ekf_ = tools::ExtendedKalmanFilter(x0, P0, x_add);
-
-  if (armor.name == auto_aim::outpost) {
-    outpost_last_seen_t_ = t;
-    outpost_last_seen_yaw_ = armor.ypr_in_world[0];
-  }
 }
 
 void Target::predict(std::chrono::steady_clock::time_point t)
@@ -66,24 +68,22 @@ void Target::predict(std::chrono::steady_clock::time_point t)
 
   // Piecewise White Noise Model
   // https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/07-Kalman-Filter-Math.ipynb
-  auto v1 = 10.0;  // 加速度方差
-  auto v2 = 0.0;   // 角加速度方差
   auto a = dt * dt * dt * dt / 4;
   auto b = dt * dt * dt / 2;
   auto c = dt * dt;
   // clang-format off
   Eigen::MatrixXd Q{
-    {a * v1, b * v1,      0,      0,      0,      0,      0,      0, 0, 0, 0},
-    {b * v1, c * v1,      0,      0,      0,      0,      0,      0, 0, 0, 0},
-    {     0,      0, a * v1, b * v1,      0,      0,      0,      0, 0, 0, 0},
-    {     0,      0, b * v1, c * v1,      0,      0,      0,      0, 0, 0, 0},
-    {     0,      0,      0,      0, a * v1, b * v1,      0,      0, 0, 0, 0},
-    {     0,      0,      0,      0, b * v1, c * v1,      0,      0, 0, 0, 0},
-    {     0,      0,      0,      0,      0,      0, a * v2, b * v2, 0, 0, 0},
-    {     0,      0,      0,      0,      0,      0, b * v2, c * v2, 0, 0, 0},
-    {     0,      0,      0,      0,      0,      0,      0,      0, 0, 0, 0},
-    {     0,      0,      0,      0,      0,      0,      0,      0, 0, 0, 0},
-    {     0,      0,      0,      0,      0,      0,      0,      0, 0, 0, 0}
+    {a * v1_, b * v1_,       0,       0,       0,       0,       0,       0, 0, 0, 0},
+    {b * v1_, c * v1_,       0,       0,       0,       0,       0,       0, 0, 0, 0},
+    {      0,       0, a * v1_, b * v1_,       0,       0,       0,       0, 0, 0, 0},
+    {      0,       0, b * v1_, c * v1_,       0,       0,       0,       0, 0, 0, 0},
+    {      0,       0,       0,       0, a * v1_, b * v1_,       0,       0, 0, 0, 0},
+    {      0,       0,       0,       0, b * v1_, c * v1_,       0,       0, 0, 0, 0},
+    {      0,       0,       0,       0,       0,       0, a * v2_, b * v2_, 0, 0, 0},
+    {      0,       0,       0,       0,       0,       0, b * v2_, c * v2_, 0, 0, 0},
+    {      0,       0,       0,       0,       0,       0,       0,       0, 0, 0, 0},
+    {      0,       0,       0,       0,       0,       0,       0,       0, 0, 0, 0},
+    {      0,       0,       0,       0,       0,       0,       0,       0, 0, 0, 0}
   };
   // clang-format on
 
@@ -97,46 +97,29 @@ void Target::predict(std::chrono::steady_clock::time_point t)
   ekf_.predict(F, Q, f);
 }
 
-void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t)
+void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t_img)
 {
-  // tools::logger()->debug("update");
-
   // 装甲板匹配
-  if (armor.name == auto_aim::outpost) {
-    // tools::logger()->debug("update outpost");
+  int id;
+  auto min_angle_error = 1e10;
+  const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
 
-    if (tools::delta_time(t, outpost_last_seen_t_) > 0.1) {
-      tools::logger()->debug("outpost jumped by time");
-      jumped = true;
-      outpost_last_seen_t_ = t;
-      if (tools::limit_rad(outpost_last_seen_yaw_ - armor.ypr_in_world[0]) > 0) {
-        --last_id;
-      } else {
-        ++last_id;
-      }
+  for (int i = 0; i < armor_num_; i++) {
+    Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
+    auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
+                       std::abs(tools::limit_rad(armor.ypd_in_world[0] - ypd[0]));
+
+    if (std::abs(angle_error) < std::abs(min_angle_error)) {
+      id = i;
+      min_angle_error = angle_error;
     }
-    outpost_last_seen_t_ = t;
-    outpost_last_seen_yaw_ = armor.ypd_in_world[0];
-  } else {
-    int id;
-    auto min_angle_error = 1e10;
-    const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
-
-    for (int i = 0; i < armor_num_; i++) {
-      Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
-      auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
-                         std::abs(tools::limit_rad(armor.ypd_in_world[0] - ypd[0]));
-
-      if (std::abs(angle_error) < std::abs(min_angle_error)) {
-        id = i;
-        min_angle_error = angle_error;
-      }
-    }
-
-    if (id != 0) jumped = true;
-    last_id = id;
   }
-  update_ypda(armor, last_id);
+
+  if (id != 0) jumped = true;
+  last_id = id;
+
+  update_ypda(armor, id);
+  t_last_update_ = t_img;
 }
 
 void Target::update_ypda(const Armor & armor, int id)
