@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C/C++: g++ build and debug active file",
+            "type": "cppdbg",
+            "request": "launch",
+            // 只建议跑 auto_aim_test，因为别的程序可能依赖于 std::chrono::steady_clock::now()，打断点debug没有意义，反而会导致额外的问题
+            "program": "${workspaceRoot}/build/auto_aim_test",
+            // 在下方填写参数
+            "args": [
+                "-c=${workspaceRoot}/configs/standard.yaml",
+                "~/1101/sp_vision_25/records/2024-11-02_00-34-18",
+                "-s=500"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+            ],
+            "preLaunchTask": "CMake: build"
+        }
+    ]
+}
