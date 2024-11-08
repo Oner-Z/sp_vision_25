@@ -30,9 +30,19 @@ private:
   int max_temp_lost_count_;
   int detect_count_;
   int temp_lost_count_;
-  std::string state_;
+
   Target target_;
   std::chrono::steady_clock::time_point last_timestamp_;
+
+  enum State
+  {
+    detecting,
+    tracking,
+    lost,
+    temp_lost
+  };
+  const std::vector<std::string> state_names_ = {"detecting", "tracking", "lost", "temp_lost"};
+  State state_;
 
   void state_machine(bool found);
 

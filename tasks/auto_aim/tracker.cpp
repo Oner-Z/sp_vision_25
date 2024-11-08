@@ -11,7 +11,7 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
 : solver_{solver},
   detect_count_(0),
   temp_lost_count_(0),
-  state_{"lost"},
+  state_{lost},
   last_timestamp_(std::chrono::steady_clock::now())
 {
   auto yaml = YAML::LoadFile(config_path);
@@ -20,18 +20,18 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
   max_temp_lost_count_ = yaml["max_temp_lost_count"].as<int>();
 }
 
-std::string Tracker::state() const { return state_; }
+std::string Tracker::state() const { return state_names_[state_]; }
 
 std::list<Target> Tracker::track(
-  std::list<Armor> & armors, std::chrono::steady_clock::time_point t, bool use_enemy_color)
+  std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img, bool use_enemy_color)
 {
-  auto dt = tools::delta_time(t, last_timestamp_);
-  last_timestamp_ = t;
+  auto dt = tools::delta_time(t_img, last_timestamp_);
+  last_timestamp_ = t_img;
 
   // 时间间隔过长，说明可能发生了相机离线
-  if (state_ != "lost" && dt > 0.3) {
+  if (state_ != lost && dt > 0.3) {
     tools::logger()->warn("[Tracker] Large dt: {:.3f}s", dt);
-    state_ = "lost";
+    state_ = lost;
   }
 
   // 过滤掉我方颜色的装甲板
@@ -40,17 +40,17 @@ std::list<Target> Tracker::track(
   // 过滤掉前哨站
   // armors.remove_if([](const Armor & a) { return a.name == ArmorName::outpost; });
 
-  auto lost = (state_ == "lost");
-  auto found = (lost) ? set_target(armors, t) : update_target(armors, t);
+  auto is_lost = (state_ == lost);
+  auto found = (is_lost) ? set_target(armors, t_img) : update_target(armors, t_img);
   state_machine(found);
 
   // 发散检测
-  if (state_ != "lost" && target_.diverged()) {
+  if (state_ != lost && target_.diverged()) {
     tools::logger()->debug("[Tracker] Target diverged!");
-    state_ = "lost";
+    state_ = lost;
   }
 
-  if (state_ == "lost") return {};
+  if (state_ == lost) return {};
 
   std::list<Target> targets = {target_};
   return targets;
@@ -58,36 +58,36 @@ std::list<Target> Tracker::track(
 
 void Tracker::state_machine(bool found)
 {
-  if (state_ == "lost") {
+  if (state_ == lost) {
     if (!found) return;
 
-    state_ = "detecting";
+    state_ = detecting;
     detect_count_ = 1;
   }
 
-  else if (state_ == "detecting") {
+  else if (state_ == detecting) {
     if (found) {
       detect_count_++;
-      if (detect_count_ >= min_detect_count_) state_ = "tracking";
+      if (detect_count_ >= min_detect_count_) state_ = tracking;
     } else {
       detect_count_ = 0;
-      state_ = "lost";
+      state_ = lost;
     }
   }
 
-  else if (state_ == "tracking") {
+  else if (state_ == tracking) {
     if (found) return;
 
     temp_lost_count_ = 1;
-    state_ = "temp_lost";
+    state_ = temp_lost;
   }
 
-  else if (state_ == "temp_lost") {
+  else if (state_ == temp_lost) {
     if (found) {
-      state_ = "tracking";
+      state_ = tracking;
     } else {
       temp_lost_count_++;
-      if (temp_lost_count_ > max_temp_lost_count_) state_ = "lost";
+      if (temp_lost_count_ > max_temp_lost_count_) state_ = lost;
     }
   }
 }
@@ -107,17 +107,7 @@ bool Tracker::set_target(std::list<Armor> & armors, std::chrono::steady_clock::t
   auto & armor = armors.front();
   solver_.solve(armor);
 
-  // 根据兵种优化初始化参数
-  auto is_balance = (armor.type == ArmorType::big) &&
-                    (armor.name == ArmorName::three || armor.name == ArmorName::four ||
-                     armor.name == ArmorName::five);
-
-  if (is_balance) {
-    Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
-    target_ = Target(armor, t, 0.2, 2, P0_dig);
-  }
-
-  else if (armor.name == ArmorName::outpost) {
+  if (armor.name == ArmorName::outpost) {
     Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}};
     target_ = Target(armor, t, 0.2765, 3, P0_dig);
   }
