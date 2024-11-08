@@ -68,6 +68,7 @@ io::Command Aimer::aim(
   debug_aim_point = aim_point1;
   if (!aim_point1.valid) {
     aim_point1 = choose_coming_aim_point(target);
+    tools::logger()->debug("aim at coming point");
     can_fire = false;
   }
 
@@ -156,7 +157,6 @@ AimPoint Aimer::choose_aim_point(const Target & target)
 
 AimPoint Aimer::choose_coming_aim_point(const Target & target)
 {
-  tools::logger()->debug("aim at coming point");
   Eigen::VectorXd ekf_x = target.ekf_x();
   Eigen::Vector3d center = {ekf_x[0], ekf_x[2], ekf_x[4]};
   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
