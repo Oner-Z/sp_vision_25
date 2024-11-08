@@ -2,7 +2,7 @@
 - This branch will provide the common code for `sp_vision`, and other branches need to **be created from this branch**
 - Other branches should be named after algorithm functions, such as `auto_aim`,`auto_buff`,`auto_aim_sentry`
 
-- Place the algorithm function code in the `tasks` folder and the algorithm test code in the `examples` folder.
+- Place the algorithm function code in the `tasks` folder and the algorithm test code in the `tests` folder. Place other code in `examples` folder. 
 
 - The src folder contains c++ files named after the robot, such as `standard3.cpp` `hero.cpp`
 
@@ -38,16 +38,17 @@
         nlohmann-json3-dev \
         screen
     ```
-2. Build:
+2. Install [OpenVINO](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_from_archive_linux.html)
+3. Build:
     ```bash
     cmake -B build
     make -C build/ -j`nproc`
     ```
-3. Verify:
+4. Verify:
     ```bash
     ./build/auto_aim_test
     ```
-4. Autostart:
+5. Autostart:
     1. Make sure `screen` has been installed:
         ```
         sudo apt install screen
