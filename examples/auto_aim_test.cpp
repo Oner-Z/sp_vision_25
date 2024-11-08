@@ -48,7 +48,7 @@ int main(int argc, char * argv[])
   auto_aim::Tracker tracker(config_path, solver);
   auto_aim::Aimer aimer(config_path);
 
-  cv::Mat img, drawing;
+  cv::Mat img;
   auto t0 = std::chrono::steady_clock::now();
 
   auto_aim::Target last_target;
@@ -107,6 +107,10 @@ int main(int argc, char * argv[])
       data["armor_yaw_raw"] = armor.yaw_raw * 57.3;
     }
 
+    for (auto armor : armors) {
+      tools::draw_point(img, armor.center, cv::Scalar(255, 0, 255), 10);
+    }
+
     if (!targets.empty()) {
       auto target = targets.front();
 
@@ -131,10 +135,12 @@ int main(int argc, char * argv[])
 
       // 当前帧target更新后
       armor_xyza_list = target.armor_xyza_list();
-      for (const Eigen::Vector4d & xyza : armor_xyza_list) {
+      for (int i = 0; i < armor_xyza_list.size(); ++i) {
+        Eigen::Vector4d xyza = armor_xyza_list[i];
         auto image_points =
           solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
         tools::draw_points(img, image_points, {0, 255, 0});
+        tools::draw_text(img, fmt::format("{}", i), image_points[2]);
       }
 
       // aimer瞄准位置
@@ -167,7 +173,7 @@ int main(int argc, char * argv[])
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
-    auto key = cv::waitKey(33);
+    auto key = cv::waitKey(0);
     if (key == 'q') break;
   }
 
