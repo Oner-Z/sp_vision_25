@@ -102,22 +102,30 @@ void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t
   // 装甲板匹配
   int id;
   auto min_angle_error = 1e10;
+  auto second_min_angle_error = 1e10;
   const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
-
+  tools::logger()->info("armor match info:");
   for (int i = 0; i < armor_num_; i++) {
     Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
     auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
                        std::abs(tools::limit_rad(armor.ypd_in_world[0] - ypd[0]));
+    tools::logger()->info("  {:.5f}", angle_error);
 
-    if (std::abs(angle_error) < std::abs(min_angle_error)) {
+    if (angle_error < min_angle_error) {
       id = i;
+      second_min_angle_error = min_angle_error;
       min_angle_error = angle_error;
     }
   }
 
   if (id != 0) jumped = true;
   last_id = id;
+  tools::logger()->info("==> updating id: {}", id);
 
+  if (second_min_angle_error / min_angle_error < 1.5)
+    tools::logger()->warn(
+      "### id matching may be wrong, min:{:5f}, second_min:{:5f}", min_angle_error,
+      second_min_angle_error);
   update_ypda(armor, id);
   t_last_update_ = t_img;
 }
