@@ -8,7 +8,7 @@
 
 #include "buff_type.hpp"
 #include "tools/img_tools.hpp"
-
+#include "yolov8kp.hpp"
 const int LOSE_MAX = 20;  // 丢失的阙值
 namespace auto_buff
 {
@@ -19,23 +19,16 @@ public:
 
   std::optional<PowerRune> detect(cv::Mat & bgr_img);
 
+  std::optional<PowerRune> detect_debug(cv::Mat & bgr_img, cv::Point2f v);
+
 private:
-  void handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img);
+  void handle_img(const cv::Mat & bgr_img, cv::Mat & dilated_img);
 
   cv::Point2f get_r_center(std::vector<FanBlade> & fanblades, cv::Mat & bgr_img);
 
   void handle_lose();
 
-  std::string enemy_color_;
-  int contrast_;
-  int brightness_;
-  int canny_low_threshold_;
-  int canny_high_threshold_;
-  float approx_epsilon_;
-  int R_contours_min_area_;
-  int R_contours_max_area_;
-  int target_contours_min_area_;
-  int target_contours_max_area_;
+  YOLOV8KP MODE_;
   Track_status status_;
   int lose_;  // 丢失的次数
   double lastlen_;

@@ -4,24 +4,69 @@
 
 namespace auto_buff
 {
-Buff_Detector::Buff_Detector(const std::string & config) : status_(LOSE), lose_(0), MODE_(config) {}
-
-void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & dilated_img)
+Buff_Detector::Buff_Detector(const std::string & config_path) : status_(LOSE), lose_(0)
 {
-  // 彩色图转灰度图
-  cv::Mat gray_img;
-  cv::cvtColor(bgr_img, gray_img, cv::COLOR_BGR2GRAY);  // 彩色图转灰度图
-  // cv::imshow("gray", gray_img);  // 调试用
+  auto yaml = YAML::LoadFile(config_path);
 
-  // 进行二值化           :把高于100变成255，低于100变成0
-  cv::Mat binary_img;
-  cv::threshold(gray_img, binary_img, 100, 255, cv::THRESH_BINARY);
-  // cv::imshow("binary", binary_img);  // 调试用
+  enemy_color_ = yaml["enemy_color"].as<std::string>();
+  auto fsDetect = yaml["detect"];
 
-  // 膨胀
-  cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5));  // 使用矩形核
-  cv::dilate(binary_img, dilated_img, kernel, cv::Point(-1, -1), 1);
-  // cv::imshow("Dilated Image", dilated_img);  // 调试用
+  contrast_ = fsDetect["contrast"].as<int>();
+  brightness_ = fsDetect["brightness"].as<int>();
+  canny_low_threshold_ = fsDetect["canny_low_threshold"].as<int>();
+  canny_high_threshold_ = fsDetect["canny_high_threshold"].as<int>();
+  approx_epsilon_ = fsDetect["approx_epsilon"].as<float>();
+  R_contours_min_area_ = fsDetect["R_contours_min_area"].as<int>();
+  R_contours_max_area_ = fsDetect["R_contours_max_area"].as<int>();
+  target_contours_min_area_ = fsDetect["target_contours_min_area"].as<int>();
+  target_contours_max_area_ = fsDetect["target_contours_max_area"].as<int>();
+}
+
+void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
+{
+  // Step 1: 读取图像并调整亮度和对比度
+  bgr_img.convertTo(bgr_img, -1, contrast_, brightness_);
+
+  // Step 2: 提取颜色通道
+  std::vector<cv::Mat> channels;
+  cv::split(bgr_img, channels);  // 分离 BGR 通道
+  cv::Mat blue = channels[0];    // 蓝色通道
+  cv::Mat red = channels[2];     // 红色通道
+
+  // Step 4: 转换为灰度图
+  cv::Mat gray_image;
+  cv::cvtColor(bgr_img, gray_image, cv::COLOR_BGR2GRAY);
+
+  // Step 5: 边缘检测
+  cv::Mat edges;
+  cv::Canny(gray_image, edges, 200, 230);
+  //   cv::imshow("Edges", edges);
+
+  // Step 6: 闭运算
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
+  cv::morphologyEx(edges, edges, cv::MORPH_CLOSE, element);
+
+  // Step 7: 查找轮廓
+  std::vector<std::vector<cv::Point>> contours;
+  cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+  // Step 8: 轮廓近似
+  for (size_t i = 0; i < contours.size(); i++) {
+    cv::approxPolyDP(contours[i], contours[i], 1.0, true);
+  }
+
+  // Step 9: 绘制并填充轮廓
+  handled_img = cv::Mat::zeros(edges.size(), CV_8UC1);
+  for (size_t i = 0; i < contours.size(); i++) {
+    double area = cv::contourArea(contours[i]);
+    if (
+      (area > target_contours_min_area_ && area < target_contours_max_area_) ||
+      (area > R_contours_min_area_ && area < R_contours_max_area_)) {
+      cv::drawContours(handled_img, contours, static_cast<int>(i), cv::Scalar(255), cv::FILLED);
+    }
+  }
+
+  //   cv::imshow("Filled Contours", filled_image);
 }
 
 cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::Mat & bgr_img)
@@ -84,72 +129,69 @@ void Buff_Detector::handle_lose()
   status_ = TEM_LOSE;
 }
 
+// 函数 1：获取扇叶轮廓的四个边缘点
+std::vector<std::vector<cv::Point>> get_fanblade_corners(
+  const cv::Mat & binary_img, double area_min, double area_max)
+{
+  std::vector<std::vector<cv::Point>> corners_list;
+
+  // 查找所有轮廓
+  std::vector<std::vector<cv::Point>> contours;
+  cv::findContours(binary_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+  for (const auto & contour : contours) {
+    double area = cv::contourArea(contour);
+    // 只考虑面积在范围内的轮廓
+    if (area >= area_min && area <= area_max) {
+      // 使用多边形逼近来找到近似的四个角点
+      std::vector<cv::Point> approx;
+      cv::approxPolyDP(contour, approx, 0.02 * cv::arcLength(contour, true), true);
+
+      // 只保留四个顶点的轮廓
+      if (approx.size() == 4) {
+        corners_list.push_back(approx);
+      }
+    }
+  }
+
+  return corners_list;
+}
+
 std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
 {
-  /// onnx 模型检测
+  /// get filled_image
+  cv::Mat handled_img;
+  handle_img(bgr_img, handled_img);
 
-  std::vector<YOLOV8KP::Object> results = MODE_.get_multicandidateboxes(bgr_img);
+  /// get fanblades
+
+  /// get R_center
 
   /// 处理未获得的情况
+  //   if (handled_img.empty()) {
+  //     handle_lose();
+  //     return std::nullopt;
+  //   }
 
-  if (results.empty()) {
-    handle_lose();
-    return std::nullopt;
-  }
+  //   /// results转扇叶FanBlade
+  //   std::vector<FanBlade> fanblades;
+  //   for (auto & result : results) fanblades.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
 
-  /// results转扇叶FanBlade
+  //   /// 生成PowerRune
+  //   auto r_center = get_r_center(fanblades, bgr_img);
+  //   PowerRune powerrune(fanblades, r_center, last_powerrune_);
 
-  std::vector<FanBlade> fanblades;
-  for (auto & result : results) fanblades.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
-
-  /// 生成PowerRune
-  auto r_center = get_r_center(fanblades, bgr_img);
-  PowerRune powerrune(fanblades, r_center, last_powerrune_);
-
-  /// handle error
-  if (powerrune.is_unsolve()) {
-    handle_lose();
-    return std::nullopt;
-  }
+  //   /// handle error
+  //   if (powerrune.is_unsolve()) {
+  //     handle_lose();
+  //     return std::nullopt;
+  //   }
 
   status_ = TRACK;
   lose_ = 0;
   std::optional<PowerRune> P;
-  P.emplace(powerrune);
+  //   P.emplace(powerrune);
   last_powerrune_ = P;
-  return P;
-}
-
-std::optional<PowerRune> Buff_Detector::detect_debug(cv::Mat & bgr_img, cv::Point2f v)
-{
-  /// onnx 模型检测
-
-  std::vector<YOLOV8KP::Object> results = MODE_.get_multicandidateboxes(bgr_img);
-
-  /// 处理未获得的情况
-
-  if (results.empty()) return std::nullopt;
-
-  /// results转扇叶FanBlade
-
-  std::vector<FanBlade> fanblades_t;
-  for (auto & result : results)
-    fanblades_t.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
-
-  /// 计算r_center,筛选fanblade
-  auto r_center = get_r_center(fanblades_t, bgr_img);
-  std::vector<FanBlade> fanblades;
-  for (auto & fanblade : fanblades_t) {
-    if (cv::norm((fanblade.center - r_center) - v) < 10 || results.size() == 1) {
-      fanblades.emplace_back(fanblade);
-      break;
-    }
-  }
-  if (fanblades.empty()) return std::nullopt;
-  PowerRune powerrune(fanblades, r_center, std::nullopt);
-
-  std::optional<PowerRune> P;
-  P.emplace(powerrune);
   return P;
 }
 

@@ -6,14 +6,19 @@ enemy_color: "red"
 #enemy_color: "blue"
 
 classify_model: "assets/tiny_resnet.onnx"
-# model: "assets/buff.onnx"  # IOU:0.80  0.63      30FPS
-# model: "assets/my_buff_int8_openvino_model/my_buff_int8.xml"  # IOU:0.73  0.62 records/Big/2024-05-14_11-02-21
-# model: "assets/mybuff_int8_openvino_model/mybuff.xml"  # IOU: 0.76 0.66
-# model: "assets/best_int8_openvino_model/best.xml"  # IOU: 0.75 0.64
-
-# model: "assets/2ns_int8_openvino_model/2ns_int8.xml"  # IOU:
 
 model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.82   0.75
+
+detect:
+  contrast: 1.0
+  brightness: -50
+  canny_low_threshold: 200
+  canny_high_threshold: 230
+  approx_epsilon: 1.0
+  R_contours_min_area: 200
+  R_contours_max_area: 400
+  target_contours_min_area: 1000
+  target_contours_max_area: 12000
 
 threshold: 150
 max_angle_error: 45 # degree
