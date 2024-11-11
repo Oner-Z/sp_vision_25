@@ -74,14 +74,7 @@ void Solver::solve(Armor & armor) const
   Eigen::Matrix3d R_armor2world = R_gimbal2world_ * R_armor2gimbal;
   armor.ypr_in_gimbal = tools::eulers(R_armor2gimbal, 2, 1, 0);
   armor.ypr_in_world = tools::eulers(R_armor2world, 2, 1, 0);
-
   armor.ypd_in_world = tools::xyz2ypd(armor.xyz_in_world);
-
-  // 平衡不做yaw优化，因为pitch假设不成立
-  auto is_balance = (armor.type == ArmorType::big) &&
-                    (armor.name == ArmorName::three || armor.name == ArmorName::four ||
-                     armor.name == ArmorName::five);
-  if (is_balance) return;
 
   optimize_yaw(armor);
 }
@@ -174,9 +167,9 @@ double Solver::SJTU_cost(
     double angular_dis = ref_d.norm() * tools::get_abs_angle(ref_d, pt_d) / ref_d.norm();
     // 平方可能是为了配合 sin 和 cos
     // 弧度差代价（0 度左右占比应该大）
-    double cost_i = (pixel_dis * std::sin(inclined)) * (pixel_dis * std::sin(inclined)) +
-                    (angular_dis * std::cos(inclined)) * (angular_dis * std::cos(inclined)) *
-                      2.0;  // DETECTOR_ERROR_PIXEL_BY_SLOPE
+    double cost_i =
+      tools::square(pixel_dis * std::sin(inclined)) +
+      tools::square(angular_dis * std::cos(inclined)) * 2.0;  // DETECTOR_ERROR_PIXEL_BY_SLOPE
     // 重投影像素误差越大，越相信斜率
     cost += std::sqrt(cost_i);
   }
