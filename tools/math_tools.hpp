@@ -44,6 +44,13 @@ double delta_time(
 
 // 向量夹角 总是返回 0 ~ pi 来自SJTU
 double get_abs_angle(const Eigen::Vector2d & vec1, const Eigen::Vector2d & vec2);
+
+// 返回输入值的平方
+template <typename T>
+T square(T const & a)
+{
+  return a * a;
+};
 }  // namespace tools
 
 #endif  // TOOLS__MATH_TOOLS_HPP
