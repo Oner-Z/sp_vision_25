@@ -9,9 +9,9 @@
             "program": "${workspaceRoot}/build/auto_aim_test",
             // 在下方填写参数
             "args": [
-                "-c=${workspaceRoot}/configs/standard.yaml",
+                "-c=${workspaceRoot}/configs/sentry.yaml",
                 "~/1101/sp_vision_25/records/2024-11-02_00-34-18",
-                "-s=500"
+                "-s=1000"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",

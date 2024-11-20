@@ -17,38 +17,18 @@ class Tracker
 public:
   Tracker(const std::string & config_path, Solver & solver);
 
-  std::string state() const;
-
-  std::list<Target> track(
-    std::list<Armor> & armors, std::chrono::steady_clock::time_point t,
+  std::vector<Target> track(
+    std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img,
     bool use_enemy_color = true);
 
 private:
   Solver & solver_;
   Color enemy_color_;
-  int min_detect_count_;
-  int max_temp_lost_count_;
-  int detect_count_;
-  int temp_lost_count_;
 
-  Target target_;
+  std::vector<Target> targets_;
   std::chrono::steady_clock::time_point last_timestamp_;
 
-  enum State
-  {
-    detecting,
-    tracking,
-    lost,
-    temp_lost
-  };
-  const std::vector<std::string> state_names_ = {"detecting", "tracking", "lost", "temp_lost"};
-  State state_;
-
-  void state_machine(bool found);
-
-  bool set_target(std::list<Armor> & armors, std::chrono::steady_clock::time_point t);
-
-  bool update_target(std::list<Armor> & armors, std::chrono::steady_clock::time_point t);
+  bool update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img);
 };
 
 }  // namespace auto_aim

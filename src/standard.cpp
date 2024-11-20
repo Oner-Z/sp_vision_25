@@ -68,8 +68,9 @@ int main(int argc, char * argv[])
     if (command.control && (std::abs(command.yaw - real_yaw) < 2.4 / 57.3) && command.shoot) {
       // command.shoot = true;
       tools::logger()->debug("####### shoot #######");
-    } else
+    } else {
       command.shoot = false;
+    }
     tools::logger()->debug("{}", command.yaw);
     cboard.send(command);
     // cv::waitKey(30);

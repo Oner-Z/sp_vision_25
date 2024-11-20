@@ -5,50 +5,37 @@
 
 namespace auto_aim
 {
-Target::Target(
-  const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-  Eigen::VectorXd P0_dig, double v1, double v2)
-: name(armor.name),
-  armor_type(armor.type),
-  jumped(false),
-  last_id(0),
-  armor_num_(armor_num),
-  t_(t),
-  v1_(v1),
-  v2_(v2)
+Target::Target(ArmorName armor_name)
+: name(armor_name), state(lost), jumped(false), last_id(0), frame_cnt_since_reset_(0)
 {
-  auto r = radius;
-
-  const Eigen::VectorXd & xyz = armor.xyz_in_world;
-  const Eigen::VectorXd & ypr = armor.ypr_in_world;
-
-  // 旋转中心的坐标
-  auto center_x = xyz[0] + r * std::cos(ypr[0]);
-  auto center_y = xyz[1] + r * std::sin(ypr[0]);
-  auto center_z = xyz[2];
-
-  // x vx y vy z vz a w r l h
-  // a: angle
-  // w: angular velocity
-  // l: r2 - r1
-  // h: z2 - z1
-  Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], 2.5, r, 0, 0}};
-  Eigen::MatrixXd P0 = P0_dig.asDiagonal();
-
-  // 防止夹角求和出现异常值
-  auto x_add = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
-    Eigen::VectorXd c = a + b;
-    c[6] = tools::limit_rad(c[6]);
-    return c;
-  };
-
-  ekf_ = tools::ExtendedKalmanFilter(x0, P0, x_add);
+  /// TODO: 从一个未初始化的target中取ekf_x会导致错误  /// 非常不安全！
+  if (armor_name == ArmorName::outpost) {
+    armor_num_ = 3;
+    armor_type = small;
+    P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}}.asDiagonal();
+    r0_ = 0.28;
+    v1_ = 10;
+    v2_ = 40;
+  } else if (armor_name == ArmorName::base) {
+    armor_num_ = 3;
+    armor_type = big;
+    P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}}.asDiagonal();
+    r0_ = 0.3205;
+    v1_ = 10;
+    v2_ = 40;
+  } else {  // standard
+    armor_num_ = 4;
+    armor_type = small;
+    P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}}.asDiagonal();
+    r0_ = 0.3;
+    v1_ = 100;
+    v2_ = 400;
+  }
 }
 
-void Target::predict(std::chrono::steady_clock::time_point t)
+void Target::predict(std::chrono::steady_clock::time_point t_img)
 {
-  auto dt = tools::delta_time(t, t_);
-  t_ = t;
+  auto dt = tools::delta_time(t_img, t_last_seen_);
 
   // clang-format off
   Eigen::MatrixXd F{
@@ -97,9 +84,51 @@ void Target::predict(std::chrono::steady_clock::time_point t)
   ekf_.predict(F, Q, f);
 }
 
-void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t_img)
+void Target::reset(const Armor & armor, std::chrono::steady_clock::time_point t_img)
 {
-  // 装甲板匹配
+  state = detecting;
+  t_last_reset_ = t_img;
+
+  const Eigen::VectorXd & xyz = armor.xyz_in_world;
+  const Eigen::VectorXd & ypr = armor.ypr_in_world;
+
+  // 旋转中心的坐标
+  auto center_x = xyz[0] + r0_ * std::cos(ypr[0]);
+  auto center_y = xyz[1] + r0_ * std::sin(ypr[0]);
+  auto center_z = xyz[2];
+  Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], 2.5, r0_, 0, 0}};
+
+  // 防止夹角求和出现异常值
+  auto x_add = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
+    Eigen::VectorXd c = a + b;
+    c[6] = tools::limit_rad(c[6]);
+    return c;
+  };
+  ekf_ = tools::ExtendedKalmanFilter(x0, P0_, x_add);
+}
+
+bool Target::update(const Armor & armor, std::chrono::steady_clock::time_point t_img)
+{
+  auto dt_since_last_seen = tools::delta_time(t_img, t_last_seen_);
+
+  bool need_reset = name == outpost ? (dt_since_last_seen > 0.6)  // 三板的前哨站更容易长期看不见
+                                    : (dt_since_last_seen > 0.3);
+
+  /// TODO: lost -> detecting -> tracking 状态转换，前一个箭头还是需要连续帧数的信息
+  if (need_reset) {
+    reset(armor, t_img);
+    t_last_seen_ = t_img;
+    return false;
+  } else {
+    state = tracking;
+  }
+
+  // predict 需要使用 t_last_seen_ ，不能在 predict 之前更改 t_last_seen_ 为当前帧的时间
+  predict(t_img);
+  t_last_seen_ = t_img;
+  /// TODO: 到底在什么地方更新last_seen
+
+  // 装甲板匹配 with debug info
   int id;
   auto min_angle_error = 1e10;
   auto second_min_angle_error = 1e10;
@@ -127,7 +156,8 @@ void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t
       "### id matching may be wrong, min:{:5f}, second_min:{:5f}", min_angle_error,
       second_min_angle_error);
   update_ypda(armor, id);
-  t_last_update_ = t_img;
+
+  return true;
 }
 
 void Target::update_ypda(const Armor & armor, int id)

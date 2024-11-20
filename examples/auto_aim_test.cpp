@@ -81,8 +81,8 @@ int main(int argc, char * argv[])
     auto targets = tracker.track(armors, timestamp, false);
 
     auto aimer_start = std::chrono::steady_clock::now();
-    auto command = aimer.aim(targets, timestamp, 27, false);
-
+    /// TODO: 适配 Aimer
+    // auto command = aimer.aim(targets, timestamp, 27, false);
     /// 调试输出
 
     auto finish = std::chrono::steady_clock::now();
@@ -92,8 +92,8 @@ int main(int argc, char * argv[])
       tools::delta_time(aimer_start, tracker_start) * 1e3,
       tools::delta_time(finish, aimer_start) * 1e3);
 
-    tools::draw_text(
-      img, fmt::format("[{}] [{}]", frame_count, tracker.state()), {10, 30}, {255, 255, 255});
+    // tools::draw_text(
+    //   img, fmt::format("[{}] [{}]", frame_count, tracker.state()), {10, 30}, {255, 255, 255});
 
     nlohmann::json data;
 
@@ -111,9 +111,9 @@ int main(int argc, char * argv[])
       tools::draw_point(img, armor.center, cv::Scalar(255, 0, 255), 10);
     }
 
-    if (!targets.empty()) {
-      auto target = targets.front();
-
+    for (auto target : targets) {
+      /// TODO: 不在 tracking 状态的targets不必返回到main函数
+      if (target.state != auto_aim::State::tracking) continue;
       if (last_t == -1) {
         last_target = target;
         last_t = t;
@@ -173,7 +173,7 @@ int main(int argc, char * argv[])
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
-    auto key = cv::waitKey(0);
+    auto key = cv::waitKey(15);
     if (key == 'q') break;
   }
 
