@@ -23,6 +23,13 @@ Target::Target(ArmorName armor_name)
     r0_ = 0.3205;
     v1_ = 10;
     v2_ = 40;
+  } else if (armor_name == ArmorName::one) {  // hero
+    armor_num_ = 4;
+    armor_type = big;
+    P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}}.asDiagonal();
+    r0_ = 0.3205;
+    v1_ = 10;
+    v2_ = 40;
   } else {  // standard
     armor_num_ = 4;
     armor_type = small;
