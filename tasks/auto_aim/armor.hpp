@@ -8,13 +8,32 @@
 
 namespace auto_aim
 {
-enum Color { red, blue, purple };
-const std::vector<std::string> COLORS = {"red", "blue", "purple"};
+enum Color
+{
+  red,
+  blue
+};
+const std::vector<std::string> COLORS = {"red", "blue"};
 
-enum ArmorType { big, small };
+enum ArmorType
+{
+  big,
+  small
+};
 const std::vector<std::string> ARMOR_TYPES = {"big", "small"};
 
-enum ArmorName { one, two, three, four, five, sentry, outpost, base, not_armor };
+enum ArmorName
+{
+  one,
+  two,
+  three,
+  four,
+  five,
+  sentry,
+  outpost,
+  base,
+  not_armor
+};
 const std::vector<std::string> ARMOR_NAMES = {"one",    "two",     "three", "four",     "five",
                                               "sentry", "outpost", "base",  "not_armor"};
 
@@ -27,6 +46,7 @@ struct Lightbar
   double angle, angle_error, length, ratio;
 
   Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id);
+  Lightbar() {};
 };
 
 struct Armor
@@ -43,6 +63,8 @@ struct Armor
 
   ArmorType type;
   ArmorName name;
+  int class_id;
+  cv::Rect box;
   cv::Mat pattern;
   double confidence;
   bool duplicated;
@@ -56,6 +78,8 @@ struct Armor
   double yaw_raw;  // rad
 
   Armor(const Lightbar & left, const Lightbar & right);
+  Armor(
+    int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints);
 };
 
 }  // namespace auto_aim

@@ -1,21 +1,11 @@
 #enemy_color: "red"
 enemy_color: "blue"
 
-classify_model: "assets/tiny_resnet.onnx"
-
-threshold: 150
-max_angle_error: 45 # degree
-min_lightbar_ratio: 2
-max_lightbar_ratio: 20
-min_lightbar_length: 8
-min_armor_ratio: 1
-max_armor_ratio: 5
-max_side_ratio: 1.5
-max_rectangular_error: 25 # degree
-min_confidence: 0.6
-
-min_detect_count: 5
-max_temp_lost_count: 10
+#####-----神经网络参数-----#####
+classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
+device: AUTO
+min_confidence: 0.8
 
 yaw_offset: 1.1   # degree
 pitch_offset: -0.2  # degree
@@ -27,8 +17,6 @@ delay_shoot: 0.0
 camera_name: "hikrobot"
 exposure_ms: 7
 gain: 16.9
-
-
 
 #  0 -1  0
 #  1  0  0
@@ -45,11 +33,6 @@ distort_coeffs: [-0.083783102939748458, 0.1770452571188583, 0.000652449898902630
 # 标定板同竖直摆放时的偏角: yaw-52.63 pitch2.90 roll0.28 degree
 R_camera2gimbal: [-0.0030045627341577204, 0.0042513411039204396, 0.99998644925898605, -0.99992692017002349, 0.011697294925333633, -0.0030541137374487828, -0.011710120497587578, -0.99992254669561687, 0.0042158851602122705]
 t_camera2gimbal: [0.087098844165631947, -0.00073324692817110097, 0.045195739276569856]
-
-
-
-
-
 
 #####-----cboard参数-----#####
 quaternion_canid: 0x100

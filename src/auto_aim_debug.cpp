@@ -7,9 +7,9 @@
 #include "io/camera.hpp"
 #include "io/cboard.hpp"
 #include "tasks/auto_aim/auto_shoot_aimer.hpp"
-#include "tasks/auto_aim/detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
+#include "tasks/auto_aim/yolov8.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
@@ -39,7 +39,7 @@ int main(int argc, char * argv[])
   io::CBoard cboard(config_path);
   io::Camera camera(config_path);
 
-  auto_aim::Detector detector(config_path, true);
+  auto_aim::YOLOV8 detector(config_path, true);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
   auto_aim::Aimer aimer(config_path);

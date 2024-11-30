@@ -1,22 +1,11 @@
 enemy_color: "red"
 # enemy_color: "blue"
 
-classify_model: "assets/tiny_resnet.onnx"
-model: "assets/best2-sim.onnx"
-
-threshold: 150
-max_angle_error: 45 # degree
-min_lightbar_ratio: 2
-max_lightbar_ratio: 20
-min_lightbar_length: 8
-min_armor_ratio: 1
-max_armor_ratio: 5
-max_side_ratio: 1.5
-max_rectangular_error: 25 # degree
+#####-----神经网络参数-----#####
+classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
+device: AUTO
 min_confidence: 0.8
-
-min_detect_count: 5
-max_temp_lost_count: 10
 
 #####-----aimer参数-----#####
 yaw_offset: -1.95   # degree -2.5
