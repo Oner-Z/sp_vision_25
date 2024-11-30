@@ -144,7 +144,9 @@ void Target::update(std::list<Armor> & armors, std::chrono::steady_clock::time_p
     consecutive_detect_frame_cnt_ = 1;
     reset_ekf(armor, t_img);  ///取出首个装甲板重置滤波器
   }
-  if (state == detecting && ++consecutive_detect_frame_cnt_ > 5)  // detecting -> tracking
+  if (
+    state == detecting && !armors.empty() &&
+    ++consecutive_detect_frame_cnt_ > 5)  // detecting -> tracking
   {
     state = tracking;
     consecutive_detect_frame_cnt_ = 0;
