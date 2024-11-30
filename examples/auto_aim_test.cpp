@@ -82,7 +82,7 @@ int main(int argc, char * argv[])
 
     auto aimer_start = std::chrono::steady_clock::now();
     /// TODO: 适配 Aimer
-    auto command = aimer.aim(targets, timestamp, 27, false);
+    auto command = aimer.aim(targets, armors, timestamp, 27, false);
     /// 调试输出
 
     auto finish = std::chrono::steady_clock::now();

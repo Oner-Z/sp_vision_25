@@ -54,14 +54,15 @@ int main(int argc, char * argv[])
   while (!exiter.exit()) {
     camera.read(img, t);
     q = cboard.imu_at(t - 1ms);
-    recorder.record(img, q, t);
-
     mode = cboard.mode;
+
     if (last_mode != mode) {
-      // aimer.clear_last();
+      aimer.clear_last();
       tools::logger()->info("Switch to {}", io::MODES[mode]);
+      last_mode = mode;
     }
-    last_mode = mode;
+
+    recorder.record(img, q, t);
 
     solver.set_R_gimbal2world(q);
 
@@ -69,9 +70,10 @@ int main(int argc, char * argv[])
 
     auto targets = tracker.track(armors, t);
 
-    auto command = aimer.aim(targets, t, cboard.bullet_speed);
+    auto command = aimer.aim(targets, armors, t, cboard.bullet_speed);
 
     auto real_yaw = tools::eulers(solver.R_gimbal2world(), 2, 1, 0)[0];
+
     if (command.control && (std::abs(command.yaw - real_yaw) < 2.4 / 57.3) && command.shoot) {
       tools::logger()->debug("####### shoot #######");
     } else {

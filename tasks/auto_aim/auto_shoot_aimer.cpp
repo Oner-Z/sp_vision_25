@@ -22,20 +22,60 @@ Aimer::Aimer(const std::string & config_path)
 }
 
 io::Command Aimer::aim(
-  std::list<Target> targets, std::chrono::steady_clock::time_point t_img, double bullet_speed,
-  bool to_now)
+  const std::list<Target> & targets, std::list<Armor> & armors,
+  std::chrono::steady_clock::time_point t_img, double bullet_speed, bool to_now)
 {
-  bool can_fire = true;
   if (targets.empty()) return {false, false, 0, 0};
-  auto target = targets.front();
+  auto chosen_target = targets.front();
+
+  bool choose_last = false, choose_near = false;
+  // 优先击打刚打过的目标
+  if (last_target_name_ != not_armor) {
+    for (auto target : targets) {
+      if (target.name == last_target_name_) {
+        chosen_target = target;
+        choose_last = true;
+        last_target_name_ = target.name;
+        break;
+      }
+    }
+  }
+  // 若没有刚击打过的记录，或者上次击打的目标不在tracking状态，则选取最靠近中心的
+  if (!choose_last) {
+    armors.sort([](const Armor & a, const Armor & b) {
+      auto img_center_norm = cv::Point2f(0.5, 0.5);
+      auto distance_1 = cv::norm(a.center_norm - img_center_norm);
+      auto distance_2 = cv::norm(b.center_norm - img_center_norm);
+      return distance_1 < distance_2;
+    });
+
+    for (auto armor : armors) {
+      for (auto target : targets) {
+        if (target.name == armor.name) {
+          chosen_target = target;
+          choose_near = true;
+          last_target_name_ = target.name;
+          break;
+        }
+      }
+      if (choose_near) break;
+    }
+  }
+
+  if (!choose_last && !choose_near) {
+    tools::logger()->warn("ERROR: targets not empty, but refused to aim!");
+    return {false, false, 0, 0};
+  }
+
+  bool can_fire = true;
 
   if (bullet_speed < 10) bullet_speed = 27;
 
   if (to_now) {
-    target.predict(std::chrono::steady_clock::now());
+    chosen_target.predict(std::chrono::steady_clock::now());
   }
 
-  auto aim_point0 = choose_coming_aim_point(target);
+  auto aim_point0 = choose_coming_aim_point(chosen_target);
   debug_aim_point = aim_point0;
   if (!aim_point0.valid) {
     tools::logger()->debug("Invalid aim_point0.");
@@ -58,16 +98,16 @@ io::Command Aimer::aim(
     auto t_hit =
       std::chrono::steady_clock::now() +
       std::chrono::microseconds(int((delay_gimbal_ + delay_shoot_ + trajectory0.fly_time) * 1e6));
-    target.predict(t_hit);
+    chosen_target.predict(t_hit);
   } else {
     auto t_hit = t_img + std::chrono::microseconds(
                            int((delay_gimbal_ + delay_shoot_ + trajectory0.fly_time) * 1e6));
-    target.predict(t_hit);
+    chosen_target.predict(t_hit);
   }
-  auto aim_point1 = choose_aim_point(target);
+  auto aim_point1 = choose_aim_point(chosen_target);
   debug_aim_point = aim_point1;
   if (!aim_point1.valid) {
-    aim_point1 = choose_coming_aim_point(target);
+    aim_point1 = choose_coming_aim_point(chosen_target);
     tools::logger()->debug("aim at coming point");
     can_fire = false;
   }
@@ -93,6 +133,8 @@ io::Command Aimer::aim(
   auto pitch = trajectory1.pitch + pitch_offset_;
   return {true, can_fire, yaw, pitch};
 }
+
+void Aimer::clear_last() { last_target_name_ = not_armor; }
 
 AimPoint Aimer::choose_aim_point(const Target & target)
 {

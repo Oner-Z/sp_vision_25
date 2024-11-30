@@ -23,8 +23,9 @@ public:
   AimPoint debug_aim_point;
   explicit Aimer(const std::string & config_path);
   io::Command aim(
-    std::list<Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed,
-    bool to_now = true);
+    const std::list<Target> & targets, std::list<Armor> & armors,
+    std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now = true);
+  void clear_last();
 
 private:
   double yaw_offset_;
@@ -33,6 +34,8 @@ private:
   double delay_gimbal_;
   double delay_shoot_;
   int lock_id_ = -1;
+  /// TODO: aim at next coming armor
+  ArmorName last_target_name_ = not_armor;
 
   AimPoint choose_aim_point(const Target & target);
   AimPoint choose_coming_aim_point(const Target & target);
