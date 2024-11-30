@@ -152,9 +152,6 @@ AimPoint Aimer::choose_aim_point(const Target & target)
   return {false, armor_xyza_list[0]};
 }
 
-// inline int index_min_val_larger_than_threshold() {}
-// inline int index_max_val_smaller_than_threshold() {}
-
 AimPoint Aimer::choose_coming_aim_point(const Target & target)
 {
   Eigen::VectorXd ekf_x = target.ekf_x();

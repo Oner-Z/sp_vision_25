@@ -17,9 +17,7 @@ class Tracker
 public:
   Tracker(const std::string & config_path, Solver & solver);
 
-  std::vector<Target> track(
-    std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img,
-    bool use_enemy_color = true);
+  std::list<Target> track(std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img);
 
 private:
   Solver & solver_;
@@ -27,8 +25,6 @@ private:
 
   std::vector<Target> targets_;
   std::chrono::steady_clock::time_point last_timestamp_;
-
-  bool update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img);
 };
 
 }  // namespace auto_aim

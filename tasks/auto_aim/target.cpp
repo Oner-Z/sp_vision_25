@@ -6,7 +6,7 @@
 namespace auto_aim
 {
 Target::Target(ArmorName armor_name)
-: name(armor_name), state(lost), jumped(false), last_id(0), frame_cnt_since_reset_(0)
+: name(armor_name), state(lost), jumped(false), last_id(0), consecutive_detect_frame_cnt_(0)
 {
   /// TODO: 从一个未初始化的target中取ekf_x会导致错误  /// 非常不安全！
   if (armor_name == ArmorName::outpost) {
@@ -42,8 +42,8 @@ Target::Target(ArmorName armor_name)
 
 void Target::predict(std::chrono::steady_clock::time_point t_img)
 {
-  auto dt = tools::delta_time(t_img, t_last_seen_);
-
+  auto dt = tools::delta_time(t_img, t_ekf_);
+  t_ekf_ = t_img;
   // clang-format off
   Eigen::MatrixXd F{
     {1, dt,  0,  0,  0,  0,  0,  0,  0,  0,  0},
@@ -91,11 +91,8 @@ void Target::predict(std::chrono::steady_clock::time_point t_img)
   ekf_.predict(F, Q, f);
 }
 
-void Target::reset(const Armor & armor, std::chrono::steady_clock::time_point t_img)
+void Target::reset_ekf(const Armor & armor, const std::chrono::steady_clock::time_point t_img)
 {
-  state = detecting;
-  t_last_reset_ = t_img;
-
   const Eigen::VectorXd & xyz = armor.xyz_in_world;
   const Eigen::VectorXd & ypr = armor.ypr_in_world;
 
@@ -112,59 +109,83 @@ void Target::reset(const Armor & armor, std::chrono::steady_clock::time_point t_
     return c;
   };
   ekf_ = tools::ExtendedKalmanFilter(x0, P0_, x_add);
+  t_ekf_ = t_img;
 }
 
-bool Target::update(const Armor & armor, std::chrono::steady_clock::time_point t_img)
+void Target::update(std::list<Armor> & armors, std::chrono::steady_clock::time_point t_img)
 {
+  /// lost - detecting - tracking
+  /// 到lost的转换是依据时间完成的
+
+  if (armors.size() > 2) {  // 保留原有状态
+    /// TODO: 结合EKF判断
+    tools::logger()->debug("  -> see more than 2 {} s", ARMOR_NAMES[name]);
+    return;
+  }
+
   auto dt_since_last_seen = tools::delta_time(t_img, t_last_seen_);
+  if (!armors.empty()) t_last_seen_ = t_img;
 
-  bool need_reset = name == outpost ? (dt_since_last_seen > 0.6)  // 三板的前哨站更容易长期看不见
-                                    : (dt_since_last_seen > 0.3);
+  bool time_out = name == outpost ? (dt_since_last_seen > 0.6)  // 三板的前哨站更容易长期看不见
+                                  : (dt_since_last_seen > 0.2);
 
-  /// TODO: lost -> detecting -> tracking 状态转换，前一个箭头还是需要连续帧数的信息
-  if (need_reset) {
-    reset(armor, t_img);
-    t_last_seen_ = t_img;
-    return false;
-  } else {
+  /// TODO: ugly code
+  if (state != lost && (diverged() || time_out)) {
+    tools::logger()->debug("  -> {} lost: {:.3f}s", ARMOR_NAMES[name], dt_since_last_seen);
+    state = lost;
+    consecutive_detect_frame_cnt_ = 0;
+  }
+  if (state == lost) {
+    if (armors.empty()) return;
+    tools::logger()->debug("  -> {} reset ", ARMOR_NAMES[name]);  //lost -> detecting
+    auto armor = armors.front();
+    armors.pop_front();
+    state = detecting;
+    consecutive_detect_frame_cnt_ = 1;
+    reset_ekf(armor, t_img);  ///取出首个装甲板重置滤波器
+  }
+  if (state == detecting && ++consecutive_detect_frame_cnt_ > 5)  // detecting -> tracking
+  {
     state = tracking;
+    consecutive_detect_frame_cnt_ = 0;
   }
 
-  // predict 需要使用 t_last_seen_ ，不能在 predict 之前更改 t_last_seen_ 为当前帧的时间
   predict(t_img);
-  t_last_seen_ = t_img;
-  /// TODO: 到底在什么地方更新last_seen
 
-  // 装甲板匹配 with debug info
-  int id;
-  auto min_angle_error = 1e10;
-  auto second_min_angle_error = 1e10;
-  const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
-  tools::logger()->info("armor match info:");
-  for (int i = 0; i < armor_num_; i++) {
-    Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
-    auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
-                       std::abs(tools::limit_rad(armor.ypd_in_world[0] - ypd[0]));
-    tools::logger()->info("  {:.5f}", angle_error);
+  if (armors.empty()) return;
 
-    if (angle_error < min_angle_error) {
-      id = i;
-      second_min_angle_error = min_angle_error;
-      min_angle_error = angle_error;
+  for (auto armor : armors) {
+    // 装甲板匹配 with debug info
+    int id;
+    auto min_angle_error = 1e10;
+    auto second_min_angle_error = 1e10;
+    const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
+    tools::logger()->info("{}'s armor match info:", ARMOR_NAMES[name]);
+    for (int i = 0; i < armor_num_; i++) {
+      Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
+      /// TODO: 重写装甲板匹配 cost 函数
+      auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
+                         std::abs(tools::limit_rad(armor.ypd_in_world[0] - ypd[0]));
+      tools::logger()->info("  {:.5f}", angle_error);
+
+      if (angle_error < min_angle_error) {
+        id = i;
+        second_min_angle_error = min_angle_error;
+        min_angle_error = angle_error;
+      }
     }
+
+    if (id != 0) jumped = true;
+    last_id = id;
+    tools::logger()->info("==> updating id: {}", id);
+
+    if (second_min_angle_error / min_angle_error < 1.5)
+      tools::logger()->warn(
+        "### id matching may be wrong, min:{:5f}, second_min:{:5f}", min_angle_error,
+        second_min_angle_error);
+
+    update_ypda(armor, id);
   }
-
-  if (id != 0) jumped = true;
-  last_id = id;
-  tools::logger()->info("==> updating id: {}", id);
-
-  if (second_min_angle_error / min_angle_error < 1.5)
-    tools::logger()->warn(
-      "### id matching may be wrong, min:{:5f}, second_min:{:5f}", min_angle_error,
-      second_min_angle_error);
-  update_ypda(armor, id);
-
-  return true;
 }
 
 void Target::update_ypda(const Armor & armor, int id)

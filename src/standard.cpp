@@ -48,53 +48,38 @@ int main(int argc, char * argv[])
   Eigen::Quaterniond q;
   std::chrono::steady_clock::time_point t;
 
+  auto mode = io::Mode::idle;
+  auto last_mode = io::Mode::idle;
+
   while (!exiter.exit()) {
     camera.read(img, t);
     q = cboard.imu_at(t - 1ms);
-    // recorder.record(img, q, t);
+    recorder.record(img, q, t);
+
+    mode = cboard.mode;
+    if (last_mode != mode) {
+      // aimer.clear_last();
+      tools::logger()->info("Switch to {}", io::MODES[mode]);
+    }
+    last_mode = mode;
 
     solver.set_R_gimbal2world(q);
 
-    auto real_yaw = tools::eulers(q, 2, 1, 0)[0];
-
     auto armors = detector.detect(img);
-    // std::cout<<armors.size()<<std::endl;
 
     auto targets = tracker.track(armors, t);
-    // std::cout<<targets.size()<<std::endl;
 
     auto command = aimer.aim(targets, t, cboard.bullet_speed);
 
+    auto real_yaw = tools::eulers(solver.R_gimbal2world(), 2, 1, 0)[0];
     if (command.control && (std::abs(command.yaw - real_yaw) < 2.4 / 57.3) && command.shoot) {
-      // command.shoot = true;
       tools::logger()->debug("####### shoot #######");
     } else {
       command.shoot = false;
     }
-    tools::logger()->debug("{}", command.yaw);
+
     cboard.send(command);
-    // cv::waitKey(30);
 
-    nlohmann::json data;
-    if (!targets.empty()) {
-      auto target = targets.front();
-      // 观测器内部数据
-      Eigen::VectorXd x = target.ekf_x();
-      data["x"] = x[0];
-      data["vx"] = x[1];
-      data["y"] = x[2];
-      data["vy"] = x[3];
-      data["z"] = x[4];
-      data["vz"] = x[5];
-      data["a"] = x[6] * 57.3;
-      data["w"] = x[7];
-      data["r"] = x[8];
-      data["l"] = x[9];
-      data["h"] = x[10];
-      data["last_id"] = target.last_id;
-      plotter.plot(data);
-    }
+    return 0;
   }
-
-  return 0;
 }

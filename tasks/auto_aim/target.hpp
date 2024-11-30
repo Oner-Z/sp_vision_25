@@ -32,9 +32,10 @@ public:
   Target() = default;
   Target(ArmorName armor_name);
 
-  bool update(const Armor & armor, std::chrono::steady_clock::time_point t_img);
+  void update(
+    std::list<Armor> & armors_of_this_target, std::chrono::steady_clock::time_point t_img);
+
   void predict(std::chrono::steady_clock::time_point t);
-  void reset(const Armor & armor, std::chrono::steady_clock::time_point t_img);
   Eigen::VectorXd ekf_x() const;
   std::vector<Eigen::Vector4d> armor_xyza_list() const;
 
@@ -44,8 +45,10 @@ private:
   int armor_num_;
   tools::ExtendedKalmanFilter ekf_;
   std::chrono::steady_clock::time_point t_last_seen_;
-  int frame_cnt_since_reset_;
-  std::chrono::steady_clock::time_point t_last_reset_;
+  std::chrono::steady_clock::time_point t_ekf_;
+
+  int consecutive_detect_frame_cnt_;
+  void reset_ekf(const Armor & armor, std::chrono::steady_clock::time_point t_img);
 
   Eigen::MatrixXd P0_;
   double r0_;

@@ -78,11 +78,11 @@ int main(int argc, char * argv[])
     auto armors = detector.detect(img, frame_count);
 
     auto tracker_start = std::chrono::steady_clock::now();
-    auto targets = tracker.track(armors, timestamp, false);
+    auto targets = tracker.track(armors, timestamp);
 
     auto aimer_start = std::chrono::steady_clock::now();
     /// TODO: 适配 Aimer
-    // auto command = aimer.aim(targets, timestamp, 27, false);
+    auto command = aimer.aim(targets, timestamp, 27, false);
     /// 调试输出
 
     auto finish = std::chrono::steady_clock::now();
@@ -112,8 +112,6 @@ int main(int argc, char * argv[])
     }
 
     for (auto target : targets) {
-      /// TODO: 不在 tracking 状态的targets不必返回到main函数
-      if (target.state != auto_aim::State::tracking) continue;
       if (last_t == -1) {
         last_target = target;
         last_t = t;
@@ -173,7 +171,7 @@ int main(int argc, char * argv[])
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
-    auto key = cv::waitKey(15);
+    auto key = cv::waitKey(0);
     if (key == 'q') break;
   }
 
