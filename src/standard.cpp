@@ -57,10 +57,11 @@ int main(int argc, char * argv[])
     mode = cboard.mode;
 
     if (last_mode != mode) {
-      aimer.clear_last();
       tools::logger()->info("Switch to {}", io::MODES[mode]);
       last_mode = mode;
     }
+
+    if (mode == io::Mode::idle) aimer.clear_last();
 
     recorder.record(img, q, t);
 
@@ -81,7 +82,6 @@ int main(int argc, char * argv[])
     }
 
     cboard.send(command);
-
-    return 0;
   }
+  return 0;
 }

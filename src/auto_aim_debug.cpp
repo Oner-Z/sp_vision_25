@@ -48,11 +48,21 @@ int main(int argc, char * argv[])
   Eigen::Quaterniond q;
   std::chrono::steady_clock::time_point t;
 
+  auto mode = io::Mode::idle;
+  auto last_mode = io::Mode::idle;
+
   while (!exiter.exit()) {
     camera.read(img, t);
     q = cboard.imu_at(t - 1ms);
     // recorder.record(img, q, t);
+    mode = cboard.mode;
 
+    if (last_mode != mode) {
+      tools::logger()->info("Switch to {}", io::MODES[mode]);
+      last_mode = mode;
+    }
+
+    if (mode == io::Mode::idle) aimer.clear_last();
     /// 自瞄核心逻辑
 
     solver.set_R_gimbal2world(q);
@@ -80,9 +90,7 @@ int main(int argc, char * argv[])
       data["armor_yaw"] = armor.ypr_in_world[0] * 57.3;
     }
 
-    if (!targets.empty()) {
-      auto target = targets.front();
-
+    for (auto target : targets) {
       // 当前帧target更新后
       std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
       for (const Eigen::Vector4d & xyza : armor_xyza_list) {
