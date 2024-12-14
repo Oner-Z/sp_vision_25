@@ -4,10 +4,8 @@ find_package(yaml-cpp REQUIRED)
 
 add_library(io OBJECT 
     hikrobot/hikrobot.cpp    
-    mindvision/mindvision.cpp  
-    usbcamera/usbcamera.cpp  
+    mindvision/mindvision.cpp    
     camera.cpp
-    cboard.cpp
 )
 
 # hikrobot

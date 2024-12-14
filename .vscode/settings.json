@@ -1,5 +1,4 @@
 {
-    "editor.formatOnSave": true,
     "files.associations": {
         "chrono": "cpp",
         "array": "cpp",
@@ -40,6 +39,7 @@
         "memory": "cpp",
         "memory_resource": "cpp",
         "numeric": "cpp",
+        "optional": "cpp",
         "random": "cpp",
         "ratio": "cpp",
         "string_view": "cpp",
@@ -48,7 +48,6 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "fstream": "cpp",
-        "future": "cpp",
         "initializer_list": "cpp",
         "iomanip": "cpp",
         "iosfwd": "cpp",
@@ -65,6 +64,7 @@
         "stop_token": "cpp",
         "streambuf": "cpp",
         "thread": "cpp",
+        "typeindex": "cpp",
         "typeinfo": "cpp",
         "valarray": "cpp"
     }

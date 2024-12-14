@@ -1,0 +1,45 @@
+# enemy_color: "blue"
+enemy_color: "red"
+
+R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
+
+# 重投影误差: 0.1428px
+camera_matrix: [2557.0146522989821, 0, 708.17990848530269, 0, 2558.2049471116147, 576.09721496452119, 0, 0, 1]
+distort_coeffs: [-0.16472120944114266, 0.20324252223620828, 4.1831726509608258e-05, -0.0024321330176068404, 0]
+
+# 相机同理想情况的偏角: yaw-0.08 pitch-13.32 roll-1.45 degree
+R_camera2gimbal: [0.0073018328648028511, -0.23032601684302989, 0.97308612630231206, -0.99966938211374978, -0.025672882555568224, 0.0014246282326727147, 0.024653796890698524, -0.97277480902134428, -0.23043732603977132]
+t_camera2gimbal: [0.20677372392138404, 0.0015220844963601498, 0.091472064261362312]
+
+
+model: assets/tiny_resnet.onnx
+
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 2
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.3
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+min_detect_count: 5
+max_temp_lost_count: 20
+
+yaw_offset: 0.15 # degree -right
+pitch_offset: -1.25 # degree +up
+comming_angle: 60 # degree
+leaving_angle: 10 # degree
+shoot_delay: 0.1 #0.52
+
+camera_name: "hikrobot"
+exposure_ms: 8
+gain: 16.98
+
+#####-----神经网络参数-----#####
+classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
+device: AUTO
+min_confidence: 0.8

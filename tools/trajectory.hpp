@@ -7,7 +7,7 @@ struct Trajectory
 {
   bool unsolvable;
   double fly_time;
-  double pitch;  // 抬头为正
+  double pitch;  // 抬头为负
 
   // 不考虑空气阻力
   // v0 子弹初速度大小，单位：m/s

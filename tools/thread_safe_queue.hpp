@@ -41,6 +41,17 @@ public:
     queue_.pop();
   }
 
+  bool pop_no_wait(T & value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (queue_.empty()) return false;
+    value = queue_.front();
+    queue_.pop();
+
+    return true;
+  }
+
 private:
   std::queue<T> queue_;
   size_t max_size_;

@@ -1,0 +1,42 @@
+enemy_color: "red"
+#enemy_color: "blue"
+
+model: "assets/classify_net.onnx"
+
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 2
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+min_detect_count: 5
+max_temp_lost_count: 10
+
+yaw_offset: 0.0 # degree
+pitch_offset: 0.0 # degree
+comming_angle: 50 # degree
+leaving_angle: 30 # degree
+
+camera_name: "hikrobot"
+exposure_ms: 3
+gain: 10.0
+
+# 重投影误差: 0.1602px
+camera_matrix: [1618.0791104889736, 0, 704.31044482775724, 0, 1620.3075746425238, 519.36211339820545, 0, 0, 1]
+distort_coeffs: [-0.12681276638987479, 0.097483337749816754, -0.00051366794378825196, -0.0010414348163366885, 0]
+
+#  0 -1  0
+#  1  0  0
+#  0  0  1
+R_gimbal2imubody: [0, -1, 0, 1, 0, 0, 0, 0, 1]
+
+# 相机同理想情况的偏角: yaw0.49 pitch-1.18 roll2.69 degree
+# 标定板到世界坐标系原点的水平距离: 0.88 m
+# 标定板同竖直摆放时的偏角: yaw52.10 pitch6.37 roll1.52 degree
+R_camera2gimbal: [-0.0095149151833957557, -0.020172087224150245, 0.99975124570368679, -0.99885066157029867, 0.047161126022404652, -0.0085547690135529091, -0.046976826942963852, -0.99868359107843618, -0.020597636783151501]
+t_camera2gimbal: [0.15944706667857389, -0.014426140259450267, 0.048653907509844524]
