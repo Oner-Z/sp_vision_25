@@ -64,6 +64,7 @@ void Shooter::shoot(
   std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp,
   double bullet_speed, bool to_now)
 {
+  int mode = 1; // debug使用，0表示不考虑空气阻力，1表示考虑空气阻力
   if (targets.empty()) {
     cboard_.send({false, false, 0, 0});
     return;
@@ -79,7 +80,7 @@ void Shooter::shoot(
     target_predicted.predict(t_fire);
   }
 
-  if (bullet_speed < 14.5 || bullet_speed > 16.2) bullet_speed = 14.8;
+  if (bullet_speed < 15.0 || bullet_speed > 16.2) bullet_speed = 15.8;
   // bullet_speed=15.8;
 
   auto ekf_x = target_predicted.ekf_x();
@@ -90,7 +91,7 @@ void Shooter::shoot(
     auto xyz0 = get_front(target_predicted);
     double d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
 
-    tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
+    tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2],mode);
     if (trajectory0.unsolvable) {
       tools::logger()->debug(
         "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
@@ -101,7 +102,7 @@ void Shooter::shoot(
     target_predicted.predict(t_hit);
     auto xyz1 = get_front(target_predicted);
     auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-    tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
+    tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2],mode);
     if (trajectory1.unsolvable) {
       tools::logger()->debug(
         "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
@@ -145,7 +146,7 @@ void Shooter::shoot(
 
   Eigen::Vector3d xyz0 = aim_point0.xyza.head(3);
   auto d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
-  tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
+  tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2],mode);
   if (trajectory0.unsolvable) {
     tools::logger()->debug(
       "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
@@ -167,7 +168,7 @@ void Shooter::shoot(
 
   Eigen::Vector3d xyz1 = aim_point1.xyza.head(3);
   auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-  tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
+  tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2],mode);
   if (trajectory1.unsolvable) {
     tools::logger()->debug(
       "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
