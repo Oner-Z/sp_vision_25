@@ -80,11 +80,12 @@ void Shooter::shoot(
     target_predicted.predict(t_fire);
   }
 
-  if (bullet_speed < 15.0 || bullet_speed > 16.2) bullet_speed = 15.8;
+  if (bullet_speed < 15.2 || bullet_speed > 15.8) bullet_speed = 15.4;
   // bullet_speed=15.8;
 
   auto ekf_x = target_predicted.ekf_x();
 
+  tools::logger()->debug("omega = {:.2f}",ekf_x[7]);
   if (std::abs(ekf_x[7]) > 1) {// w 大于1就认为在旋转
     tools::logger()->info("top mode");
 
