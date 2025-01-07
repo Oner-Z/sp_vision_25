@@ -53,9 +53,17 @@ Armor::Armor(const Lightbar & left, const Lightbar & right)
 }
 
 Armor::Armor(
-  int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints)
+  int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset)
 : class_id(class_id), confidence(confidence), box(box), points(armor_keypoints)
 {
+  std::transform(armor_keypoints.begin(), armor_keypoints.end(), armor_keypoints.begin(),
+                [&offset](const cv::Point2f& point) {
+                  return point + offset;
+                });
+  std::transform(points.begin(), points.end(), points.begin(),
+                [&offset](const cv::Point2f& point) {
+                  return point + offset;
+                });
   center = (armor_keypoints[0] + armor_keypoints[1] + armor_keypoints[2] + armor_keypoints[3]) / 4;
   auto left_width = cv::norm(armor_keypoints[0] - armor_keypoints[3]);
   auto right_width = cv::norm(armor_keypoints[1] - armor_keypoints[2]);

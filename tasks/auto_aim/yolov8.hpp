@@ -34,6 +34,9 @@ private:
   ov::Core core_;
   ov::CompiledModel compiled_model_;
 
+  cv::Rect roi;
+  cv::Point2f offset;
+
   bool check_name(const Armor & armor) const;
   bool check_type(const Armor & armor) const;
 

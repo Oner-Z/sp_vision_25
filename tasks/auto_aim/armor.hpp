@@ -91,7 +91,7 @@ struct Armor
 
   Armor(const Lightbar & left, const Lightbar & right);
   Armor(
-    int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints);
+    int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
 };
 
 }  // namespace auto_aim

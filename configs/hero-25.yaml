@@ -1,5 +1,5 @@
-# enemy_color: "blue"
-enemy_color: "red"
+enemy_color: "blue"
+# enemy_color: "red"
 
 R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
@@ -43,3 +43,10 @@ classify_model: assets/tiny_resnet.onnx
 model_path: assets/last.xml
 device: AUTO
 min_confidence: 0.8
+
+#####-----新增的ROI-----#####
+roi:
+  x: 420
+  y: 0
+  width: 600
+  height: 600

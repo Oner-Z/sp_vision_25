@@ -26,6 +26,14 @@ YOLOV8::YOLOV8(const std::string & config_path, bool debug)
   std::cout<<device_ <<std::endl;
   min_confidence_ = yaml["min_confidence"].as<double>();
   std::cout<<min_confidence_ <<std::endl;
+  int x = 0, y = 0, width = 0, height = 0;
+  x = yaml["roi"]["x"].as<int>();
+  y = yaml["roi"]["y"].as<int>();
+  width = yaml["roi"]["width"].as<int>();
+  height = yaml["roi"]["height"].as<int>();
+  std::cout << "ROI: x=" << x << ", y=" << y<< ", width=" << width << ", height=" << height << std::endl;
+  roi = cv::Rect(x, y, width, height);
+  offset = cv::Point2f(x, y);
 
   save_path_ = "patterns";
   std::filesystem::create_directory(save_path_);
@@ -53,12 +61,17 @@ YOLOV8::YOLOV8(const std::string & config_path, bool debug)
     model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 }
 
-std::list<Armor> YOLOV8::detect(const cv::Mat & bgr_img, int frame_count)
+std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
 {
-  if (bgr_img.empty()) {
+  if (raw_img.empty()) {
     tools::logger()->warn("Empty img!, camera drop!");
     return std::list<Armor>();
   }
+  if(roi.width ==-1 || roi.height ==-1){ // -1 表示该维度不裁切
+    roi.width = raw_img.cols;
+    roi.height = raw_img.rows;
+  }
+  auto bgr_img = raw_img(YOLOV8::roi);
 
   auto x_scale = static_cast<double>(416) / bgr_img.rows;
   auto y_scale = static_cast<double>(416) / bgr_img.cols;
@@ -82,7 +95,7 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & bgr_img, int frame_count)
   auto output_shape = output_tensor.get_shape();
   cv::Mat output(output_shape[1], output_shape[2], CV_32F, output_tensor.data());
 
-  return parse(scale, output, bgr_img, frame_count);
+  return parse(scale, output, raw_img, frame_count);
 }
 
 std::list<Armor> YOLOV8::parse(
@@ -135,8 +148,7 @@ std::list<Armor> YOLOV8::parse(
   std::list<Armor> armors;
   for (const auto & i : indices) {
     sort_keypoints(armors_key_points[i]);
-
-    armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i]);
+    armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i],YOLOV8::offset);
   }
 
   for (auto it = armors.begin(); it != armors.end();) {
@@ -265,6 +277,8 @@ void YOLOV8::draw_detections(
     tools::draw_text(detection, info, armor.center, {0, 255, 0});
   }
 
+  cv::Scalar green(0, 255, 0);
+  cv::rectangle(detection, roi, green, 2);
   cv::resize(detection, detection, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
   cv::imshow("detection", detection);
 }
