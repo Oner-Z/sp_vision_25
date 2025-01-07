@@ -6,6 +6,23 @@
 #include "tools/trajectory.hpp"
 namespace auto_outpost
 {
+double get_delta_angle(double d0, double r, double d1) {
+  // 确保输入的三边满足三角形不等式
+  if (d0 <= 0 || r <= 0 || d1 <= 0 || d0 + r <= d1 || d0 + d1 <= r || r + d1 <= d0) {
+    // tools::logger()->debug("[Shooter.cpp/13] Invalid Geometry!");
+    return M_PI;// 这样肯定不会打
+  }
+
+  // 余弦定理
+  // cos(theta) = (d0^2 + r^2 - d1^2) / (2 * d0 * r)
+  double cos_theta = (std::pow(d0, 2) + std::pow(r, 2) - std::pow(d1, 2)) / (2 * d0 * r);
+
+  // 防止浮点数误差导致 cos_theta 超过 [-1, 1]
+  cos_theta = std::max(-1.0, std::min(1.0, cos_theta));
+
+  return std::acos(cos_theta); // 返回弧度制夹角
+}
+
 Shooter::Shooter(const std::string & config_path, io::CBoard & cboard)
 : cboard_{cboard}, exit_{false}, queue_0_(500), queue_1_(500), queue_2_(500)
 {
@@ -76,7 +93,7 @@ void Shooter::shoot(
   if (to_now) {
     auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + ctrl_to_fire_;
     t_fire = tools::add_time(t_img, dt);
-    t_img + std::chrono::microseconds(int(dt * 1e6));
+    t_img + std::chrono::microseconds(int(dt * 1e6));// ?
     target_predicted.predict(t_fire);
   }
 
@@ -85,55 +102,56 @@ void Shooter::shoot(
 
   auto ekf_x = target_predicted.ekf_x();
 
-  tools::logger()->debug("omega = {:.2f}",ekf_x[7]);
+  // tools::logger()->debug("omega = {:.2f}",ekf_x[7]);
   if (std::abs(ekf_x[7]) > 1) {// w 大于1就认为在旋转
+    ekf_x = target.ekf_x();
     tools::logger()->info("top mode");
-
-    auto xyz0 = get_front(target_predicted);
-    double d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
-
-    tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2],mode);
-    if (trajectory0.unsolvable) {
-      tools::logger()->debug(
-        "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
-      return;
-    }
-    //-----------------------------------------------------------------------
-    auto t_hit = tools::add_time(t_fire, trajectory0.fly_time);
-    target_predicted.predict(t_hit);
-    auto xyz1 = get_front(target_predicted);
-    auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-    tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2],mode);
-    if (trajectory1.unsolvable) {
-      tools::logger()->debug(
-        "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
-      return;
-    }
-
-    auto time_error = trajectory1.fly_time - trajectory0.fly_time;
-    if (std::abs(time_error) > 0.1) {
-      tools::logger()->debug("[Aimer] Large time error: {:.3f}", time_error);
-      return;
-    }
-
-    auto yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
-    auto pitch = trajectory1.pitch + pitch_offset_;
-
-    auto armor_xyza_list = target_predicted.armor_xyza_list();
+    auto xyz0 = get_front(target);
+    auto armor_xyza_list = target.armor_xyza_list();
     int armor_num = armor_xyza_list.size();
+    auto yaw = std::atan2(ekf_x[2], ekf_x[0]) + yaw_offset_; // yaw直接瞄准旋转中心
 
-    auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);  // 整车旋转中心的球坐标yaw
-    debug_aim_point_ = {true, {xyz1[0], xyz1[1], xyz1[2], 0}};
+    double d0 = std::sqrt(ekf_x[0] * ekf_x[0] + ekf_x[2] * ekf_x[2]);
+    double r = ekf_x[8];
+    double h, d, min = INFINITY;
+
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
-      auto delta_yaw = tools::limit_rad(armor_xyza_list[aim_id][3] - center_yaw);
-      if (std::abs(delta_yaw) < 0.08 && aim_id != last_hit_id_) {
-        last_hit_id_ = aim_id;
-        tools::logger()->info("########## fire ##########");
-        cboard_.send({true, true, yaw, -pitch});
-        return;
+      d = std::sqrt(armor_xyza_list[aim_id][0] * armor_xyza_list[aim_id][0] 
+                    + armor_xyza_list[aim_id][1] * armor_xyza_list[aim_id][1]);
+      if(d<min){
+        min = d;
+        h = armor_xyza_list[aim_id][2];
       }
     }
-    cboard_.send({true, false, yaw, -pitch});
+
+    tools::Trajectory trajectory0(bullet_speed, d0-r, h, mode);
+    if (trajectory0.unsolvable) {
+      tools::logger()->debug(
+        "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0-r, h);
+      return;
+    }
+    auto pitch = trajectory0.pitch + pitch_offset_;
+
+    debug_aim_point_ = {true, {xyz0[0], xyz0[1], h, 0}};
+
+    double d1;
+    bool fire = false;
+    for (int aim_id = 0; aim_id < armor_num; aim_id++) {
+      d1 = std::sqrt(armor_xyza_list[aim_id][0] * armor_xyza_list[aim_id][0] 
+                     + armor_xyza_list[aim_id][1] * armor_xyza_list[aim_id][1]);
+      // tools::logger()->debug("d0 = {:.2f}, r = {:.2f}, d1 = {:.2f}", d0, r, d1);
+      auto delta_angle = get_delta_angle(d0, r, d1);
+      // tools::logger()->debug("window = {:.2f}, delta_angle = {:.2f}",
+      //                        std::abs(trajectory0.fly_time*ekf_x[7])/M_PI *180, std::abs(delta_angle)/M_PI *180);
+      if (std::abs(delta_angle) < std::abs((trajectory0.fly_time+ctrl_to_fire_+tools::delta_time(std::chrono::steady_clock::now(), timestamp))*ekf_x[7]) 
+          && aim_id != last_hit_id_) {
+        last_hit_id_ = aim_id;
+        tools::logger()->info("########## fire ##########");
+        fire = true;
+      }
+    }
+
+    cboard_.send({true, fire, yaw, -pitch});
     return;
   }
 
