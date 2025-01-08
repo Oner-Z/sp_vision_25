@@ -42,6 +42,7 @@ class Shooter
 public:
   explicit Shooter(const std::string & config_path, io::CBoard & cboard);
   void schedule(auto_aim::Target target_at_t0);
+  int get_next_armor(const auto_aim::Target & target,double flytime, std::chrono::steady_clock::time_point timestamp);
   void shoot(
     std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp,
     double bullet_speed, bool to_now);
