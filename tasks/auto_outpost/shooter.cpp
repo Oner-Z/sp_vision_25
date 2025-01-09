@@ -1,16 +1,20 @@
 #include "shooter.hpp"
-#include <nlohmann/json.hpp>
+
 #include <yaml-cpp/yaml.h>
-#include "tools/plotter.hpp"
+
+#include <nlohmann/json.hpp>
+
 #include "tools/math_tools.hpp"
+#include "tools/plotter.hpp"
 #include "tools/trajectory.hpp"
 namespace auto_outpost
 {
-double get_delta_angle(double d0, double r, double d1) {
+double get_delta_angle(double d0, double r, double d1)
+{
   // 确保输入的三边满足三角形不等式
   if (d0 <= 0 || r <= 0 || d1 <= 0 || d0 + r <= d1 || d0 + d1 <= r || r + d1 <= d0) {
     // tools::logger()->debug("[Shooter.cpp/13] Invalid Geometry!");
-    return M_PI;// 这样肯定不会打
+    return M_PI;  // 这样肯定不会打
   }
 
   // 余弦定理
@@ -20,17 +24,17 @@ double get_delta_angle(double d0, double r, double d1) {
   // 防止浮点数误差导致 cos_theta 超过 [-1, 1]
   cos_theta = std::max(-1.0, std::min(1.0, cos_theta));
 
-  return std::acos(cos_theta); // 返回弧度制夹角
+  return std::acos(cos_theta);  // 返回弧度制夹角
 }
 
 // 得到哪一個裝甲板是在逐漸傳過來接紫蛋。还有问题，不能用！！！！
 // TODO： 改用装甲板的alpha计算
-int Shooter:: get_next_armor(const auto_aim::Target & target,double flytime, std::chrono::steady_clock::time_point timestamp)
+int Shooter::get_next_armor(const auto_aim::Target & target, double flytime, std::chrono::steady_clock::time_point timestamp)
 {
   auto t1 = target;
   auto t2 = target;
-  auto dt =  tools::delta_time(std::chrono::steady_clock::now(), timestamp) + 0.01;
-  t2.predict(tools::add_time(timestamp, dt));//一小段時間之後的target
+  auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + 0.01;
+  t2.predict(tools::add_time(timestamp, dt));  //一小段時間之後的target
 
   auto armor_xyza_list1 = t1.armor_xyza_list();
   auto armor_xyza_list2 = t2.armor_xyza_list();
@@ -44,17 +48,18 @@ int Shooter:: get_next_armor(const auto_aim::Target & target,double flytime, std
   double d_center2 = std::sqrt(ekf_x2[0] * ekf_x2[0] + ekf_x2[2] * ekf_x2[2]);
   double r2 = ekf_x2[8];
 
-  double min_angle = INFINITY, id = -1;//angle是水平方向上旋轉半徑，車-旋轉中心，車-裝甲板中中心這個三角形中，車-裝甲板中中心邊所對角
-  for(int aim_id = 0; aim_id < armor_num; aim_id++){
-    double d1 = std::sqrt(armor_xyza_list1[aim_id][0] * armor_xyza_list1[aim_id][0] 
-                          + armor_xyza_list1[aim_id][1] * armor_xyza_list1[aim_id][1]);
-    double d2 = std::sqrt(armor_xyza_list2[aim_id][0] * armor_xyza_list2[aim_id][0] 
-                          + armor_xyza_list2[aim_id][1] * armor_xyza_list2[aim_id][1]);
-    if(d1 > d2){ // 說明在接近
+  double min_angle = INFINITY,
+         id = -1;  //angle是水平方向上旋轉半徑，車-旋轉中心，車-裝甲板中中心這個三角形中，車-裝甲板中中心邊所對角
+  for (int aim_id = 0; aim_id < armor_num; aim_id++) {
+    double d1 = std::sqrt(
+      armor_xyza_list1[aim_id][0] * armor_xyza_list1[aim_id][0] + armor_xyza_list1[aim_id][1] * armor_xyza_list1[aim_id][1]);
+    double d2 = std::sqrt(
+      armor_xyza_list2[aim_id][0] * armor_xyza_list2[aim_id][0] + armor_xyza_list2[aim_id][1] * armor_xyza_list2[aim_id][1]);
+    if (d1 > d2) {  // 說明在接近
       auto angle = get_delta_angle(d_center1, r1, d1);
-      
-      if(std::abs((flytime+ctrl_to_fire_)*ekf_x1[7])-std::abs(angle)>0.005){//這塊裝甲板還沒錯過發射時機
-        if(std::abs(angle)<min_angle){
+
+      if (std::abs((flytime + ctrl_to_fire_) * ekf_x1[7]) - std::abs(angle) > 0.005) {  //這塊裝甲板還沒錯過發射時機
+        if (std::abs(angle) < min_angle) {
           min_angle = std::abs(angle);
           id = aim_id;
         }
@@ -119,10 +124,9 @@ Eigen::Vector3d Shooter::get_front(const auto_aim::Target & target_origin)
 }
 
 void Shooter::shoot(
-  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp,
-  double bullet_speed, bool to_now)
+  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now)
 {
-  int mode = 1; // debug使用，0表示不考虑空气阻力，1表示考虑空气阻力
+  int mode = 1;  // debug使用，0表示不考虑空气阻力，1表示考虑空气阻力
   if (targets.empty()) {
     cboard_.send({false, false, 0, 0});
     return;
@@ -134,7 +138,7 @@ void Shooter::shoot(
   if (to_now) {
     auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + ctrl_to_fire_;
     t_fire = tools::add_time(t_img, dt);
-    t_img + std::chrono::microseconds(int(dt * 1e6));// ?
+    t_img + std::chrono::microseconds(int(dt * 1e6));  // ?
     target_predicted.predict(t_fire);
   }
 
@@ -144,44 +148,51 @@ void Shooter::shoot(
   auto ekf_x = target_predicted.ekf_x();
 
   // tools::logger()->debug("omega = {:.2f}",ekf_x[7]);
-  if (std::abs(ekf_x[7]) > 1) {// w 大于1就认为在旋转
+  if (std::abs(ekf_x[7]) > 1) {  // w 大于1就认为在旋转
     tools::logger()->info("top mode");
-    auto target_rotate=target;
+    auto target_rotate = target;
     // 程序运行到这一句的时刻
     auto t_decide = tools::add_time(t_img, tools::delta_time(std::chrono::steady_clock::now(), t_img));
-    target_rotate.predict(t_decide);// 补上延迟，主要是神经网络
+    target_rotate.predict(t_decide);  // 补上延迟，主要是神经网络
     ekf_x = target_rotate.ekf_x();
-    
-    auto xyz0 = get_front(target_rotate);// 瞄准点
 
-    double yaw = std::atan2(xyz0[1], xyz0[0]) + yaw_offset_; // yaw直接瞄准旋转中心
+    auto xyz0 = get_front(target_rotate);  // 瞄准点
+
+    double yaw = std::atan2(xyz0[1], xyz0[0]) + yaw_offset_;  // yaw直接瞄准旋转中心
 
     double d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
     tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2], mode);
     if (trajectory0.unsolvable) {
-      tools::logger()->debug(
-        "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
+      tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
       return;
     }
-    auto pitch = trajectory0.pitch + pitch_offset_;// pitch瞄准装甲板正对时的位置
+    auto pitch = trajectory0.pitch + pitch_offset_;  // pitch瞄准装甲板正对时的位置
 
     debug_aim_point_ = {true, {xyz0[0], xyz0[1], xyz0[2], 0}};
 
-    auto t_hit = tools::add_time(t_decide, (ctrl_to_fire_+trajectory0.fly_time));
-    target_rotate.predict(t_hit);// 预测如果这时候发射，紫蛋到达时的情况
+    auto t_hit = tools::add_time(t_decide, (ctrl_to_fire_ + trajectory0.fly_time));
+    target_rotate.predict(t_hit);  // 预测如果这时候发射，紫蛋到达时的情况
     auto armors_hit = target_rotate.armor_xyza_list();
     int armor_num = armors_hit.size();
-    auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
-    double sig = ekf_x[7]<0 ? -1.0:+1.0;
+    int sig = ekf_x[7] < 0 ? -1 : +1;
+    auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);  // - sig * 0.015;
 
-    for(int aim_id = 0; aim_id<armor_num; aim_id++){
-      if (((sig*(-armors_hit[aim_id][3]+center_yaw))<=0.08) 
-            && (sig*(-armors_hit[aim_id][3]+center_yaw))>=0 
-            && (aim_id != last_hit_id_)) {
-        last_hit_id_ = aim_id;
-        tools::logger()->info("########## fire ##########");
-        cboard_.send({true, true, yaw, -pitch});
-        return;
+    for (int aim_id = 0; aim_id < armor_num; aim_id++) {
+      if (GET_STATE(armor_state, aim_id) == ALLOW) {
+        if (
+          ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.06) &&
+          (sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) {  // 在击打窗口内
+          tools::logger()->info("########## fire ##########");
+          cboard_.send({true, true, yaw, -pitch});
+          armor_state = 0;
+          SET_STATE(armor_state, aim_id, SHOOTED);
+          SET_STATE(armor_state, (aim_id - sig + armor_num) % armor_num, SKIP);
+          return;
+        }
+      } else if (GET_STATE(armor_state, aim_id) == SKIP) {  // 上一块刚打过
+        tools::logger()->info("---------- wait ----------");
+        armor_state = 0;
+        SET_STATE(armor_state, aim_id, SHOOTED);
       }
     }
     cboard_.send({true, false, yaw, -pitch});
@@ -198,10 +209,9 @@ void Shooter::shoot(
 
   Eigen::Vector3d xyz0 = aim_point0.xyza.head(3);
   auto d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
-  tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2],mode);
+  tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2], mode);
   if (trajectory0.unsolvable) {
-    tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
+    tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
     debug_aim_point_.valid = false;
     cboard_.send({false, false, 0, 0});
     return;
@@ -220,10 +230,9 @@ void Shooter::shoot(
 
   Eigen::Vector3d xyz1 = aim_point1.xyza.head(3);
   auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-  tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2],mode);
+  tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2], mode);
   if (trajectory1.unsolvable) {
-    tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
+    tools::logger()->debug("[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
     debug_aim_point_.valid = false;
     cboard_.send({false, false, 0, 0});
     return;
@@ -242,8 +251,8 @@ void Shooter::shoot(
   cboard_.send({true, false, yaw, -pitch});
   nlohmann::json data;
   tools::Plotter plotter;
-  data["command_yaw"] = yaw*57.3;
-  data["command_pitch"] = pitch*57.3;
+  data["command_yaw"] = yaw * 57.3;
+  data["command_pitch"] = pitch * 57.3;
   plotter.plot(data);
 
   // tools::logger()->info("command # yaw {:.2f} {:.2f}",yaw*57.3,pitch*57.3);
@@ -288,7 +297,7 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
   std::vector<int> id_list;
   // tools::logger()->debug("-------------------------------------------");
   for (int i = 0; i < armor_num; i++) {
-    if (std::abs(delta_angle_list[i]) > 60 / 57.3){
+    if (std::abs(delta_angle_list[i]) > 60 / 57.3) {
       // tools::logger()->debug(std::to_string(std::abs(delta_angle_list[i] * 57.3)));
       continue;  // 以60度为射击范围
     }
@@ -329,8 +338,8 @@ Shooter::~Shooter()
 
 // 通过固定命令发送的pitch值（绕开shooter）来测试为什么命中几发目标后会突然不命中
 void Shooter::test(
-  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp,
-  double bullet_speed, bool to_now, double value)
+  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now,
+  double value)
 {
   if (targets.empty()) {
     // cboard_.send({false, false, 0, 0});
@@ -344,14 +353,14 @@ void Shooter::test(
     auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + ctrl_to_fire_;
     t_fire = tools::add_time(t_img, dt);
     t_img + std::chrono::microseconds(int(dt * 1e6));
-    target_predicted.predict(t_fire); // target_predicted是预测子弹出膛时的目标位姿
+    target_predicted.predict(t_fire);  // target_predicted是预测子弹出膛时的目标位姿
   }
 
   if (bullet_speed < 14.5 || bullet_speed > 16.2) bullet_speed = 14.8;
 
   auto ekf_x = target_predicted.ekf_x();
 
-  if (std::abs(ekf_x[7]) > 1) {// w 大于1就认为在旋转
+  if (std::abs(ekf_x[7]) > 1) {  // w 大于1就认为在旋转
     tools::logger()->info("top mode");
 
     auto xyz0 = get_front(target_predicted);
@@ -359,20 +368,18 @@ void Shooter::test(
     // 解算出膛时击打目标的弹道
     tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
     if (trajectory0.unsolvable) {
-      tools::logger()->debug(
-        "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
+      tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
       return;
     }
     //-----------------------------------------------------------------------
     auto t_hit = tools::add_time(t_fire, trajectory0.fly_time);
-    target_predicted.predict(t_hit);// target_predicted是预测子弹命中时的目标位姿
+    target_predicted.predict(t_hit);  // target_predicted是预测子弹命中时的目标位姿
     auto xyz1 = get_front(target_predicted);
     auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
     // 解算击中时击打目标的弹道
     tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
     if (trajectory1.unsolvable) {
-      tools::logger()->debug(
-        "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
+      tools::logger()->debug("[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
       return;
     }
     // 时间差过大就说明打不中了（转走了）
@@ -401,7 +408,7 @@ void Shooter::test(
     }
     cboard_.send({true, false, yaw, value});
     return;
-  }// 小陀螺处理
+  }  // 小陀螺处理
 
   auto aim_point0 = choose_aim_point(target_predicted);
   debug_aim_point_ = aim_point0;
@@ -415,8 +422,7 @@ void Shooter::test(
   auto d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
   tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
   if (trajectory0.unsolvable) {
-    tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
+    tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
     debug_aim_point_.valid = false;
     cboard_.send({false, false, 0, 0});
     return;
@@ -437,8 +443,7 @@ void Shooter::test(
   auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
   tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
   if (trajectory1.unsolvable) {
-    tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
+    tools::logger()->debug("[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
     debug_aim_point_.valid = false;
     cboard_.send({false, false, 0, 0});
     return;
@@ -457,8 +462,8 @@ void Shooter::test(
   cboard_.send({true, false, yaw, value});
   nlohmann::json data;
   tools::Plotter plotter;
-  data["command_yaw"] = yaw*57.3;
-  data["command_pitch"] = -value*57.3;
+  data["command_yaw"] = yaw * 57.3;
+  data["command_pitch"] = -value * 57.3;
   plotter.plot(data);
 
   // tools::logger()->info("command # yaw {:.2f} {:.2f}",yaw*57.3,pitch*57.3);

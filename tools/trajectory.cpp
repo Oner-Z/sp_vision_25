@@ -42,7 +42,7 @@ Trajectory::Trajectory(const double v0, const double d, const double h)
 Trajectory::Trajectory(const double v0, const double d, const double h, int mode)
 {
   // 这是没考虑空气阻力的版本
-  if(mode ==0){
+  if (mode == 0) {
     auto a = g * d * d / (2 * v0 * v0);
     auto b = -d;
     auto c = a + h;
@@ -64,28 +64,28 @@ Trajectory::Trajectory(const double v0, const double d, const double h, int mode
     pitch = (t_1 < t_2) ? pitch_1 : pitch_2;
     fly_time = (t_1 < t_2) ? t_1 : t_2;
 
-    return ;
+    return;
   }
-  
-  // 这是考虑空气阻力的版本
-  if(d<1e-6) {
+
+  // 这是考虑空气阻力的版本 mode = 1
+  if (d < 1e-6) {
     unsolvable = true;
     return;
   }
   double theta = std::atan(h / d);
   double delta_z;
-  double center_distance = d;// 平面距离
+  double center_distance = d;  // 平面距离
   double flyTime;
   for (int i = 0; i < MAX_ITER; i++) {
     // 计算炮弹的飞行时间
     flyTime = (pow(M_E, k1 * center_distance) - 1) / (k1 * v0 * cos(theta));
     delta_z = h - v0 * sin(theta) * flyTime / cos(theta) + 0.5 * g * flyTime * flyTime / cos(theta) / cos(theta);
-    if (fabs(delta_z) < 1e-6)
-        break;
-    theta -= delta_z / (-(v0 * flyTime) / pow(cos(theta), 2) + g * flyTime * flyTime / (v0 * v0) * sin(theta) / pow(cos(theta), 3));
+    if (fabs(delta_z) < 1e-6) break;
+    theta -=
+      delta_z / (-(v0 * flyTime) / pow(cos(theta), 2) + g * flyTime * flyTime / (v0 * v0) * sin(theta) / pow(cos(theta), 3));
   }
   unsolvable = false;
-  fly_time=flyTime;
+  fly_time = flyTime;
   pitch = theta;
 }
 

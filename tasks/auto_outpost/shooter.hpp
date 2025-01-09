@@ -57,12 +57,28 @@ public:
   AimPoint debug_aim_point_;
 
 private:
+  // 装甲板的三个状态：允许击打，禁止击打，等待。
+  // 每次击打允许击打的装甲板后，该装甲板变为禁止，下一个变为等待，其余变为允许。想要击打等待状态的装甲板，拒绝击打，该装甲板变为禁止，其余变为允许。
+  enum State {
+    ALLOW    = 0b00,
+    SHOOTED  = 0b01,
+    SKIP     = 0b10
+  };
+  // 设置状态的宏
+  #define SET_STATE(bitmap, object, state) \
+    (bitmap = (bitmap & ~(0b11 << (object * 2))) | (static_cast<uint8_t>(state) << (object * 2)))
+
+  // 获取状态的宏
+  #define GET_STATE(bitmap, object) \
+    static_cast<State>((bitmap >> (object * 2)) & 0b11)
+
   double ctrl_to_fire_;
   double yaw_offset_;
   double pitch_offset_;
   int last_hit_id_ = -1;
   int lock_id_ = -1;
   bool exit_;
+  uint8_t armor_state = 0;//用位图管理
   io::CBoard & cboard_;
   std::thread when_to_fire_;
   tools::ThreadSafeQueue<shooter_info> queue_0_, queue_1_, queue_2_;
