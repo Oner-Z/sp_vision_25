@@ -1,0 +1,84 @@
+#include "arena.hpp"
+
+#include <yaml-cpp/yaml.h>
+
+#include <fstream>
+#include <iostream>
+
+#include "tools/logger.hpp"
+
+radar::Arena::Arena(std::string config_path)
+{
+  auto config = YAML::LoadFile(config_path);
+  auto path_to_points = config["points"].as<std::string>();
+  auto path_to_triangles = config["triangles"].as<std::string>();
+
+  // Load points
+  std::ifstream file(path_to_points);
+  if (!file.is_open()) {
+    tools::logger()->info("[Arena] Failed to open points file.");
+  }
+
+  int num_points = 0;
+  std::string line;
+  while (std::getline(file, line)) {
+    if (line[0] == '#') {
+      continue;
+    }
+
+    size_t pos = 0;
+    while ((pos = line.find(',')) != std::string::npos) {
+      line.replace(pos, 1, " ");  // 将逗号替换为空格
+    }
+    std::stringstream ss(line);  // 使用stringstream解析每行数据
+
+    double x, y, z;
+    ss >> x >> y >> z;
+    points_.emplace_back(x, y, z);  // 将点存储到points向量中
+
+    ++num_points;
+  }
+
+  tools::logger()->info("[Arena] Constructed with {} points.", num_points);
+  for (auto point : points_) {
+    std::cout << point << std::endl;
+  }
+
+  // Load triangles
+  file = std::ifstream(path_to_triangles);
+  if (!file.is_open()) {
+    tools::logger()->info("[Arena] Failed to open triangles file.");
+  }
+  while (std::getline(file, line)) {
+    if (line[0] == '#') {
+      continue;
+    }
+    size_t pos = 0;
+    while ((pos = line.find(',')) != std::string::npos) {
+      line.replace(pos, 1, " ");  // 将逗号替换为空格
+    }
+    std::stringstream ss(line);
+    int a, b, c;
+    ss >> a >> b >> c;
+    triangles_.emplace_back(points_[a], points_[b], points_[c]);
+  }
+}
+
+std::vector<Eigen::Vector3d> radar::Arena::get_intersections(const Ray & ray) const
+{
+  std::vector<double> distances;
+  for (const auto & triangle : triangles_) {
+    auto dist = triangle.intersect_dist(ray);
+    if (dist.has_value()) {
+      distances.push_back(dist.value());
+    }
+  }
+  sort(distances.begin(), distances.end());
+
+  std::vector<Eigen::Vector3d> intersections;
+  for (auto dist : distances) {
+    tools::logger()->info("dist: {}", dist);
+    intersections.push_back(ray.at(dist));
+  }
+  return intersections;
+}

@@ -1,12 +1,9 @@
-## Some instructions
-- This branch will provide the common code for `sp_vision`, and other branches need to **be created from this branch**
-- Other branches should be named after algorithm functions, such as `auto_aim`,`auto_buff`,`auto_aim_sentry`
+## 雷达分支
 
-- Place the algorithm function code in the `tasks` folder and the algorithm test code in the `tests` folder. Place other code in `examples` folder. 
 
-- The src folder contains c++ files named after the robot, such as `standard3.cpp` `hero.cpp`
+还不能运行，发布此分支仅做备份用途。
 
-- **Merge** the algorithm with the branch when function is **mature and stable**
+
 ## Deploy
 
 ### Prerequisites

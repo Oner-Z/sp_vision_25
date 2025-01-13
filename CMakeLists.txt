@@ -4,7 +4,6 @@ project(sp_vision)
 
 set(CMAKE_CXX_STANDARD 17)
 
-
 find_package(OpenCV REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -18,3 +17,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 
 add_subdirectory(tools)
 add_subdirectory(io)
+add_subdirectory(tasks/radar)
+
+add_executable(locator_test tests/locator_test.cpp)
+target_link_libraries(locator_test io tools ${OpenCV_LIBS} fmt::fmt Eigen3::Eigen spdlog::spdlog yaml-cpp nlohmann_json::nlohmann_json radar)
