@@ -1,3 +1,10 @@
+## 调试用分支
+
+用于自瞄调试的分支。
+
+上传到本分支的代码是仍在开发中、仅供调试使用的代码，表现和稳定性未经充分验证。
+
+
 ## Some instructions
 - This branch will provide the common code for `sp_vision`, and other branches need to **be created from this branch**
 - Other branches should be named after algorithm functions, such as `auto_aim`,`auto_buff`,`auto_aim_sentry`
