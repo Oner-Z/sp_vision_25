@@ -10,33 +10,33 @@ Target::Target(ArmorName armor_name)
 {
   /// TODO: 从一个未初始化的target中取ekf_x会导致错误  /// 非常不安全！
   if (armor_name == ArmorName::outpost) {
-    armor_num_ = 3;
+    armor_num = 3;
     armor_type = small;
     P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}}.asDiagonal();
     r0_ = 0.28;
     v1_ = 10;
     v2_ = 40;
   } else if (armor_name == ArmorName::base) {
-    armor_num_ = 3;
+    armor_num = 3;
     armor_type = big;
     P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}}.asDiagonal();
     r0_ = 0.3205;
     v1_ = 10;
     v2_ = 40;
   } else if (armor_name == ArmorName::one) {  // hero
-    armor_num_ = 4;
+    armor_num = 4;
     armor_type = big;
     P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}}.asDiagonal();
     r0_ = 0.3205;
     v1_ = 10;
     v2_ = 40;
   } else {  // standard
-    armor_num_ = 4;
+    armor_num = 4;
     armor_type = small;
     P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}}.asDiagonal();
     r0_ = 0.3;
-    v1_ = 100;
-    v2_ = 400;
+    v1_ = 25;
+    v2_ = 100;
   }
 }
 
@@ -163,7 +163,7 @@ void Target::update(std::list<Armor> & armors, std::chrono::steady_clock::time_p
     auto second_min_angle_error = 1e10;
     const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
     tools::logger()->info("{}'s armor match info:", ARMOR_NAMES[name]);
-    for (int i = 0; i < armor_num_; i++) {
+    for (int i = 0; i < armor_num; i++) {
       Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
       /// TODO: 重写装甲板匹配 cost 函数
       auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
@@ -198,9 +198,9 @@ void Target::update_ypda(const Armor & armor, int id)
 
   // 定义非线性转换函数h: x -> z
   auto h = [&](const Eigen::VectorXd & x) -> Eigen::Vector4d {
-    Eigen::VectorXd xyz = h_armor_xyz(x, id);
-    Eigen::VectorXd ypd = tools::xyz2ypd(xyz);
-    auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num_);
+    Eigen::Vector3d xyz = armor_xyz(id);
+    Eigen::Vector3d ypd = tools::xyz2ypd(xyz);
+    auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num);
     return {ypd[0], ypd[1], ypd[2], angle};
   };
 
@@ -226,9 +226,9 @@ std::vector<Eigen::Vector4d> Target::armor_xyza_list() const
 {
   std::vector<Eigen::Vector4d> _armor_xyza_list;
 
-  for (int i = 0; i < armor_num_; i++) {
-    auto angle = tools::limit_rad(ekf_.x[6] + i * 2 * CV_PI / armor_num_);
-    Eigen::Vector3d xyz = h_armor_xyz(ekf_.x, i);
+  for (int i = 0; i < armor_num; i++) {
+    auto angle = tools::limit_rad(ekf_.x[6] + i * 2 * CV_PI / armor_num);
+    Eigen::Vector3d xyz = armor_xyz(i);
     _armor_xyza_list.push_back({xyz[0], xyz[1], xyz[2], angle});
   }
 
@@ -246,10 +246,11 @@ bool Target::diverged() const
   return true;
 }
 
-Eigen::Vector3d Target::h_armor_xyz(const Eigen::VectorXd & x, int id) const
+Eigen::Vector3d Target::armor_xyz(int id) const
 {
-  auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num_);
-  auto use_l_h = (armor_num_ == 4) && (id == 1 || id == 3);
+  const Eigen::VectorXd & x = ekf_.x;
+  auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num);
+  auto use_l_h = (armor_num == 4) && (id == 1 || id == 3);
 
   auto r = (use_l_h) ? x[8] + x[9] : x[8];
   auto armor_x = x[0] - r * std::cos(angle);
@@ -259,10 +260,35 @@ Eigen::Vector3d Target::h_armor_xyz(const Eigen::VectorXd & x, int id) const
   return {armor_x, armor_y, armor_z};
 }
 
+Eigen::Vector3d Target::armor_v_xyz(int id) const
+{
+  const Eigen::VectorXd & x = ekf_.x;
+  auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num);
+  auto use_l_h = (armor_num == 4) && (id == 1 || id == 3);
+
+  auto r = (use_l_h) ? x[8] + x[9] : x[8];
+  auto dx_da = r * std::sin(angle);
+  auto dy_da = -r * std::cos(angle);
+
+  auto dx_dr = -std::cos(angle);
+  auto dy_dr = -std::sin(angle);
+  auto dx_dl = (use_l_h) ? -std::cos(angle) : 0.0;
+  auto dy_dl = (use_l_h) ? -std::sin(angle) : 0.0;
+
+  auto dz_dh = (use_l_h) ? 1.0 : 0.0;
+
+  auto v_r = (use_l_h) ? x[9] : 0.0;
+  auto v_x = x[1] - dx_da * v_r;
+  auto v_y = x[3] - dy_da * v_r;
+  auto v_z = (use_l_h) ? x[5] + x[11] : x[5];
+
+  return {v_x, v_y, v_z};
+}
+
 Eigen::MatrixXd Target::h_jacobian(const Eigen::VectorXd & x, int id) const
 {
-  auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num_);
-  auto use_l_h = (armor_num_ == 4) && (id == 1 || id == 3);
+  auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num);
+  auto use_l_h = (armor_num == 4) && (id == 1 || id == 3);
 
   auto r = (use_l_h) ? x[8] + x[9] : x[8];
   auto dx_da = r * std::sin(angle);
@@ -276,7 +302,7 @@ Eigen::MatrixXd Target::h_jacobian(const Eigen::VectorXd & x, int id) const
   auto dz_dh = (use_l_h) ? 1.0 : 0.0;
 
   // clang-format off
-  Eigen::MatrixXd H_armor_xyza{
+  Eigen::Matrix<double, 4, 11> H_armor_xyza{
     {1, 0, 0, 0, 0, 0, dx_da, 0, dx_dr, dx_dl,     0},
     {0, 0, 1, 0, 0, 0, dy_da, 0, dy_dr, dy_dl,     0},
     {0, 0, 0, 0, 1, 0,     0, 0,     0,     0, dz_dh},
@@ -284,10 +310,10 @@ Eigen::MatrixXd Target::h_jacobian(const Eigen::VectorXd & x, int id) const
   };
   // clang-format on
 
-  Eigen::VectorXd armor_xyz = h_armor_xyz(x, id);
-  Eigen::MatrixXd H_armor_ypd = tools::xyz2ypd_jacobian(armor_xyz);
+  Eigen::Vector3d _armor_xyz = armor_xyz(id);
+  Eigen::Matrix3d H_armor_ypd = tools::xyz2ypd_jacobian(_armor_xyz);
   // clang-format off
-  Eigen::MatrixXd H_armor_ypda{
+  Eigen::Matrix4d H_armor_ypda{
     {H_armor_ypd(0, 0), H_armor_ypd(0, 1), H_armor_ypd(0, 2), 0},
     {H_armor_ypd(1, 0), H_armor_ypd(1, 1), H_armor_ypd(1, 2), 0},
     {H_armor_ypd(2, 0), H_armor_ypd(2, 1), H_armor_ypd(2, 2), 0},

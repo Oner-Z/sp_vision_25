@@ -109,7 +109,7 @@ Eigen::Vector3d xyz2ypd(const Eigen::Vector3d & xyz)
   return {yaw, pitch, distance};
 }
 
-Eigen::MatrixXd xyz2ypd_jacobian(const Eigen::Vector3d & xyz)
+Eigen::Matrix3d xyz2ypd_jacobian(const Eigen::Vector3d & xyz)
 {
   auto x = xyz[0], y = xyz[1], z = xyz[2];
 
@@ -126,7 +126,7 @@ Eigen::MatrixXd xyz2ypd_jacobian(const Eigen::Vector3d & xyz)
   auto ddistance_dz = z / std::pow((x * x + y * y + z * z), 0.5);
 
   // clang-format off
-  Eigen::MatrixXd J{
+  Eigen::Matrix3d J{
     {dyaw_dx, dyaw_dy, dyaw_dz},
     {dpitch_dx, dpitch_dy, dpitch_dz},
     {ddistance_dx, ddistance_dy, ddistance_dz}
@@ -145,7 +145,7 @@ Eigen::Vector3d ypd2xyz(const Eigen::Vector3d & ypd)
   return {x, y, z};
 }
 
-Eigen::MatrixXd ypd2xyz_jacobian(const Eigen::Vector3d & ypd)
+Eigen::Matrix3d ypd2xyz_jacobian(const Eigen::Vector3d & ypd)
 {
   auto yaw = ypd[0], pitch = ypd[1], distance = ypd[2];
   double cos_yaw = std::cos(yaw);

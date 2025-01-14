@@ -21,6 +21,12 @@ void draw_points(
   draw_points(img, int_points, color, thickness);
 }
 
+void draw_circle(
+  cv::Mat & img, const cv::Point & center, const cv::Scalar & color, int radius, int thickness)
+{
+  cv::circle(img, center, radius, color, thickness);
+}
+
 void draw_text(
   cv::Mat & img, const std::string & text, const cv::Point & point, const cv::Scalar & color,
   double font_scale, int thickness)

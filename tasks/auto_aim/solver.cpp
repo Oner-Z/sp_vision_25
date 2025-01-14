@@ -118,6 +118,28 @@ std::vector<cv::Point2f> Solver::reproject_armor(
   return image_points;
 }
 
+cv::Point2f Solver::reproject_gimbal(double yaw, double pitch) const
+{
+  Eigen::Vector3d xyz_in_world = tools::ypd2xyz({yaw, pitch, 1e10});
+
+  const Eigen::Vector3d & t_obj2world = xyz_in_world;
+  Eigen::Matrix3d R_obj2camera = Eigen::Matrix3d::Identity();
+  Eigen::Vector3d t_obj2camera =
+    R_camera2gimbal_.transpose() * (R_gimbal2world_.transpose() * t_obj2world - t_camera2gimbal_);
+
+  cv::Vec3d rvec;
+  cv::Mat R_obj2camera_cv;
+  cv::eigen2cv(R_obj2camera, R_obj2camera_cv);
+  cv::Rodrigues(R_obj2camera_cv, rvec);
+  cv::Vec3d tvec(t_obj2camera[0], t_obj2camera[1], t_obj2camera[2]);
+
+  // reproject
+  std::vector<cv::Point2f> image_points;
+  std::vector<cv::Point3f> object_points = {{0, 0, 0}};
+  cv::projectPoints(object_points, rvec, tvec, camera_matrix_, distort_coeffs_, image_points);
+  return image_points[0];
+}
+
 void Solver::optimize_yaw(Armor & armor) const
 {
   Eigen::Vector3d gimbal_ypr = tools::eulers(R_gimbal2world_, 2, 1, 0);

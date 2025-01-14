@@ -137,19 +137,32 @@ int main(int argc, char * argv[])
         Eigen::Vector4d xyza = armor_xyza_list[i];
         auto image_points =
           solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
-        tools::draw_points(img, image_points, {0, 255, 0});
+        if (i == aimer.aim_id)
+          tools::draw_points(img, image_points, {0, 0, 255});
+        else
+          tools::draw_points(img, image_points, {0, 255, 0});
         tools::draw_text(img, fmt::format("{}", i), image_points[2]);
       }
 
       // aimer瞄准位置
-      auto aim_point = aimer.debug_aim_point;
-      Eigen::Vector4d aim_xyza = aim_point.xyza;
-      auto image_points =
-        solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
-      if (aim_point.valid)
-        tools::draw_points(img, image_points, {0, 0, 255});
-      else
-        tools::draw_points(img, image_points, {255, 0, 0});
+      auto aim_point = aimer.yp_should;
+      if (aim_point.has_value()) {
+        auto [yaw, pitch] = aim_point.value();
+        auto image_point = solver.reproject_gimbal(yaw, pitch);
+        tools::logger()->info("image_point: {}, {}", image_point.x, image_point.y);
+        tools::draw_circle(img, image_point, tools::COLOR_GREEN);  // 绿色为理想瞄准位置
+      }
+      if (command.control) {
+        auto image_point = solver.reproject_gimbal(command.yaw, command.pitch);
+        tools::draw_circle(img, image_point, tools::COLOR_RED, 5, 3);  // 红色为发送瞄准位置
+      }
+
+      // 云台响应情况
+      Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+      double gimbal_yaw = ypr[0] - aimer.yaw_offset_;
+      double gimbal_pitch = -ypr[1] - aimer.pitch_offset_;
+      auto image_point = solver.reproject_gimbal(gimbal_yaw, gimbal_pitch);
+      tools::draw_circle(img, image_point, tools::COLOR_YELLOW, 3, 3);  // 黄色为云台实际位置
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();

@@ -30,13 +30,13 @@ Eigen::Matrix3d rotation_matrix(const Eigen::Vector3d & ypr);
 Eigen::Vector3d xyz2ypd(const Eigen::Vector3d & xyz);
 
 // 直角坐标系转球坐标系转换函数对xyz的雅可比矩阵
-Eigen::MatrixXd xyz2ypd_jacobian(const Eigen::Vector3d & xyz);
+Eigen::Matrix3d xyz2ypd_jacobian(const Eigen::Vector3d & xyz);
 
 // 球坐标系转直角坐标系
 Eigen::Vector3d ypd2xyz(const Eigen::Vector3d & ypd);
 
 // 球坐标系转直角坐标系转换函数对xyz的雅可比矩阵
-Eigen::MatrixXd ypd2xyz_jacobian(const Eigen::Vector3d & ypd);
+Eigen::Matrix3d ypd2xyz_jacobian(const Eigen::Vector3d & ypd);
 
 // 计算时间差a - b，单位：s
 double delta_time(

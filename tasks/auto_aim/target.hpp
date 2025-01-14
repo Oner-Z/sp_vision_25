@@ -27,6 +27,7 @@ public:
   ArmorType armor_type;
   bool jumped;
   int last_id;  // debug only
+  int armor_num;
   State state;
 
   Target() = default;
@@ -38,11 +39,15 @@ public:
   void predict(std::chrono::steady_clock::time_point t);
   Eigen::VectorXd ekf_x() const;
   std::vector<Eigen::Vector4d> armor_xyza_list() const;
-
   bool diverged() const;
 
+  Eigen::Vector3d armor_xyz(int id = 0) const;
+
+  Eigen::Vector3d armor_v_xyz(int id = 0) const;
+
+  // bool use_l_h(int id = 0) const;
+
 private:
-  int armor_num_;
   tools::ExtendedKalmanFilter ekf_;
   std::chrono::steady_clock::time_point t_last_seen_;
   std::chrono::steady_clock::time_point t_ekf_;
@@ -57,7 +62,6 @@ private:
 
   void update_ypda(const Armor & armor, int id);  // yaw pitch distance angle
 
-  Eigen::Vector3d h_armor_xyz(const Eigen::VectorXd & x, int id) const;
   Eigen::MatrixXd h_jacobian(const Eigen::VectorXd & x, int id) const;
 };
 

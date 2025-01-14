@@ -21,17 +21,17 @@ Aimer::Aimer(const std::string & config_path)
   delay_shoot_ = yaml["delay_shoot"].as<double>();
 }
 
-io::Command Aimer::aim(
-  const std::list<Target> & targets, std::list<Armor> & armors,
-  std::chrono::steady_clock::time_point t_img, double bullet_speed, bool to_now)
+std::optional<Target> Aimer::choose_target(
+  const std::list<Target> & targets, std::list<Armor> & armors)
 {
-  if (targets.empty()) return {false, false, 0, 0};
-  auto chosen_target = targets.front();
+  if (targets.empty()) return std::nullopt;
 
+  Target chosen_target = targets.front();
   bool choose_last = false, choose_near = false;
+
   // 优先击打刚打过的目标
   if (last_target_name_ != not_armor) {
-    for (auto target : targets) {
+    for (auto & target : targets) {
       if (target.name == last_target_name_) {
         chosen_target = target;
         choose_last = true;
@@ -40,6 +40,7 @@ io::Command Aimer::aim(
       }
     }
   }
+
   // 若没有刚击打过的记录，或者上次击打的目标不在tracking状态，则选取最靠近中心的
   if (!choose_last) {
     armors.sort([](const Armor & a, const Armor & b) {
@@ -49,8 +50,8 @@ io::Command Aimer::aim(
       return distance_1 < distance_2;
     });
 
-    for (auto armor : armors) {
-      for (auto target : targets) {
+    for (auto & armor : armors) {
+      for (auto & target : targets) {
         if (target.name == armor.name) {
           chosen_target = target;
           choose_near = true;
@@ -63,87 +64,127 @@ io::Command Aimer::aim(
   }
 
   if (!choose_last && !choose_near) {
-    tools::logger()->warn("ERROR: targets not empty, but refused to aim!");
-    return {false, false, 0, 0};
+    // tools::logger()->warn("ERROR: targets not empty, but refused to aim!");
+    return std::nullopt;
   }
+  return chosen_target;
+}
 
-  bool can_fire = true;
+io::Command Aimer::aim(
+  const std::list<Target> & targets, std::list<Armor> & armors,
+  std::chrono::steady_clock::time_point t_img, double bullet_speed, bool to_now)
+{
+  /// 选车
+  std::optional<Target> opt_target = choose_target(targets, armors);
+  if (!opt_target.has_value()) return {false, false, 0, 0};
+  auto chosen_target = opt_target.value();
 
   if (bullet_speed < 10) bullet_speed = 23;
-
   if (to_now) {
     chosen_target.predict(std::chrono::steady_clock::now());
   }
 
-  auto aim_point0 = choose_coming_aim_point(chosen_target);
-  debug_aim_point = aim_point0;
-  if (!aim_point0.valid) {
-    tools::logger()->debug("Invalid aim_point0.");
+  bool can_fire = true;
+
+  /// 预选 装甲板
+  std::optional<int> opt_rough_chosen_id = choose_armor(chosen_target);
+  if (!opt_rough_chosen_id.has_value()) {
+    tools::logger()->debug("pre_choose invalid");
     return {false, false, 0, 0};
   }
+  int chosen_id_rough = opt_rough_chosen_id.value();
 
-  Eigen::Vector3d xyz0 = aim_point0.xyza.head(3);
-  auto d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
-  tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
-  if (trajectory0.unsolvable) {
+  /// 粗略计算弹道
+  Eigen::Vector3d xyz_rough = chosen_target.armor_xyza_list()[chosen_id_rough].head(3);
+  auto d_rough = std::sqrt(xyz_rough[0] * xyz_rough[0] + xyz_rough[1] * xyz_rough[1]);
+  tools::Trajectory trajectory_rough(bullet_speed, d_rough, xyz_rough[2]);
+  if (trajectory_rough.unsolvable) {
     tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
-    debug_aim_point.valid = false;
+      "[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d_rough, xyz_rough[2]);
+    yp_should = std::nullopt;
     return {false, false, 0, 0};
   }
 
-  // 迭代 TODO 改为循环
-
+  /// 预测target，不考虑控制延时
   if (to_now) {
-    auto t_hit =
-      std::chrono::steady_clock::now() +
-      std::chrono::microseconds(int((delay_gimbal_ + delay_shoot_ + trajectory0.fly_time) * 1e6));
+    auto t_hit = std::chrono::steady_clock::now() +
+                 std::chrono::microseconds(int((trajectory_rough.fly_time) * 1e6));
     chosen_target.predict(t_hit);
   } else {
-    auto t_hit = t_img + std::chrono::microseconds(
-                           int((delay_gimbal_ + delay_shoot_ + trajectory0.fly_time) * 1e6));
+    auto t_hit = t_img + std::chrono::microseconds(int((trajectory_rough.fly_time) * 1e6));
     chosen_target.predict(t_hit);
   }
-  auto aim_point1 = choose_aim_point(chosen_target);
-  debug_aim_point = aim_point1;
-  if (!aim_point1.valid) {
-    aim_point1 = choose_coming_aim_point(chosen_target);
-    tools::logger()->debug("aim at coming point");
-    can_fire = false;
-  }
 
-  Eigen::Vector3d xyz1 = aim_point1.xyza.head(3);
-  auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-  tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
-  if (trajectory1.unsolvable) {
+  /// 选择真要正击打的装甲板
+  std::optional<int> opt_chosen_id = choose_armor(chosen_target);
+  if (!opt_chosen_id.has_value()) {
+    tools::logger()->debug("choose invalid");
+    yp_should = std::nullopt;
+    return {false, false, 0, 0};
+  }
+  int chosen_id = opt_chosen_id.value();
+  aim_id = chosen_id;
+
+  /// 理想弹道
+  Eigen::Vector3d xyz_hit = chosen_target.armor_xyza_list()[chosen_id_rough].head(3);
+  auto d_hit = std::sqrt(xyz_hit[0] * xyz_hit[0] + xyz_hit[1] * xyz_hit[1]);
+  tools::Trajectory trajectory_hit(bullet_speed, d_hit, xyz_hit[2]);
+  if (trajectory_hit.unsolvable) {
     tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
-    debug_aim_point.valid = false;
+      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d_hit, xyz_hit[2]);
+    yp_should = std::nullopt;
     return {false, false, 0, 0};
   }
 
-  auto time_error = trajectory1.fly_time - trajectory0.fly_time;
+  auto time_error = trajectory_hit.fly_time - trajectory_rough.fly_time;
   if (std::abs(time_error) > 0.1) {
     tools::logger()->debug("[Aimer] Large time error: {:.3f}", time_error);
-    debug_aim_point.valid = false;
+    // debug_aim_point.valid = false;
     return {false, false, 0, 0};
   }
 
-  auto yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
-  auto pitch = trajectory1.pitch + pitch_offset_;
-  return {true, can_fire, yaw, pitch};
+  double yaw_should = std::atan2(xyz_hit[1], xyz_hit[0]) + yaw_offset_;
+  double pitch_should = trajectory_hit.pitch + pitch_offset_;
+  yp_should = std::make_pair(yaw_should, pitch_should);
+
+  /// 预测target，额外加入控制延时
+  if (to_now) {
+    auto t_hit = std::chrono::steady_clock::now() +
+                 std::chrono::microseconds(int((delay_gimbal_ + trajectory_rough.fly_time) * 1e6));
+    chosen_target.predict(t_hit);
+  } else {
+    auto t_hit =
+      t_img + std::chrono::microseconds(int((delay_gimbal_ + trajectory_rough.fly_time) * 1e6));
+    chosen_target.predict(t_hit);
+  }
+
+  Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id_rough].head(3);
+  auto d_compensate = std::sqrt(xyz_hit[0] * xyz_hit[0] + xyz_hit[1] * xyz_hit[1]);
+  tools::Trajectory trajectory_compensate(bullet_speed, d_hit, xyz_hit[2]);
+  if (trajectory_compensate.unsolvable) {
+    tools::logger()->debug(
+      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d_hit, xyz_hit[2]);
+    return {false, false, 0, 0};
+  }
+
+  /// TODO: maybe more strategies here
+
+  double yaw_send = std::atan2(xyz_compensate[1], xyz_compensate[0]) + yaw_offset_;
+  double pitch_send = trajectory_compensate.pitch + pitch_offset_;
+
+  return {true, can_fire, yaw_send, pitch_send};
 }
 
 void Aimer::clear_last() { last_target_name_ = not_armor; }
 
-AimPoint Aimer::choose_aim_point(const Target & target)
+std::optional<int> Aimer::choose_armor(const Target & target)
 {
   Eigen::VectorXd ekf_x = target.ekf_x();
   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
   auto armor_num = armor_xyza_list.size();
 
   // 如果装甲板未发生过跳变，则只有当前装甲板的位置已知
-  if (!target.jumped) return {true, armor_xyza_list[0]};
+  if (!target.jumped) return 0;
   // 整车旋转中心的球坐标yaw
   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
 
@@ -166,7 +207,7 @@ AimPoint Aimer::choose_aim_point(const Target & target)
     // 绝无可能
     if (id_list.empty()) {
       tools::logger()->warn("Empty id list!");
-      return {false, armor_xyza_list[0]};
+      return std::nullopt;
     }
 
     // 锁定模式：防止在两个都呈45度的装甲板之间来回切换
@@ -177,81 +218,81 @@ AimPoint Aimer::choose_aim_point(const Target & target)
       if (lock_id_ != id0 && lock_id_ != id1)
         lock_id_ = (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
 
-      return {true, armor_xyza_list[lock_id_]};
+      return lock_id_;
     }
 
     // 只有一个装甲板在可射击范围内时，退出锁定模式
     lock_id_ = -1;
-    return {true, armor_xyza_list[id_list[0]]};
+    return id_list[0];
   }
 
   // 在小陀螺时，一侧的装甲板不断出现，另一侧的装甲板不断消失，显然前者被打中的概率更高
   for (int i = 0; i < armor_num; i++) {
     if (std::abs(delta_angle_list[i]) > shooting_angle_) continue;
-    if (ekf_x[7] > 0 && delta_angle_list[i] < shooting_angle_) return {true, armor_xyza_list[i]};
-    if (ekf_x[7] < 0 && delta_angle_list[i] > -shooting_angle_) return {true, armor_xyza_list[i]};
+    if (ekf_x[7] > 0 && delta_angle_list[i] < shooting_angle_) return i;
+    if (ekf_x[7] < 0 && delta_angle_list[i] > -shooting_angle_) return i;
   }
-  return {false, armor_xyza_list[0]};
+  return std::nullopt;
 }
 
-AimPoint Aimer::choose_coming_aim_point(const Target & target)
-{
-  Eigen::VectorXd ekf_x = target.ekf_x();
-  Eigen::Vector3d center = {ekf_x[0], ekf_x[2], ekf_x[4]};
-  std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
-  auto armor_num = armor_xyza_list.size();
+// AimPoint Aimer::choose_coming_aim_point(const Target & target)
+// {
+//   Eigen::VectorXd ekf_x = target.ekf_x();
+//   Eigen::Vector3d center = {ekf_x[0], ekf_x[2], ekf_x[4]};
+//   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
+//   auto armor_num = armor_xyza_list.size();
 
-  // 整车旋转中心的球坐标yaw
-  auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
+//   // 整车旋转中心的球坐标yaw
+//   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
 
-  // 如果delta_angle为0，则该装甲板中心和整车中心的连线在世界坐标系的xy平面过原点
-  // delta_angle 为正，在车中心右侧
-  std::vector<double> delta_angle_list;
-  for (int i = 0; i < armor_num; i++) {
-    auto delta_angle = tools::limit_rad(armor_xyza_list[i][3] - center_yaw);
-    delta_angle_list.emplace_back(delta_angle);
-  }
+//   // 如果delta_angle为0，则该装甲板中心和整车中心的连线在世界坐标系的xy平面过原点
+//   // delta_angle 为正，在车中心右侧
+//   std::vector<double> delta_angle_list;
+//   for (int i = 0; i < armor_num; i++) {
+//     auto delta_angle = tools::limit_rad(armor_xyza_list[i][3] - center_yaw);
+//     delta_angle_list.emplace_back(delta_angle);
+//   }
 
-  if (ekf_x[7] > 0) {  // 向右旋转
-    int chosen_id = 0;
-    double min_val = -1e3;
-    for (int id = 0; id < armor_num; id++) {
-      if (
-        delta_angle_list[id] < -shooting_angle_ &&
-        delta_angle_list[id] > min_val)  // 选择左侧离击打范围最近的装甲板
-      {
-        chosen_id = id;
-        min_val = delta_angle_list[chosen_id];
-      }
-    }
-    auto use_l_h = (armor_num == 4) && (chosen_id == 1 || chosen_id == 3);
-    auto r = (use_l_h) ? ekf_x[8] + ekf_x[9] : ekf_x[8];
-    return {
-      true,
-      {center[0] - std::cos(-shooting_angle_ + center_yaw) * r,
-       center[1] - std::sin(-shooting_angle_ + center_yaw) * r, armor_xyza_list[chosen_id][2],
-       -shooting_angle_ + center_yaw}};
-  } else {
-    int chosen_id = 0;
-    double max_val = 1e3;
-    for (int id = 0; id < armor_num; id++) {
-      if (
-        delta_angle_list[id] > shooting_angle_ &&
-        delta_angle_list[id] < max_val)  // 选择右侧离击打范围最近的装甲板
-      {
-        chosen_id = id;
-        max_val = delta_angle_list[chosen_id];
-      }
-    }
-    auto use_l_h = (armor_num == 4) && (chosen_id == 1 || chosen_id == 3);
-    auto r = (use_l_h) ? ekf_x[8] + ekf_x[9] : ekf_x[8];
-    return {
-      true,
-      {center[0] - std::cos(shooting_angle_ + center_yaw) * r,
-       center[1] - std::sin(shooting_angle_ + center_yaw) * r, armor_xyza_list[chosen_id][2],
-       shooting_angle_ + center_yaw}};
-  }
-  return {0, armor_xyza_list[0]};  // 不会运行到这里
-}
+//   if (ekf_x[7] > 0) {  // 向右旋转
+//     int chosen_id = 0;
+//     double min_val = -1e3;
+//     for (int id = 0; id < armor_num; id++) {
+//       if (
+//         delta_angle_list[id] < -shooting_angle_ &&
+//         delta_angle_list[id] > min_val)  // 选择左侧离击打范围最近的装甲板
+//       {
+//         chosen_id = id;
+//         min_val = delta_angle_list[chosen_id];
+//       }
+//     }
+//     auto use_l_h = (armor_num == 4) && (chosen_id == 1 || chosen_id == 3);
+//     auto r = (use_l_h) ? ekf_x[8] + ekf_x[9] : ekf_x[8];
+//     return {
+//       true,
+//       {center[0] - std::cos(-shooting_angle_ + center_yaw) * r,
+//        center[1] - std::sin(-shooting_angle_ + center_yaw) * r, armor_xyza_list[chosen_id][2],
+//        -shooting_angle_ + center_yaw}};
+//   } else {
+//     int chosen_id = 0;
+//     double max_val = 1e3;
+//     for (int id = 0; id < armor_num; id++) {
+//       if (
+//         delta_angle_list[id] > shooting_angle_ &&
+//         delta_angle_list[id] < max_val)  // 选择右侧离击打范围最近的装甲板
+//       {
+//         chosen_id = id;
+//         max_val = delta_angle_list[chosen_id];
+//       }
+//     }
+//     auto use_l_h = (armor_num == 4) && (chosen_id == 1 || chosen_id == 3);
+//     auto r = (use_l_h) ? ekf_x[8] + ekf_x[9] : ekf_x[8];
+//     return {
+//       true,
+//       {center[0] - std::cos(shooting_angle_ + center_yaw) * r,
+//        center[1] - std::sin(shooting_angle_ + center_yaw) * r, armor_xyza_list[chosen_id][2],
+//        shooting_angle_ + center_yaw}};
+//   }
+//   return {0, armor_xyza_list[0]};  // 不会运行到这里
+// }
 
 }  // namespace auto_aim
