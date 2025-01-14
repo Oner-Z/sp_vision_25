@@ -28,8 +28,8 @@ add_executable(cboard_test examples/cboard_test.cpp)
 target_link_libraries(camera_test ${OpenCV_LIBS} fmt::fmt tools io)
 target_link_libraries(cboard_test ${OpenCV_LIBS} fmt::fmt tools)
 
-add_executable(auto_aim_test examples/auto_aim_test.cpp)
-target_link_libraries(auto_aim_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
+# add_executable(auto_aim_test examples/auto_aim_test.cpp)
+# target_link_libraries(auto_aim_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
 add_executable(armor_detector_video examples/armor_detector_video.cpp)
 target_link_libraries(armor_detector_video ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
 
@@ -48,8 +48,8 @@ target_link_libraries(calibrate_robotworld_handeye ${OpenCV_LIBS} fmt::fmt yaml-
 add_executable(fix_video examples/fix_video.cpp)
 target_link_libraries(fix_video ${OpenCV_LIBS} fmt::fmt tools)
 
-add_executable(auto_aim_debug src/auto_aim_debug.cpp)
-target_link_libraries(auto_aim_debug ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
+# add_executable(auto_aim_debug src/auto_aim_debug.cpp)
+# target_link_libraries(auto_aim_debug ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
 
 # add_executable(auto_buff_debug src/auto_buff_debug.cpp)
 # target_link_libraries(auto_buff_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools io)
@@ -59,5 +59,5 @@ target_link_libraries(auto_aim_debug ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim t
 add_executable(hero src/hero.cpp)
 target_link_libraries(hero ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost tools io)
 
-add_executable(temp src/temp.cpp)
-target_link_libraries(temp ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost tools io)
+# add_executable(temp src/temp.cpp)
+# target_link_libraries(temp ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost tools io)
