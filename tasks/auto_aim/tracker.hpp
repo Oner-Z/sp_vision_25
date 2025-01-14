@@ -7,42 +7,45 @@
 #include <string>
 
 #include "armor.hpp"
+#include "io/cboard.hpp"
 #include "solver.hpp"
 #include "target.hpp"
-#include "io/cboard.hpp"
 
 namespace auto_aim
 {
-  class Tracker
-  {
-  public:
-    Tracker(const std::string &config_path, Solver &solver);
+class Tracker
+{
+public:
+  Tracker(const std::string & config_path, Solver & solver);
 
-    std::string state() const;
+  bool state();
+  std::string state_str();
+  Target get_target();
 
-    std::list<Target> track(
-        std::list<Armor> &armors, std::chrono::steady_clock::time_point t,
-        bool use_enemy_color = true, io::Mode mode = io::Mode::auto_aim);
+  std::list<Target> track(
+    std::list<Armor> & armors, std::chrono::steady_clock::time_point t, bool use_enemy_color = true,
+    io::Mode mode = io::Mode::auto_aim);
 
-  private:
-    Solver &solver_;
-    Color enemy_color_;
-    int min_detect_count_;
-    int max_temp_lost_count_;
-    int detect_count_;
-    int temp_lost_count_;
-    std::string state_;
-    Target target_;
-    std::chrono::steady_clock::time_point last_timestamp_;
-    io::Mode last_mode_ = io::Mode::idle;
+private:
+  const static int ENEMY_NUM = 8;
+  Solver & solver_;
+  Color enemy_color_;
+  Target target_;
+  std::chrono::steady_clock::time_point last_timestamp_;
+  io::Mode last_mode_ = io::Mode::idle;
+  Target targets_[ENEMY_NUM];
 
-    void state_machine(bool found);
+  void state_machine(bool found);
 
-    bool set_target(std::list<Armor> &armors, std::chrono::steady_clock::time_point t, io::Mode mode);
+  bool set_target(std::list<Armor> & armors, std::chrono::steady_clock::time_point t, io::Mode mode);
 
-    bool update_target(std::list<Armor> &armors, std::chrono::steady_clock::time_point t);
-  };
+  bool update_target(std::list<Armor> & armors, std::chrono::steady_clock::time_point t);
 
-} // namespace auto_aim
+  bool update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t);
 
-#endif // AUTO_AIM__TRACKER_HPP
+  void clear_targets();
+};
+
+}  // namespace auto_aim
+
+#endif  // AUTO_AIM__TRACKER_HPP

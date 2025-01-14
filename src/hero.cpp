@@ -8,9 +8,9 @@
 #include "io/cboard.hpp"
 #include "tasks/auto_aim/classifier.hpp"
 #include "tasks/auto_aim/detector.hpp"
-#include "tasks/auto_aim/yolov8.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
+#include "tasks/auto_aim/yolov8.hpp"
 #include "tasks/auto_outpost/shooter.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
@@ -79,25 +79,20 @@ int main(int argc, char * argv[])
     if (!debug) continue;
 
     nlohmann::json data;
-
-    tools::draw_text(
-      img, fmt::format("[{}] [{}]", frame_count, tracker.state()), {10, 30}, {255, 255, 255});
-
-    if (tracker.state() != "lost") {
+    tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
+    if (tracker.state()) {  // tracker.state() && targets.size()
       // 当前帧target更新后
-      auto target = targets.front();
+      auto target = tracker.get_target();
       std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
       for (const Eigen::Vector4d & xyza : armor_xyza_list) {
-        auto image_points =
-          solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
+        auto image_points = solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
         tools::draw_points(img, image_points, {0, 255, 0});
       }
 
       // aimer瞄准位置
       auto aim_point = shooter.debug_aim_point_;
       Eigen::Vector4d aim_xyza = aim_point.xyza;
-      auto image_points =
-        solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
+      auto image_points = solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
       if (aim_point.valid)
         tools::draw_points(img, image_points, {0, 0, 255});
       else
@@ -121,7 +116,7 @@ int main(int argc, char * argv[])
       data["h"] = x[10];
       data["last_id"] = target.last_id;
       data["bullet_speed"] = cboard.bullet_speed;
-      data["d"] = sqrt(x[0] * x[0]+x[2] * x[2]+x[4] * x[4]);
+      data["d"] = sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
     }
     cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);

@@ -15,25 +15,24 @@
 
 namespace auto_aim
 {
-YOLOV8::YOLOV8(const std::string & config_path, bool debug)
-: classifier_(config_path), debug_(debug)
+YOLOV8::YOLOV8(const std::string & config_path, bool debug) : classifier_(config_path), debug_(debug)
 {
   auto yaml = YAML::LoadFile(config_path);
 
   model_path_ = yaml["model_path"].as<std::string>();
-  std::cout<<model_path_<<std::endl;
+  std::cout << model_path_ << std::endl;
   device_ = yaml["device"].as<std::string>();
-  std::cout<<device_ <<std::endl;
+  std::cout << device_ << std::endl;
   min_confidence_ = yaml["min_confidence"].as<double>();
-  std::cout<<min_confidence_ <<std::endl;
+  std::cout << min_confidence_ << std::endl;
   int x = 0, y = 0, width = 0, height = 0;
   x = yaml["roi"]["x"].as<int>();
   y = yaml["roi"]["y"].as<int>();
   width = yaml["roi"]["width"].as<int>();
   height = yaml["roi"]["height"].as<int>();
-  std::cout << "ROI: x=" << x << ", y=" << y<< ", width=" << width << ", height=" << height << std::endl;
-  roi = cv::Rect(x, y, width, height);
-  offset = cv::Point2f(x, y);
+  std::cout << "ROI: x=" << x << ", y=" << y << ", width=" << width << ", height=" << height << std::endl;
+  roi_ = cv::Rect(x, y, width, height);
+  offset_ = cv::Point2f(x, y);
 
   save_path_ = "patterns";
   std::filesystem::create_directory(save_path_);
@@ -50,15 +49,11 @@ YOLOV8::YOLOV8(const std::string & config_path, bool debug)
 
   input.model().set_layout("NCHW");
 
-  input.preprocess()
-    .convert_element_type(ov::element::f32)
-    .convert_color(ov::preprocess::ColorFormat::RGB)
-    .scale(255.0);
+  input.preprocess().convert_element_type(ov::element::f32).convert_color(ov::preprocess::ColorFormat::RGB).scale(255.0);
 
   // TODO: ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)
   model = ppp.build();
-  compiled_model_ = core_.compile_model(
-    model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+  compiled_model_ = core_.compile_model(model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 }
 
 std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
@@ -67,11 +62,13 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
     tools::logger()->warn("Empty img!, camera drop!");
     return std::list<Armor>();
   }
-  if(roi.width ==-1 || roi.height ==-1){ // -1 表示该维度不裁切
-    roi.width = raw_img.cols;
-    roi.height = raw_img.rows;
+  if (roi_.width == -1) {  // -1 表示该维度不裁切
+    roi_.width = raw_img.cols;
   }
-  auto bgr_img = raw_img(YOLOV8::roi);
+  if (roi_.height == -1) {  // -1 表示该维度不裁切
+    roi_.height = raw_img.rows;
+  }
+  auto bgr_img = raw_img(roi_);
 
   auto x_scale = static_cast<double>(416) / bgr_img.rows;
   auto y_scale = static_cast<double>(416) / bgr_img.cols;
@@ -98,8 +95,7 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
   return parse(scale, output, raw_img, frame_count);
 }
 
-std::list<Armor> YOLOV8::parse(
-  double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
+std::list<Armor> YOLOV8::parse(double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
 {
   // for each row: xywh + classess
   cv::transpose(output, output);
@@ -148,7 +144,7 @@ std::list<Armor> YOLOV8::parse(
   std::list<Armor> armors;
   for (const auto & i : indices) {
     sort_keypoints(armors_key_points[i]);
-    armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i],YOLOV8::offset);
+    armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i], offset_);
   }
 
   for (auto it = armors.begin(); it != armors.end();) {
@@ -190,8 +186,7 @@ bool YOLOV8::check_type(const Armor & armor) const
 {
   auto name_ok = (armor.type == ArmorType::small)
                    ? (armor.name != ArmorName::one && armor.name != ArmorName::base)
-                   : (armor.name != ArmorName::two && armor.name != ArmorName::sentry &&
-                      armor.name != ArmorName::outpost);
+                   : (armor.name != ArmorName::two && armor.name != ArmorName::sentry && armor.name != ArmorName::outpost);
 
   // 保存异常的图案，用于分类器的迭代
   if (!name_ok) save(armor);
@@ -207,9 +202,7 @@ ArmorType YOLOV8::get_type(const Armor & armor)
   }
 
   // 工程、哨兵、前哨站只能是小装甲板
-  if (
-    armor.name == ArmorName::two || armor.name == ArmorName::sentry ||
-    armor.name == ArmorName::outpost) {
+  if (armor.name == ArmorName::two || armor.name == ArmorName::sentry || armor.name == ArmorName::outpost) {
     return ArmorType::small;
   }
 
@@ -249,8 +242,7 @@ cv::Mat YOLOV8::get_pattern(const cv::Mat & bgr_img, const Armor & armor) const
 
   // 检查ROI是否超出图像边界
   if (roi_right > bgr_img.cols || roi_bottom > bgr_img.rows) {
-    std::cerr << "ROI out of image bounds: " << roi << " Image size: " << bgr_img.size()
-              << std::endl;
+    std::cerr << "ROI out of image bounds: " << roi << " Image size: " << bgr_img.size() << std::endl;
     return cv::Mat();  // 返回一个空的Mat对象
   }
 
@@ -264,21 +256,19 @@ void YOLOV8::save(const Armor & armor) const
   cv::imwrite(img_path, armor.pattern);
 }
 
-void YOLOV8::draw_detections(
-  const cv::Mat & img, const std::list<Armor> & armors, int frame_count) const
+void YOLOV8::draw_detections(const cv::Mat & img, const std::list<Armor> & armors, int frame_count) const
 {
   auto detection = img.clone();
   tools::draw_text(detection, fmt::format("[{}]", frame_count), {10, 30}, {255, 255, 255});
   for (const auto & armor : armors) {
-    auto info = fmt::format(
-      "{:.2f} {:.2f} {} {}", armor.ratio, armor.confidence, ARMOR_NAMES[armor.name],
-      ARMOR_TYPES[armor.type]);
+    auto info =
+      fmt::format("{:.2f} {:.2f} {} {}", armor.ratio, armor.confidence, ARMOR_NAMES[armor.name], ARMOR_TYPES[armor.type]);
     tools::draw_points(detection, armor.points, {0, 255, 0});
     tools::draw_text(detection, info, armor.center, {0, 255, 0});
   }
 
   cv::Scalar green(0, 255, 0);
-  cv::rectangle(detection, roi, green, 2);
+  cv::rectangle(detection, roi_, green, 2);
   cv::resize(detection, detection, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
   cv::imshow("detection", detection);
 }
@@ -290,20 +280,14 @@ void YOLOV8::sort_keypoints(std::vector<cv::Point2f> & keypoints)
     return;
   }
 
-  std::sort(keypoints.begin(), keypoints.end(), [](const cv::Point2f & a, const cv::Point2f & b) {
-    return a.y < b.y;
-  });
+  std::sort(keypoints.begin(), keypoints.end(), [](const cv::Point2f & a, const cv::Point2f & b) { return a.y < b.y; });
 
   std::vector<cv::Point2f> top_points = {keypoints[0], keypoints[1]};
   std::vector<cv::Point2f> bottom_points = {keypoints[2], keypoints[3]};
 
-  std::sort(top_points.begin(), top_points.end(), [](const cv::Point2f & a, const cv::Point2f & b) {
-    return a.x < b.x;
-  });
+  std::sort(top_points.begin(), top_points.end(), [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
 
-  std::sort(
-    bottom_points.begin(), bottom_points.end(),
-    [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
+  std::sort(bottom_points.begin(), bottom_points.end(), [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
 
   keypoints[0] = top_points[0];     // top-left
   keypoints[1] = top_points[1];     // top-right

@@ -7,16 +7,9 @@ namespace auto_aim
 {
 // 把 w、v1、v2 传进来
 Target::Target(
-  const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-  Eigen::VectorXd P0_dig, double v1, double v2, double w)
-: name(armor.name),
-  armor_type(armor.type),
-  jumped(false),
-  last_id(0),
-  armor_num_(armor_num),
-  t_(t),
-  v1_(v1),
-  v2_(v2)
+  const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num, Eigen::VectorXd P0_dig, double v1,
+  double v2, double w)
+: name(armor.name), armor_type(armor.type), jumped(false), last_id(0), armor_num_(armor_num), t_(t), v1_(v1), v2_(v2)
 {
   auto r = radius;
 
@@ -46,6 +39,52 @@ Target::Target(
   ekf_ = tools::ExtendedKalmanFilter(x0, P0, x_add);
 }
 
+Target::Target(
+  int armor_num, double r, Eigen::VectorXd P0_dig, int min_detect_count, int max_temp_lost_count, double v1, double v2,
+  double w)
+: armor_num_(armor_num),
+  min_detect_count_(min_detect_count),
+  max_temp_lost_count_(max_temp_lost_count),
+  r_(r),
+  v1_(v1),
+  v2_(v2),
+  w_(w)
+{
+  P0_ = P0_dig.asDiagonal();
+  x_add_ = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
+    Eigen::VectorXd c = a + b;
+    c[6] = tools::limit_rad(c[6]);
+    return c;
+  };
+}
+
+void Target::set_target(
+  const Armor * armor, std::chrono::steady_clock::time_point t)  // 从LOST进入DETECTING后，设置本次识别到的目标的初值
+{
+  tools::logger()->debug("new target set!");
+  name = armor->name;
+  armor_type = armor->type;
+  jumped = false;
+  last_id = 0;
+  t_ = t;
+  const Eigen::VectorXd & xyz = armor->xyz_in_world;
+  const Eigen::VectorXd & ypr = armor->ypr_in_world;
+
+  // 旋转中心的坐标
+  auto center_x = xyz[0] + r_ * std::cos(ypr[0]);
+  auto center_y = xyz[1] + r_ * std::sin(ypr[0]);
+  auto center_z = xyz[2];
+
+  // x vx y vy z vz a w r l h
+  // a: angle
+  // w: angular velocity
+  // l: r2 - r1
+  // h: z2 - z1
+  Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], w_, r_, 0, 0}};
+
+  ekf_ = tools::ExtendedKalmanFilter(x0, P0_, x_add_);
+}
+
 void Target::predict(std::chrono::steady_clock::time_point t)
 {
   auto dt = tools::delta_time(t, t_);
@@ -73,8 +112,9 @@ void Target::predict(std::chrono::steady_clock::time_point t)
   auto v2 = v2_;  // 角加速度方差
   auto a = dt * dt * dt * dt / 4;
   auto b = dt * dt * dt / 2;
-  auto c = dt * dt;
+  auto c = dt * dt / 1;
   // clang-format off
+  // x vx y vy z vz a w r1 r2 h
   Eigen::MatrixXd Q{
     {a * v1, b * v1,      0,      0,      0,      0,      0,      0, 0, 0, 0},
     {b * v1, c * v1,      0,      0,      0,      0,      0,      0, 0, 0, 0},
@@ -99,9 +139,55 @@ void Target::predict(std::chrono::steady_clock::time_point t)
 
   ekf_.predict(F, Q, f);
 }
+void Target::clear_target() { state_ = LOST; }
 
-void Target::update(const Armor & armor)
+int Target::transition(const Armor * armor, std::chrono::steady_clock::time_point t)
 {
+  int flag;
+  switch (state_) {
+    case LOST:
+      if (armor) {
+        state_ = DETECTING;
+        detect_count_ = 1;
+        set_target(armor, t);
+      }
+      break;
+    case DETECTING:
+      if (armor) {
+        detect_count_++;
+      } else {
+        detect_count_ = 0;
+        state_ = LOST;
+      }
+
+      if (detect_count_ > min_detect_count_) {
+        state_ = TRACKING;
+      }
+      break;
+    case TEMP_LOST:
+      if (armor) {
+        state_ = TRACKING;
+      } else {
+        temp_lost_count_++;
+      }
+      if (temp_lost_count_ > max_temp_lost_count_) {
+        state_ = LOST;
+      }
+      break;
+    case TRACKING:
+      if (!armor) {
+        temp_lost_count_ = 1;
+        state_ = TEMP_LOST;
+      }
+      break;
+  }
+  return flag = (armor) ? 1 : 0;
+}
+
+void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t)
+{
+  // 状态更新
+  if (!transition(&armor, t)) return;  // 如果装甲板为空，更新状态后就返回。
   // 装甲板匹配
   int id;
   auto min_angle_error = 1e10;
@@ -122,13 +208,19 @@ void Target::update(const Armor & armor)
   last_id = id;
 
   update_ypda(armor, id);
+
+  // 发散检测
+  if (state_ != LOST && diverged()) {
+    tools::logger()->debug("[Target] Target diverged!");
+    state_ = LOST;
+  }
 }
 
 void Target::update_ypda(const Armor & armor, int id)
 {
   Eigen::MatrixXd H = h_jacobian(ekf_.x, id);
   // {4e-3, 4e-3, 1, 2e-1}
-  Eigen::VectorXd R_dig{{4e-3, 4e-3, 1, 2e-1}}; // 观测噪声 yaw pitch distance angle, 前三个是球坐标系坐标，最后一个是朝向
+  Eigen::VectorXd R_dig{{4e-3, 8e-2, 1, 2e-1}};  // 观测噪声 yaw pitch distance angle, 前三个是球坐标系坐标，最后一个是朝向
   Eigen::MatrixXd R = R_dig.asDiagonal();
 
   // 定义非线性转换函数h: x -> z
@@ -231,6 +323,26 @@ Eigen::MatrixXd Target::h_jacobian(const Eigen::VectorXd & x, int id) const
   // clang-format on
 
   return H_armor_ypda * H_armor_xyza;
+}
+
+bool Target::state() { return (state_ == LOST) ? 0 : 1; }
+
+std::string Target::state_str()
+{
+  switch (state_) {
+    case (LOST):
+      return "LOST";
+      break;
+    case (DETECTING):
+      return "DETECTING";
+      break;
+    case (TEMP_LOST):
+      return "TEMP_LOST";
+      break;
+    case (TRACKING):
+      return "TRACKING";
+      break;
+  }
 }
 
 }  // namespace auto_aim

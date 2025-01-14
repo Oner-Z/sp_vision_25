@@ -180,7 +180,7 @@ void Shooter::shoot(
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
         if (
-          ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.06) &&
+          ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.08) &&
           (sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");
           cboard_.send({true, true, yaw, -pitch});
@@ -196,6 +196,12 @@ void Shooter::shoot(
       }
     }
     cboard_.send({true, false, yaw, -pitch});
+    nlohmann::json data;
+    tools::Plotter plotter;
+    data["command_yaw"] = yaw * 57.3;
+    data["command_pitch"] = pitch * 57.3;
+    data["center_yaw"] = center_yaw * 57.3;
+    plotter.plot(data);
     return;
   }
 
@@ -336,137 +342,4 @@ Shooter::~Shooter()
   tools::logger()->info("Shooter destructed");
 }
 
-// 通过固定命令发送的pitch值（绕开shooter）来测试为什么命中几发目标后会突然不命中
-void Shooter::test(
-  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now,
-  double value)
-{
-  if (targets.empty()) {
-    // cboard_.send({false, false, 0, 0});
-    return;
-  }
-  auto target = targets.front();
-  auto target_predicted = target;
-  auto t_img = timestamp;
-  auto t_fire = timestamp;
-  if (to_now) {
-    auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + ctrl_to_fire_;
-    t_fire = tools::add_time(t_img, dt);
-    t_img + std::chrono::microseconds(int(dt * 1e6));
-    target_predicted.predict(t_fire);  // target_predicted是预测子弹出膛时的目标位姿
-  }
-
-  if (bullet_speed < 14.5 || bullet_speed > 16.2) bullet_speed = 14.8;
-
-  auto ekf_x = target_predicted.ekf_x();
-
-  if (std::abs(ekf_x[7]) > 1) {  // w 大于1就认为在旋转
-    tools::logger()->info("top mode");
-
-    auto xyz0 = get_front(target_predicted);
-    double d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
-    // 解算出膛时击打目标的弹道
-    tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
-    if (trajectory0.unsolvable) {
-      tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
-      return;
-    }
-    //-----------------------------------------------------------------------
-    auto t_hit = tools::add_time(t_fire, trajectory0.fly_time);
-    target_predicted.predict(t_hit);  // target_predicted是预测子弹命中时的目标位姿
-    auto xyz1 = get_front(target_predicted);
-    auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-    // 解算击中时击打目标的弹道
-    tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
-    if (trajectory1.unsolvable) {
-      tools::logger()->debug("[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
-      return;
-    }
-    // 时间差过大就说明打不中了（转走了）
-    auto time_error = trajectory1.fly_time - trajectory0.fly_time;
-    if (std::abs(time_error) > 0.1) {
-      tools::logger()->debug("[Aimer] Large time error: {:.3f}", time_error);
-      return;
-    }
-
-    auto yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
-    auto pitch = trajectory1.pitch + pitch_offset_;
-
-    auto armor_xyza_list = target_predicted.armor_xyza_list();
-    int armor_num = armor_xyza_list.size();
-
-    auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);  // 整车旋转中心的球坐标yaw
-    debug_aim_point_ = {true, {xyz1[0], xyz1[1], xyz1[2], 0}};
-    for (int aim_id = 0; aim_id < armor_num; aim_id++) {
-      auto delta_yaw = tools::limit_rad(armor_xyza_list[aim_id][3] - center_yaw);
-      if (std::abs(delta_yaw) < 0.08 && aim_id != last_hit_id_) {
-        last_hit_id_ = aim_id;
-        tools::logger()->info("########## fire ##########");
-        cboard_.send({true, true, yaw, value});
-        return;
-      }
-    }
-    cboard_.send({true, false, yaw, value});
-    return;
-  }  // 小陀螺处理
-
-  auto aim_point0 = choose_aim_point(target_predicted);
-  debug_aim_point_ = aim_point0;
-  if (!aim_point0.valid) {
-    // tools::logger()->debug("Invalid aim_point0.");
-    cboard_.send({false, false, 0, 0});
-    return;
-  }
-
-  Eigen::Vector3d xyz0 = aim_point0.xyza.head(3);
-  auto d0 = std::sqrt(xyz0[0] * xyz0[0] + xyz0[1] * xyz0[1]);
-  tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2]);
-  if (trajectory0.unsolvable) {
-    tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
-    debug_aim_point_.valid = false;
-    cboard_.send({false, false, 0, 0});
-    return;
-  }
-
-  auto t_hit = tools::add_time(t_fire, trajectory0.fly_time);
-  target_predicted.predict(t_hit);
-
-  auto aim_point1 = choose_aim_point(target_predicted);
-  debug_aim_point_ = aim_point1;
-  if (!aim_point1.valid) {
-    // tools::logger()->debug("Invalid aim_point1.");
-    cboard_.send({false, false, 0, 0});
-    return;
-  }
-
-  Eigen::Vector3d xyz1 = aim_point1.xyza.head(3);
-  auto d1 = std::sqrt(xyz1[0] * xyz1[0] + xyz1[1] * xyz1[1]);
-  tools::Trajectory trajectory1(bullet_speed, d1, xyz1[2]);
-  if (trajectory1.unsolvable) {
-    tools::logger()->debug("[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d1, xyz1[2]);
-    debug_aim_point_.valid = false;
-    cboard_.send({false, false, 0, 0});
-    return;
-  }
-
-  auto time_error = trajectory1.fly_time - trajectory0.fly_time;
-  if (std::abs(time_error) > 0.1) {
-    tools::logger()->debug("[Aimer] Large time error: {:.3f}", time_error);
-    debug_aim_point_.valid = false;
-    cboard_.send({false, false, 0, 0});
-    return;
-  }
-
-  auto yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
-  auto pitch = trajectory1.pitch + pitch_offset_;
-  cboard_.send({true, false, yaw, value});
-  nlohmann::json data;
-  tools::Plotter plotter;
-  data["command_yaw"] = yaw * 57.3;
-  data["command_pitch"] = -value * 57.3;
-  plotter.plot(data);
-
-  // tools::logger()->info("command # yaw {:.2f} {:.2f}",yaw*57.3,pitch*57.3);
-  return;
-}
 }  // namespace auto_outpost

@@ -22,24 +22,44 @@ public:
 
   Target() = default;
   Target(
-    const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-    Eigen::VectorXd P0_dig, double v1 = 100, double v2 = 400, double w = 0);
+    const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num, Eigen::VectorXd P0_dig,
+    double v1 = 100, double v2 = 400, double w = 0);
+  Target(
+    int armor_num, double r_, Eigen::VectorXd P0_dig, int min_detect_count, int max_temp_lost_count, double v1 = 100,
+    double v2 = 400, double w = 0);
 
   void predict(std::chrono::steady_clock::time_point t);
-  void update(const Armor & armor);
+  void update(const Armor & armor, std::chrono::steady_clock::time_point t);
 
   Eigen::VectorXd ekf_x() const;
   std::vector<Eigen::Vector4d> armor_xyza_list() const;
 
   bool diverged() const;
+  bool state();
+  std::string state_str();
+  void clear_target();
 
 private:
+  enum State { LOST, DETECTING, TEMP_LOST, TRACKING };
   double v1_;
   double v2_;
   int armor_num_;
 
+  int min_detect_count_ = 0;
+  int max_temp_lost_count_ = 0;
+  int detect_count_ = 0;
+  int temp_lost_count_ = 0;
+  State state_ = LOST;
+  Eigen::MatrixXd P0_;
+  double w_;
+  double r_;
+  std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add_;
+
   tools::ExtendedKalmanFilter ekf_;
   std::chrono::steady_clock::time_point t_;
+
+  int transition(const Armor * armor, std::chrono::steady_clock::time_point t);
+  void set_target(const Armor * armor, std::chrono::steady_clock::time_point t);
 
   void update_ypda(const Armor & armor, int id);  // yaw pitch distance angle
 
