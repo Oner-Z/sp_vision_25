@@ -71,44 +71,44 @@ int Shooter::get_next_armor(const auto_aim::Target & target, double flytime, std
 
 // 得到哪一個裝甲板是在逐漸傳過來接紫蛋。还有问题，不能用！！！！
 // TODO： 改用装甲板的alpha计算
-int Shooter:: get_next_armor(const auto_aim::Target & target,double flytime, std::chrono::steady_clock::time_point timestamp)
-{
-  auto t1 = target;
-  auto t2 = target;
-  auto dt =  tools::delta_time(std::chrono::steady_clock::now(), timestamp) + 0.01;
-  t2.predict(tools::add_time(timestamp, dt));//一小段時間之後的target
+// int Shooter:: get_next_armor(const auto_aim::Target & target,double flytime, std::chrono::steady_clock::time_point timestamp)
+// {
+//   auto t1 = target;
+//   auto t2 = target;
+//   auto dt =  tools::delta_time(std::chrono::steady_clock::now(), timestamp) + 0.01;
+//   t2.predict(tools::add_time(timestamp, dt));//一小段時間之後的target
 
-  auto armor_xyza_list1 = t1.armor_xyza_list();
-  auto armor_xyza_list2 = t2.armor_xyza_list();
-  int armor_num = armor_xyza_list1.size();
+//   auto armor_xyza_list1 = t1.armor_xyza_list();
+//   auto armor_xyza_list2 = t2.armor_xyza_list();
+//   int armor_num = armor_xyza_list1.size();
 
-  auto ekf_x1 = t1.ekf_x();
-  double d_center1 = std::sqrt(ekf_x1[0] * ekf_x1[0] + ekf_x1[2] * ekf_x1[2]);
-  double r1 = ekf_x1[8];
+//   auto ekf_x1 = t1.ekf_x();
+//   double d_center1 = std::sqrt(ekf_x1[0] * ekf_x1[0] + ekf_x1[2] * ekf_x1[2]);
+//   double r1 = ekf_x1[8];
 
-  auto ekf_x2 = t2.ekf_x();
-  double d_center2 = std::sqrt(ekf_x2[0] * ekf_x2[0] + ekf_x2[2] * ekf_x2[2]);
-  double r2 = ekf_x2[8];
+//   auto ekf_x2 = t2.ekf_x();
+//   double d_center2 = std::sqrt(ekf_x2[0] * ekf_x2[0] + ekf_x2[2] * ekf_x2[2]);
+//   double r2 = ekf_x2[8];
 
-  double min_angle = INFINITY, id = -1;//angle是水平方向上旋轉半徑，車-旋轉中心，車-裝甲板中中心這個三角形中，車-裝甲板中中心邊所對角
-  for(int aim_id = 0; aim_id < armor_num; aim_id++){
-    double d1 = std::sqrt(armor_xyza_list1[aim_id][0] * armor_xyza_list1[aim_id][0] 
-                          + armor_xyza_list1[aim_id][1] * armor_xyza_list1[aim_id][1]);
-    double d2 = std::sqrt(armor_xyza_list2[aim_id][0] * armor_xyza_list2[aim_id][0] 
-                          + armor_xyza_list2[aim_id][1] * armor_xyza_list2[aim_id][1]);
-    if(d1 > d2){ // 說明在接近
-      auto angle = get_delta_angle(d_center1, r1, d1);
-      
-      if(std::abs((flytime+ctrl_to_fire_)*ekf_x1[7])-std::abs(angle)>0.005){//這塊裝甲板還沒錯過發射時機
-        if(std::abs(angle)<min_angle){
-          min_angle = std::abs(angle);
-          id = aim_id;
-        }
-      }
-    }
-  }
-  return id;
-}
+//   double min_angle = INFINITY, id = -1;//angle是水平方向上旋轉半徑，車-旋轉中心，車-裝甲板中中心這個三角形中，車-裝甲板中中心邊所對角
+//   for(int aim_id = 0; aim_id < armor_num; aim_id++){
+//     double d1 = std::sqrt(armor_xyza_list1[aim_id][0] * armor_xyza_list1[aim_id][0]
+//                           + armor_xyza_list1[aim_id][1] * armor_xyza_list1[aim_id][1]);
+//     double d2 = std::sqrt(armor_xyza_list2[aim_id][0] * armor_xyza_list2[aim_id][0]
+//                           + armor_xyza_list2[aim_id][1] * armor_xyza_list2[aim_id][1]);
+//     if(d1 > d2){ // 說明在接近
+//       auto angle = get_delta_angle(d_center1, r1, d1);
+
+//       if(std::abs((flytime+ctrl_to_fire_)*ekf_x1[7])-std::abs(angle)>0.005){//這塊裝甲板還沒錯過發射時機
+//         if(std::abs(angle)<min_angle){
+//           min_angle = std::abs(angle);
+//           id = aim_id;
+//         }
+//       }
+//     }
+//   }
+//   return id;
+// }
 
 Shooter::Shooter(const std::string & config_path, io::CBoard & cboard)
 : cboard_{cboard}, exit_{false}, queue_0_(500), queue_1_(500), queue_2_(500)
@@ -183,7 +183,7 @@ void Shooter::shoot(
     target_predicted.predict(t_fire);
   }
 
-  if (bullet_speed < 15.2 || bullet_speed > 15.8) bullet_speed = 15.4;
+  if (bullet_speed < 15.2 || bullet_speed > 16.5) bullet_speed = 16.3;
   // bullet_speed=15.8;
 
   auto ekf_x = target_predicted.ekf_x();
@@ -224,7 +224,7 @@ void Shooter::shoot(
           ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.08) &&
           (sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");
-          cboard_.send({true, true, yaw, -pitch});
+          cboard_.send({true, true, yaw, pitch});
           armor_state = 0;
           SET_STATE(armor_state, aim_id, SHOOTED);
           SET_STATE(armor_state, (aim_id - sig + armor_num) % armor_num, SKIP);
@@ -236,7 +236,7 @@ void Shooter::shoot(
         SET_STATE(armor_state, aim_id, SHOOTED);
       }
     }
-    cboard_.send({true, false, yaw, -pitch});
+    cboard_.send({true, false, yaw, pitch});
     nlohmann::json data;
     tools::Plotter plotter;
     data["command_yaw"] = yaw * 57.3;
@@ -295,7 +295,7 @@ void Shooter::shoot(
 
   auto yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
   auto pitch = trajectory1.pitch + pitch_offset_;
-  cboard_.send({true, false, yaw, -pitch});
+  cboard_.send({true, false, yaw, pitch});
   nlohmann::json data;
   tools::Plotter plotter;
   data["command_yaw"] = yaw * 57.3;
