@@ -42,6 +42,12 @@ Eigen::Quaterniond CBoard::imu_at(std::chrono::steady_clock::time_point timestam
   return q_c;
 }
 
+Eigen::Quaterniond CBoard::latest()
+{
+  std::lock_guard<std::mutex> lock(latest_lock_);
+  return latest_;
+}
+
 void CBoard::send(Command command) const
 {
   can_frame frame;
@@ -76,6 +82,10 @@ void CBoard::callback(const can_frame & frame)
       return;
     }
 
+    {
+      std::lock_guard<std::mutex> lock(latest_lock_);
+      latest_ = {w, x, y, z};
+    }
     queue_.push({{w, x, y, z}, timestamp});
   }
 

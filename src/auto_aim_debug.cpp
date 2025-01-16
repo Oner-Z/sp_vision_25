@@ -36,7 +36,7 @@ int main(int argc, char * argv[])
     return 0;
   }
 
-  io::CBoard cboard(config_path);
+  io::CBoard & cboard = io::CBoard::getInstance(config_path);
   io::Camera camera(config_path);
 
   auto_aim::YOLOV8 detector(config_path, true);
@@ -99,7 +99,7 @@ int main(int argc, char * argv[])
         tools::draw_points(img, image_points, {0, 255, 0});
       }
 
-       // aimer瞄准位置
+      // aimer瞄准位置
       auto aim_point = aimer.yp_should;
       if (aim_point.has_value()) {
         auto [yaw, pitch] = aim_point.value();
@@ -113,12 +113,12 @@ int main(int argc, char * argv[])
       }
 
       // 云台响应情况
-      Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+      Eigen::Quaterniond latest = cboard.latest();
+      Eigen::Vector3d ypr = tools::eulers(solver.q_to_R_gimbal2world(latest), 2, 1, 0);
       double gimbal_yaw = ypr[0];
       double gimbal_pitch = -ypr[1];
       auto image_point = solver.reproject_gimbal(gimbal_yaw, gimbal_pitch);
       tools::draw_circle(img, image_point, tools::COLOR_YELLOW, 3, 3);  // 黄色为云台实际位置
-
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
@@ -147,11 +147,10 @@ int main(int argc, char * argv[])
     }
 
     auto yp_should = aimer.yp_should;
-    if(yp_should.has_value()){
-      auto [y,p] = yp_should.value();
+    if (yp_should.has_value()) {
+      auto [y, p] = yp_should.value();
       data["yaw_should"] = y * 57.3;
       data["pitch_should"] = p * 57.3;
-      
     }
 
     plotter.plot(data);
