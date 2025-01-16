@@ -25,10 +25,11 @@ class Target
 public:
   ArmorName name;
   ArmorType armor_type;
+  int armor_num;
+
+  State state;
   bool jumped;
   int last_id;  // debug only
-  int armor_num;
-  State state;
 
   Target() = default;
   Target(ArmorName armor_name);
@@ -44,8 +45,6 @@ public:
   Eigen::Vector3d armor_xyz(int id = 0) const;
 
   Eigen::Vector3d armor_v_xyz(int id = 0) const;
-
-  // bool use_l_h(int id = 0) const;
 
 private:
   tools::ExtendedKalmanFilter ekf_;

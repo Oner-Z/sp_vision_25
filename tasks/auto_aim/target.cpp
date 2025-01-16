@@ -133,6 +133,7 @@ void Target::update(std::list<Armor> & armors, std::chrono::steady_clock::time_p
   if (state != lost && (diverged() || time_out)) {
     tools::logger()->debug("  -> {} lost: {:.3f}s", ARMOR_NAMES[name], dt_since_last_seen);
     state = lost;
+    jumped = false;
     consecutive_detect_frame_cnt_ = 0;
   }
   if (state == lost) {
