@@ -18,6 +18,8 @@ public:
 
   void set_R_gimbal2world(const Eigen::Quaterniond & q);
 
+  Eigen::Matrix3d q_to_R_gimbal2world(const Eigen::Quaterniond & q) const;
+
   void solve(Armor & armor) const;
 
   std::vector<cv::Point2f> reproject_armor(

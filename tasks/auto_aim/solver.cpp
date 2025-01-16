@@ -209,4 +209,10 @@ double Solver::armor_reprojection_error(const Armor & armor, double yaw) const
   return error;
 }
 
+Eigen::Matrix3d Solver::q_to_R_gimbal2world(const Eigen::Quaterniond & q) const
+{
+  Eigen::Matrix3d R_imubody2imuabs = q.toRotationMatrix();
+  return R_gimbal2imubody_.transpose() * R_imubody2imuabs * R_gimbal2imubody_;
+}
+
 }  // namespace auto_aim
