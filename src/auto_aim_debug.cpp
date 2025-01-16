@@ -99,15 +99,26 @@ int main(int argc, char * argv[])
         tools::draw_points(img, image_points, {0, 255, 0});
       }
 
-      // // aimer瞄准位置
-      // auto aim_point = aimer.debug_aim_point;
-      // Eigen::Vector4d aim_xyza = aim_point.xyza;
-      // auto image_points =
-      //   solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
-      // if (aim_point.valid)
-      //   tools::draw_points(img, image_points, {0, 0, 255});
-      // else
-      //   tools::draw_points(img, image_points, {255, 0, 0});
+       // aimer瞄准位置
+      auto aim_point = aimer.yp_should;
+      if (aim_point.has_value()) {
+        auto [yaw, pitch] = aim_point.value();
+        auto image_point = solver.reproject_gimbal(yaw, pitch);
+        tools::logger()->info("image_point: {}, {}", image_point.x, image_point.y);
+        tools::draw_circle(img, image_point, tools::COLOR_GREEN);  // 绿色为理想瞄准位置
+      }
+      if (command.control) {
+        auto image_point = solver.reproject_gimbal(command.yaw, command.pitch);
+        tools::draw_circle(img, image_point, tools::COLOR_RED, 5, 3);  // 红色为发送瞄准位置
+      }
+
+      // 云台响应情况
+      Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+      double gimbal_yaw = ypr[0];
+      double gimbal_pitch = -ypr[1];
+      auto image_point = solver.reproject_gimbal(gimbal_yaw, gimbal_pitch);
+      tools::draw_circle(img, image_point, tools::COLOR_YELLOW, 3, 3);  // 黄色为云台实际位置
+
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
@@ -135,12 +146,20 @@ int main(int argc, char * argv[])
       data["cmd_pitch"] = command.pitch * 57.3;
     }
 
+    auto yp_should = aimer.yp_should;
+    if(yp_should.has_value()){
+      auto [y,p] = yp_should.value();
+      data["yaw_should"] = y * 57.3;
+      data["pitch_should"] = p * 57.3;
+      
+    }
+
     plotter.plot(data);
 
-    cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
-    cv::imshow("reprojection", img);
-    auto key = cv::waitKey(33);
-    if (key == 'q') break;
+    // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+    // cv::imshow("reprojection", img);
+    // auto key = cv::waitKey(1);
+    // if (key == 'q') break;
   }
 
   return 0;

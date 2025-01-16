@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C/C++: g++ build and debug active file",
+            "name": "C/C++: g++ build and debug auto_aim_test",
             "type": "cppdbg",
             "request": "launch",
             // 只建议跑 auto_aim_test，因为别的程序可能依赖于 std::chrono::steady_clock::now()，打断点debug没有意义，反而会导致额外的问题
@@ -10,7 +10,7 @@
             // 在下方填写参数
             "args": [
                 "-c=${workspaceRoot}/configs/sentry.yaml",
-                "~/1101/sp_vision_25/records/2024-11-02_00-34-18",
+                "${workspaceRoot}/records/2024-11-02_00-34-18",
                 "-s=1000"
             ],
             "stopAtEntry": false,

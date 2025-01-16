@@ -35,8 +35,8 @@ Target::Target(ArmorName armor_name)
     armor_type = small;
     P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}}.asDiagonal();
     r0_ = 0.3;
-    v1_ = 25;
-    v2_ = 100;
+    v1_ = 50;
+    v2_ = 200;
   }
 }
 

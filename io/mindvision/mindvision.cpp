@@ -82,7 +82,7 @@ void MindVision::open()
   CameraSetIspOutFormat(handle_, CAMERA_MEDIA_TYPE_BGR8);  // 设置输出格式为BGR
   CameraSetTriggerMode(handle_, 0);                        // 设置为连续采集模式
   CameraSetFrameSpeed(handle_, 0);                         // 设置为低帧率模式
-
+  CameraSetRotate(handle_, 2);                             // 绿麦专属倒置相机
   CameraPlay(handle_);
 
   // 取图线程

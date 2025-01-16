@@ -1,0 +1,56 @@
+# enemy_color: "red"
+enemy_color: "blue"
+
+
+#####-----神经网络参数-----#####
+classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
+device: AUTO
+
+#####-----工业相机参数-----#####
+camera_name: "mindvision"
+exposure_ms: 5
+gamma: 0.7
+vid_pid: "f622:d13a"
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+#####-----cboard参数-----#####
+quaternion_canid: 0x100
+bullet_speed_canid: 0x101
+send_canid: 0xff
+can_interface: "can0"
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 15
+outpost_max_temp_lost_count: 25
+
+#####-----aimer参数-----#####
+yaw_offset: -2.5 # degree -2.5
+pitch_offset: 3 # degree 2
+shooting_angle: 60 # degree
+min_spin_speed: 2 # rad/s
+delay_gimbal: 0.12
+delay_shoot: 0.0
+#####-----工业相机标定参数-----#####
+R_gimbal2imubody: [-1, 0, 0, 0, -1, 0, 0, 0, 1]
+
+# 重投影误差: 0.1139px
+camera_matrix: [1662.2291666047468, 0, 632.49165650792327, 0, 1665.2446521115799, 525.15966578247196, 0, 0, 1]
+distort_coeffs: [-0.48116517853073804, 0.24128884799628889, -0.003098440081953438, 0.0015508443119455063, 0]
+
+
+# 相机同理想情况的偏角: yaw-0.19 pitch0.41 roll-5.30 degree
+R_camera2gimbal: [0.0026260867918608266, 0.0075140983018863912, 0.99996832049564011, -0.99572931556721378, -0.092261507024700817, 0.0033082384404974816, 0.092283442654734857, -0.99570645907729283, 0.0072397212342474315]
+t_camera2gimbal: [0.10232233680744018, 0.11818565200752953, 0.034458004721416913]
