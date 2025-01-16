@@ -5,17 +5,20 @@
 #include <string>
 #include <vector>
 
+namespace color
+{
+const cv::Scalar RED = {0, 0, 255};
+const cv::Scalar GREEN = {0, 255, 0};
+const cv::Scalar BLUE = {255, 0, 0};
+const cv::Scalar YELLOW = {0, 255, 255};
+const cv::Scalar CYAN = {255, 255, 0};
+const cv::Scalar MAGENTA = {255, 0, 255};
+const cv::Scalar WHITE = {255, 255, 255};
+const cv::Scalar BLACK = {0, 0, 0};
+}  // namespace color
+
 namespace tools
 {
-const cv::Scalar COLOR_RED = {0, 0, 255};
-const cv::Scalar COLOR_GREEN = {0, 255, 0};
-const cv::Scalar COLOR_BLUE = {255, 0, 0};
-const cv::Scalar COLOR_YELLOW = {0, 255, 255};
-const cv::Scalar COLOR_CYAN = {255, 255, 0};
-const cv::Scalar COLOR_MAGENTA = {255, 0, 255};
-const cv::Scalar COLOR_WHITE = {255, 255, 255};
-const cv::Scalar COLOR_BLACK = {0, 0, 0};
-
 void draw_point(
   cv::Mat & img, const cv::Point & point, const cv::Scalar & color = {0, 0, 255}, int radius = 3);
 
@@ -28,7 +31,7 @@ void draw_points(
   int thickness = 2);
 
 void draw_circle(
-  cv::Mat & img, const cv::Point & center, const cv::Scalar & color = COLOR_GREEN, int radius = 10,
+  cv::Mat & img, const cv::Point & center, const cv::Scalar & color = color::GREEN, int radius = 10,
   int thickness = 6);
 
 void draw_text(

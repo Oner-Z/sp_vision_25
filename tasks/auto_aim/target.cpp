@@ -163,13 +163,13 @@ void Target::update(std::list<Armor> & armors, std::chrono::steady_clock::time_p
     auto min_angle_error = 1e10;
     auto second_min_angle_error = 1e10;
     const std::vector<Eigen::Vector4d> & xyza_list = armor_xyza_list();
-    tools::logger()->info("{}'s armor match info:", ARMOR_NAMES[name]);
+    // tools::logger()->info("{}'s armor match info:", ARMOR_NAMES[name]);
     for (int i = 0; i < armor_num; i++) {
       Eigen::Vector3d ypd = tools::xyz2ypd(xyza_list[i].head(3));
       /// TODO: 重写装甲板匹配 cost 函数
       auto angle_error = std::abs(tools::limit_rad(armor.ypr_in_world[0] - xyza_list[i][3])) +
                          std::abs(tools::limit_rad(armor.ypd_in_world[0] - ypd[0]));
-      tools::logger()->info("  {:.5f}", angle_error);
+      // tools::logger()->info("  {:.5f}", angle_error);
 
       if (angle_error < min_angle_error) {
         id = i;

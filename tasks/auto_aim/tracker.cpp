@@ -41,7 +41,7 @@ std::list<Target> Tracker::track(
   std::list<Target> traking_targets;
 
   for (auto target : targets_) {
-    tools::logger()->info("    {}", state_names_[target.state]);
+    // tools::logger()->info("    {}", state_names_[target.state]);
     if (target.state == tracking) traking_targets.emplace_back(target);
   }
 

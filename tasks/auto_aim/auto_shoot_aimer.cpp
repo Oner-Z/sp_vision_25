@@ -78,7 +78,7 @@ io::Command Aimer::aim(
   std::optional<Target> opt_target = choose_target(targets, armors);
   if (!opt_target.has_value()) return {false, false, 0, 0};
   auto chosen_target = opt_target.value();
-
+  tools::logger()->debug("[Aimer] bullet_speed: {:.2f}", bullet_speed);
   if (bullet_speed < 10) bullet_speed = 23;
   if (to_now) {
     chosen_target.predict(std::chrono::steady_clock::now());
@@ -105,6 +105,8 @@ io::Command Aimer::aim(
     return {false, false, 0, 0};
   }
 
+  tools::logger()->debug("[Aimer] fly_time: {:.3f}", trajectory_rough.fly_time);
+
   /// 预测target，不考虑控制延时
   if (to_now) {
     auto t_hit = std::chrono::steady_clock::now() +
@@ -126,7 +128,7 @@ io::Command Aimer::aim(
   aim_id = chosen_id;
 
   /// 理想弹道
-  Eigen::Vector3d xyz_hit = chosen_target.armor_xyza_list()[chosen_id_rough].head(3);
+  Eigen::Vector3d xyz_hit = chosen_target.armor_xyza_list()[chosen_id].head(3);
   auto d_hit = std::sqrt(xyz_hit[0] * xyz_hit[0] + xyz_hit[1] * xyz_hit[1]);
   tools::Trajectory trajectory_hit(bullet_speed, d_hit, xyz_hit[2]);
   if (trajectory_hit.unsolvable) {
@@ -158,12 +160,14 @@ io::Command Aimer::aim(
     chosen_target.predict(t_hit);
   }
 
-  Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id_rough].head(3);
-  auto d_compensate = std::sqrt(xyz_hit[0] * xyz_hit[0] + xyz_hit[1] * xyz_hit[1]);
-  tools::Trajectory trajectory_compensate(bullet_speed, d_hit, xyz_hit[2]);
+  Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id].head(3);
+  auto d_compensate =
+    std::sqrt(xyz_compensate[0] * xyz_compensate[0] + xyz_compensate[1] * xyz_compensate[1]);
+  tools::Trajectory trajectory_compensate(bullet_speed, d_compensate, xyz_compensate[2]);
   if (trajectory_compensate.unsolvable) {
     tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d_hit, xyz_hit[2]);
+      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d_compensate,
+      xyz_compensate[2]);
     return {false, false, 0, 0};
   }
 
@@ -184,7 +188,10 @@ std::optional<int> Aimer::choose_armor(const Target & target)
   auto armor_num = armor_xyza_list.size();
 
   // 如果装甲板未发生过跳变，则只有当前装甲板的位置已知
-  if (!target.jumped) return 0;
+  if (!target.jumped) {
+    tools::logger()->debug("[Aimer] aim at id 0, never jumped");
+    return 0;
+  }
   // 整车旋转中心的球坐标yaw
   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
 
@@ -217,7 +224,7 @@ std::optional<int> Aimer::choose_armor(const Target & target)
       // 未处于锁定模式时，选择delta_angle绝对值较小的装甲板，进入锁定模式
       if (lock_id_ != id0 && lock_id_ != id1)
         lock_id_ = (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
-
+      tools::logger()->debug("[Aimer] aim at id {}, lock mode", lock_id_);
       return lock_id_;
     }
 
@@ -229,8 +236,14 @@ std::optional<int> Aimer::choose_armor(const Target & target)
   // 在小陀螺时，一侧的装甲板不断出现，另一侧的装甲板不断消失，显然前者被打中的概率更高
   for (int i = 0; i < armor_num; i++) {
     if (std::abs(delta_angle_list[i]) > shooting_angle_) continue;
-    if (ekf_x[7] > 0 && delta_angle_list[i] < shooting_angle_) return i;
-    if (ekf_x[7] < 0 && delta_angle_list[i] > -shooting_angle_) return i;
+    if (ekf_x[7] > 0 && delta_angle_list[i] < shooting_angle_) {
+      tools::logger()->debug("[Aimer] aim at id {}, less than max", i);
+      return i;
+    }
+    if (ekf_x[7] < 0 && delta_angle_list[i] > -shooting_angle_) {
+      tools::logger()->debug("[Aimer] aim at id {}, greater than min", i);
+      return i;
+    }
   }
   return std::nullopt;
 }

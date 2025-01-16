@@ -81,8 +81,8 @@ int main(int argc, char * argv[])
     auto targets = tracker.track(armors, timestamp);
 
     auto aimer_start = std::chrono::steady_clock::now();
-    /// TODO: 适配 Aimer
-    auto command = aimer.aim(targets, armors, timestamp, 27, false);
+
+    auto command = aimer.aim(targets, armors, timestamp, 100, false);
     /// 调试输出
 
     auto finish = std::chrono::steady_clock::now();
@@ -149,12 +149,11 @@ int main(int argc, char * argv[])
       if (aim_point.has_value()) {
         auto [yaw, pitch] = aim_point.value();
         auto image_point = solver.reproject_gimbal(yaw, pitch);
-        tools::logger()->info("image_point: {}, {}", image_point.x, image_point.y);
-        tools::draw_circle(img, image_point, tools::COLOR_GREEN);  // 绿色为理想瞄准位置
+        tools::draw_circle(img, image_point, color::GREEN);  // 绿色为理想瞄准位置
       }
       if (command.control) {
         auto image_point = solver.reproject_gimbal(command.yaw, command.pitch);
-        tools::draw_circle(img, image_point, tools::COLOR_RED, 5, 3);  // 红色为发送瞄准位置
+        tools::draw_circle(img, image_point, color::RED, 5, 3);  // 红色为发送瞄准位置
       }
 
       // 云台响应情况
@@ -162,7 +161,7 @@ int main(int argc, char * argv[])
       double gimbal_yaw = ypr[0] - aimer.yaw_offset_;
       double gimbal_pitch = -ypr[1] - aimer.pitch_offset_;
       auto image_point = solver.reproject_gimbal(gimbal_yaw, gimbal_pitch);
-      tools::draw_circle(img, image_point, tools::COLOR_YELLOW, 3, 3);  // 黄色为云台实际位置
+      tools::draw_circle(img, image_point, color::YELLOW, 3, 3);  // 黄色为云台实际位置
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
