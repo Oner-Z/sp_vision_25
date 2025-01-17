@@ -29,7 +29,7 @@ std::list<Target> Tracker::track(
   std::vector<std::list<Armor>> armor_lists(8);
 
   /// TODO: 误识别检测-看到三块同类型装甲板
-  for (auto armor : armors) {
+  for (auto & armor : armors) {
     solver_.solve(armor);
     armor_lists[armor.name].emplace_back(armor);
   }
