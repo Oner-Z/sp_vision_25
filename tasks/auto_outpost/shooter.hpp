@@ -37,12 +37,13 @@ struct AimPoint
 class Shooter
 {
 public:
-  explicit Shooter(const std::string & config_path, io::CBoard & cboard);
+  explicit Shooter(const std::string & config_path);
   void schedule(auto_aim::Target target_at_t0);
   int get_next_armor(const auto_aim::Target & target, double flytime, std::chrono::steady_clock::time_point timestamp);
-  void shoot(
+  io::Command shoot(
     std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now);
-  Eigen::Vector3d get_front(const auto_aim::Target & target);
+  Eigen::Vector3d get_outpost_front(const auto_aim::Target & target);
+  Eigen::Vector3d get_top_front(const auto_aim::Target & target);
 
   AimPoint choose_aim_point(const auto_aim::Target & target);
 
@@ -63,11 +64,11 @@ private:
   double ctrl_to_fire_;
   double yaw_offset_;
   double pitch_offset_;
+  double direction_;
   int last_hit_id_ = -1;
   int lock_id_ = -1;
   bool exit_;
   uint8_t armor_state = 0;  //用位图管理
-  io::CBoard & cboard_;
   std::thread when_to_fire_;
   tools::ThreadSafeQueue<shooter_info> queue_0_, queue_1_, queue_2_;
   int choose_armor(std::vector<std::chrono::steady_clock::time_point> send_times, std::chrono::steady_clock::time_point now)

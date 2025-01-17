@@ -74,7 +74,8 @@ int main(int argc, char * argv[])
     solver.set_R_gimbal2world(q);
     auto armors = detector.detect(img);
     auto targets = tracker.track(armors, t, true, mode);
-    shooter.shoot(targets, t, cboard.bullet_speed, true);
+    auto command = shooter.shoot(targets, t, cboard.bullet_speed, true);
+    cboard_.send(command);
 
     if (!debug) continue;
 
@@ -117,6 +118,8 @@ int main(int argc, char * argv[])
       data["last_id"] = target.last_id;
       data["bullet_speed"] = cboard.bullet_speed;
       data["d"] = sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
+      data["command_yaw"] = command.yaw * 57.3;
+      data["command_pitch"] = command.pitch * 57.3;
     }
     cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);

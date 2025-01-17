@@ -89,20 +89,26 @@ void Target::set_target(
 
 void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防止远距离不认为它在旋转
 {
-  auto x = ekf_x();
   // x vx y vy z vz a w r l h
   // a: angle
   // w: angular velocity
   // l: r2 - r1
   // h: z2 - z1
-  w_ = ((x[7] > 0) ? 1 : -1)*0.8*M_PI;
-  tools::logger()->info("w_ set to: {}", w_);
-  Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
+  auto x = ekf_x();
+  if(std::abs(x[7])>0.4){
+    w_ = ((x[7] > 0) ? 1 : -1)*0.8*M_PI;
+    Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
+  }
+  else{
+    w_ = 0;
+    Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
+  }
   P0_ = new_P0_dig_outpost.asDiagonal();
   Eigen::VectorXd new_x0{{x[0], x[1], x[2], x[3], x[4], x[5], x[6], w_, x[8], x[9], x[10]}};
 
   ekf_ = tools::ExtendedKalmanFilter(new_x0, P0_, x_add_);
   need_set_w_ = 0;
+  tools::logger()->info("w_ set to: {}", w_);
 }
 
 void Target::predict(std::chrono::steady_clock::time_point t)

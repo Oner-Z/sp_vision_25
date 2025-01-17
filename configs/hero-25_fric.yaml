@@ -30,6 +30,7 @@ max_temp_lost_count: 20
 
 yaw_offset: 0.82 # degree -right
 pitch_offset: -2.5 # degree +up
+direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
 shoot_delay: 0.1 #0.52
