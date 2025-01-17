@@ -107,13 +107,14 @@ io::Command Aimer::aim(
 
   tools::logger()->debug("[Aimer] fly_time: {:.3f}", trajectory_rough.fly_time);
 
-  /// 预测target，不考虑控制延时
+  /// 预测target，额外加入控制延时
   if (to_now) {
     auto t_hit = std::chrono::steady_clock::now() +
-                 std::chrono::microseconds(int((trajectory_rough.fly_time) * 1e6));
+                 std::chrono::microseconds(int((delay_gimbal_ + trajectory_rough.fly_time) * 1e6));
     chosen_target.predict(t_hit);
   } else {
-    auto t_hit = t_img + std::chrono::microseconds(int((trajectory_rough.fly_time) * 1e6));
+    auto t_hit =
+      t_img + std::chrono::microseconds(int((delay_gimbal_ + trajectory_rough.fly_time) * 1e6));
     chosen_target.predict(t_hit);
   }
 
@@ -126,6 +127,32 @@ io::Command Aimer::aim(
   }
   int chosen_id = opt_chosen_id.value();
   aim_id = chosen_id;
+
+  Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id].head(3);
+  auto d_compensate =
+    std::sqrt(xyz_compensate[0] * xyz_compensate[0] + xyz_compensate[1] * xyz_compensate[1]);
+  tools::Trajectory trajectory_compensate(bullet_speed, d_compensate, xyz_compensate[2]);
+  if (trajectory_compensate.unsolvable) {
+    tools::logger()->debug(
+      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d_compensate,
+      xyz_compensate[2]);
+    return {false, false, 0, 0};
+  }
+
+  /// TODO: maybe more strategies here
+
+  double yaw_send = std::atan2(xyz_compensate[1], xyz_compensate[0]) + yaw_offset_;
+  double pitch_send = trajectory_compensate.pitch + pitch_offset_;
+
+  /// 预测target，不考虑控制延时
+  if (to_now) {
+    auto t_hit = std::chrono::steady_clock::now() +
+                 std::chrono::microseconds(int((trajectory_rough.fly_time) * 1e6));
+    chosen_target.predict(t_hit);
+  } else {
+    auto t_hit = t_img + std::chrono::microseconds(int((trajectory_rough.fly_time) * 1e6));
+    chosen_target.predict(t_hit);
+  }
 
   /// 理想弹道
   Eigen::Vector3d xyz_hit = chosen_target.armor_xyza_list()[chosen_id].head(3);
@@ -148,33 +175,6 @@ io::Command Aimer::aim(
   double yaw_should = std::atan2(xyz_hit[1], xyz_hit[0]) + yaw_offset_;
   double pitch_should = trajectory_hit.pitch + pitch_offset_;
   yp_should = std::make_pair(yaw_should, pitch_should);
-
-  /// 预测target，额外加入控制延时
-  if (to_now) {
-    auto t_hit = std::chrono::steady_clock::now() +
-                 std::chrono::microseconds(int((delay_gimbal_ + trajectory_rough.fly_time) * 1e6));
-    chosen_target.predict(t_hit);
-  } else {
-    auto t_hit =
-      t_img + std::chrono::microseconds(int((delay_gimbal_ + trajectory_rough.fly_time) * 1e6));
-    chosen_target.predict(t_hit);
-  }
-
-  Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id].head(3);
-  auto d_compensate =
-    std::sqrt(xyz_compensate[0] * xyz_compensate[0] + xyz_compensate[1] * xyz_compensate[1]);
-  tools::Trajectory trajectory_compensate(bullet_speed, d_compensate, xyz_compensate[2]);
-  if (trajectory_compensate.unsolvable) {
-    tools::logger()->debug(
-      "[Aimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d_compensate,
-      xyz_compensate[2]);
-    return {false, false, 0, 0};
-  }
-
-  /// TODO: maybe more strategies here
-
-  double yaw_send = std::atan2(xyz_compensate[1], xyz_compensate[0]) + yaw_offset_;
-  double pitch_send = trajectory_compensate.pitch + pitch_offset_;
 
   return {true, can_fire, yaw_send, pitch_send};
 }

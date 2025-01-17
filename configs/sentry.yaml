@@ -48,14 +48,14 @@ max_temp_lost_count: 15
 outpost_max_temp_lost_count: 25
 
 #####-----aimer参数-----#####
-yaw_offset: -2.5   # degree -2.5
-pitch_offset: 1.8  # degree 2
+yaw_offset: 0   # degree -2.5
+pitch_offset: -3.0  # degree 2
 
 # yaw_offset: 0   # degree -2.5
 # pitch_offset: 0  # degree 2
 
 min_spin_speed: 2  # rad/s
-shooting_angle: 50 # degree
+shooting_angle: 45 # degree
 delay_gimbal: 0.1
 delay_shoot: 0.0
 
