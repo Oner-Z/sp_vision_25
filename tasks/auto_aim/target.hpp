@@ -53,6 +53,7 @@ private:
   Eigen::MatrixXd P0_;
   double w_;
   double r_;
+  int need_set_w_;
   std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add_;
 
   tools::ExtendedKalmanFilter ekf_;
@@ -60,6 +61,7 @@ private:
 
   int transition(const Armor * armor, std::chrono::steady_clock::time_point t);
   void set_target(const Armor * armor, std::chrono::steady_clock::time_point t);
+  void set_w();
 
   void update_ypda(const Armor & armor, int id);  // yaw pitch distance angle
 

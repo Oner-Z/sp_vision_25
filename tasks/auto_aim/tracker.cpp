@@ -17,7 +17,7 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
   int min_detect_count = yaml["min_detect_count"].as<int>();
   int max_temp_lost_count = yaml["max_temp_lost_count"].as<int>();
   Eigen::VectorXd P0_dig_car{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
-  Eigen::VectorXd P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.001, 0.0001, 0, 0}};
+  Eigen::VectorXd P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 10, 0.0001, 0, 0}};
   Eigen::VectorXd P0_dig_base{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}};
 
   targets_[0] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // hero
@@ -62,14 +62,20 @@ std::list<Target> Tracker::track(
     auto armor = armors.front();
     target_ = targets_[armor.name];
     targets = {target_};
-  } else {                  // no enemy armor detected
-    if (target_.state()) {  // not lost yet
-      targets = {target_};
-    } else {
+    last_target_name_ = armor.name;
+  } else {                   // no enemy armor detected
+    if(last_target_name_!=-1){ // there was an target
+      target_ = targets_[last_target_name_];
+      if (targets_[last_target_name_].state()) {  // not lost yet
+        targets = {target_};
+      } else {  // already lost;
+        targets = {};
+      }
+    }
+    else{
       targets = {};
     }
   }
-
   return targets;
 }
 
@@ -229,11 +235,12 @@ bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_cloc
 
   int count = 0;
   for (auto & armor_use : armors_use) {
-    if (armor_use) solver_.solve(*armor_use);  // PNP解算，识别到了才解算
+    if (armor_use!=NULL) {// PNP解算，识别到了才解算
+      solver_.solve(*armor_use);
+    }
     targets_[count].update(*armor_use, t);     // 状态更新与跟踪
     ++count;
   }
-
   return true;
 }
 

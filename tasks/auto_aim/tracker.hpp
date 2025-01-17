@@ -34,6 +34,7 @@ private:
   std::chrono::steady_clock::time_point last_timestamp_;
   io::Mode last_mode_ = io::Mode::idle;
   Target targets_[ENEMY_NUM];
+  int last_target_name_ = -1; // -1 for none
 
   void state_machine(bool found);
 

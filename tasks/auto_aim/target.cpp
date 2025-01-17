@@ -50,6 +50,7 @@ Target::Target(
   v2_(v2),
   w_(w)
 {
+  state_ = LOST;
   P0_ = P0_dig.asDiagonal();
   x_add_ = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
     Eigen::VectorXd c = a + b;
@@ -61,9 +62,10 @@ Target::Target(
 void Target::set_target(
   const Armor * armor, std::chrono::steady_clock::time_point t)  // 从LOST进入DETECTING后，设置本次识别到的目标的初值
 {
-  tools::logger()->debug("new target set!");
+  tools::logger()->debug("---------- new target set!:{} ----------", armor->name);
   name = armor->name;
   armor_type = armor->type;
+  need_set_w_ = ( name == outpost ? 1 : 0 );
   jumped = false;
   last_id = 0;
   t_ = t;
@@ -83,6 +85,24 @@ void Target::set_target(
   Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], w_, r_, 0, 0}};
 
   ekf_ = tools::ExtendedKalmanFilter(x0, P0_, x_add_);
+}
+
+void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防止远距离不认为它在旋转
+{
+  auto x = ekf_x();
+  // x vx y vy z vz a w r l h
+  // a: angle
+  // w: angular velocity
+  // l: r2 - r1
+  // h: z2 - z1
+  w_ = ((x[7] > 0) ? 1 : -1)*0.8*M_PI;
+  tools::logger()->info("w_ set to: {}", w_);
+  Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
+  P0_ = new_P0_dig_outpost.asDiagonal();
+  Eigen::VectorXd new_x0{{x[0], x[1], x[2], x[3], x[4], x[5], x[6], w_, x[8], x[9], x[10]}};
+
+  ekf_ = tools::ExtendedKalmanFilter(new_x0, P0_, x_add_);
+  need_set_w_ = 0;
 }
 
 void Target::predict(std::chrono::steady_clock::time_point t)
@@ -146,18 +166,20 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
   int flag;
   switch (state_) {
     case LOST:
-      if (armor) {
+      if (armor!=NULL) {
         state_ = DETECTING;
         detect_count_ = 1;
+        tools::logger()->debug("114514");
         set_target(armor, t);
       }
       break;
     case DETECTING:
-      if (armor) {
+      if (armor!=NULL) {
         detect_count_++;
       } else {
         detect_count_ = 0;
         state_ = LOST;
+        need_set_w_ = 0;
       }
 
       if (detect_count_ > min_detect_count_) {
@@ -165,29 +187,35 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       }
       break;
     case TEMP_LOST:
-      if (armor) {
+      if (armor!=NULL) {
         state_ = TRACKING;
+        if (need_set_w_) {
+          set_w();
+        }
       } else {
         temp_lost_count_++;
       }
       if (temp_lost_count_ > max_temp_lost_count_) {
         state_ = LOST;
+        need_set_w_ = 0;
       }
       break;
     case TRACKING:
-      if (!armor) {
+      if (armor==NULL) {
         temp_lost_count_ = 1;
         state_ = TEMP_LOST;
       }
       break;
   }
-  return flag = (armor) ? 1 : 0;
+  return flag = (armor == NULL) ? 0 : 1;
 }
 
 void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t)
 {
   // 状态更新
-  if (!transition(&armor, t)) return;  // 如果装甲板为空，更新状态后就返回。
+  auto past = state_str();
+  if (transition(&armor, t)== 0) return;  // 如果装甲板为空，更新状态后就返回。
+
   // 装甲板匹配
   int id;
   auto min_angle_error = 1e10;

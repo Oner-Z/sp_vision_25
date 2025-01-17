@@ -66,6 +66,9 @@
         "thread": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "bitset": "cpp",
+        "cinttypes": "cpp",
+        "variant": "cpp"
     }
 }
