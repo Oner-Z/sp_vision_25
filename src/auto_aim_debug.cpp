@@ -73,6 +73,21 @@ int main(int argc, char * argv[])
 
     auto command = aimer.aim(targets, armors, t, cboard.bullet_speed);
 
+    q = cboard.latest();
+    Eigen::Vector3d ypr = tools::eulers(solver.q_to_R_gimbal2world(q), 2, 1, 0);
+    double gimbal_yaw = ypr[0];
+    double gimbal_pitch = -ypr[1];
+
+    // aimer瞄准位置
+    auto opt_yp_should = aimer.yp_should;
+    if (opt_yp_should.has_value()) {
+      auto [yaw, pitch] = opt_yp_should.value();
+      if (!(std::abs(yaw - gimbal_yaw) < 0.2 / 57.3 && command.control && command.shoot))
+        command.shoot = false;
+    } else {
+      command.shoot = false;
+    }
+
     cboard.send(command);
 
     /// 调试输出
@@ -136,9 +151,9 @@ int main(int argc, char * argv[])
     }
 
     // 云台响应情况
-    Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
-    data["gimbal_yaw"] = ypr[0] * 57.3;
-    data["gimbal_pitch"] = -ypr[1] * 57.3;
+    Eigen::Vector3d debug_ypr = tools::eulers(solver.q_to_R_gimbal2world(q), 2, 1, 0);
+    data["gimbal_yaw"] = debug_ypr[0] * 57.3;
+    data["gimbal_pitch"] = -debug_ypr[1] * 57.3;
 
     if (command.control) {
       data["cmd_yaw"] = command.yaw * 57.3;

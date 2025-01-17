@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "tasks/auto_aim/auto_shoot_aimer.hpp"
+#include "tasks/auto_aim/detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
 #include "tasks/auto_aim/yolov8.hpp"
@@ -43,7 +44,8 @@ int main(int argc, char * argv[])
   cv::VideoCapture video(video_path);
   std::ifstream text(text_path);
 
-  auto_aim::YOLOV8 detector(config_path);
+  // auto_aim::YOLOV8 detector(config_path);
+  auto_aim::Detector detector(config_path, false);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
   auto_aim::Aimer aimer(config_path);
@@ -158,8 +160,8 @@ int main(int argc, char * argv[])
 
       // 云台响应情况
       Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
-      double gimbal_yaw = ypr[0] - aimer.yaw_offset_;
-      double gimbal_pitch = -ypr[1] - aimer.pitch_offset_;
+      double gimbal_yaw = ypr[0];
+      double gimbal_pitch = -ypr[1];
       auto image_point = solver.reproject_gimbal(gimbal_yaw, gimbal_pitch);
       tools::draw_circle(img, image_point, color::YELLOW, 3, 3);  // 黄色为云台实际位置
 
@@ -183,7 +185,7 @@ int main(int argc, char * argv[])
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
-    auto key = cv::waitKey(0);
+    auto key = cv::waitKey(10);
     if (key == 'q') break;
   }
 
