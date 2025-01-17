@@ -36,7 +36,7 @@ int main(int argc, char * argv[])
     return 0;
   }
 
-  io::CBoard & cboard = io::CBoard::getInstance(config_path);
+  io::CBoard & cboard = io::CBoard::get_instance(config_path);
   io::Camera camera(config_path);
 
   auto_aim::YOLOV8 detector(config_path, false);

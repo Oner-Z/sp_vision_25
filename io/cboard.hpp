@@ -38,7 +38,7 @@ public:
   void send(Command command) const;
 
   // 获取唯一实例，仅以首次调用时的path进行初始化
-  static CBoard & getInstance(const std::string & path = "")
+  static CBoard & get_instance(const std::string & path = "")
   {
     static CBoard instance(path);
     return instance;

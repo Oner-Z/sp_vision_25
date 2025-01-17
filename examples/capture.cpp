@@ -32,7 +32,7 @@ void capture_loop(const std::string & config_path, const std::string & output_fo
   auto pattern_rows = yaml["pattern_rows"].as<int>();
   cv::Size pattern_size(pattern_cols, pattern_rows);
 
-  io::CBoard & cboard = io::CBoard::getInstance(config_path);
+  io::CBoard & cboard = io::CBoard::get_instance(config_path);
   io::Camera camera(config_path);
 
   cv::Mat img;

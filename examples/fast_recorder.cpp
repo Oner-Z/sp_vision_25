@@ -43,7 +43,7 @@ int main(int argc, char * argv[])
   }
   auto fps = cli.get<double>("fps");
   auto duration = cli.get<double>("duration");
-  io::CBoard & cboard = io::CBoard::getInstance(config_path);
+  io::CBoard & cboard = io::CBoard::get_instance(config_path);
   io::Camera camera(config_path);
   tools::Recorder recorder(fps);
 
