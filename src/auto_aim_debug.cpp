@@ -9,7 +9,7 @@
 #include "tasks/auto_aim/auto_shoot_aimer.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
-#include "tasks/auto_aim/yolov8.hpp"
+#include "tasks/auto_aim/detector.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
@@ -39,7 +39,7 @@ int main(int argc, char * argv[])
   io::CBoard & cboard = io::CBoard::get_instance(config_path);
   io::Camera camera(config_path);
 
-  auto_aim::YOLOV8 detector(config_path, true);
+  auto_aim::Detector detector(config_path, true);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
   auto_aim::Aimer aimer(config_path);
@@ -170,9 +170,9 @@ int main(int argc, char * argv[])
     plotter.plot(data);
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
-    // cv::imshow("reprojection", img);
-    // auto key = cv::waitKey(1);
-    // if (key == 'q') break;
+    cv::imshow("reprojection", img);
+    auto key = cv::waitKey(1);
+    if (key == 'q') break;
   }
 
   return 0;
