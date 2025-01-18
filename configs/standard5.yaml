@@ -10,7 +10,7 @@ classify_model: "assets/tiny_resnet.onnx"
 model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.82   0.75
 
 detect:
-  contrast: 1.0
+  contrast: 1
   brightness: -50
   canny_low_threshold: 200
   canny_high_threshold: 230
