@@ -54,7 +54,7 @@ Eigen::Vector3d Shooter::get_top_front(const auto_aim::Target & target_origin)
   double nearst_angle = INFINITY;
   for (int aim_id = 0; aim_id < armor_num; aim_id++) {
     if (sig_w * (armors[aim_id][3] - center_yaw) < 0) {  // 说明该装甲板正在转过来吃紫蛋:)
-      if (abs(armors[aim_id][3] - center_yaw) < nearst) {
+      if (abs(armors[aim_id][3] - center_yaw) < nearst_angle) {
         armor_id = aim_id;
         nearst_angle = armors[aim_id][3];
       }
@@ -95,7 +95,7 @@ io::Command Shooter::shoot(
       tools::logger()->info("anti outpost mode");
       xyz0 = get_outpost_front(target_rotate);  // 瞄准点
     } else {                                    // 反小陀螺，需要应对高低装甲板
-      tools::logger()->info("anti top mode");
+      // tools::logger()->info("anti top mode");
       xyz0 = get_top_front(target_rotate);  // 瞄准点
     }
 
@@ -105,19 +105,19 @@ io::Command Shooter::shoot(
     tools::Trajectory trajectory0(bullet_speed, d0, xyz0[2], mode);
     if (trajectory0.unsolvable) {
       tools::logger()->debug("[Aimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d0, xyz0[2]);
-      return;
+      return {false, false, 0, 0};
     }
     auto pitch = trajectory0.pitch + pitch_offset_;  // pitch瞄准装甲板正对时的位置
 
     debug_aim_point_ = {true, {xyz0[0], xyz0[1], xyz0[2], 0}};
 
     auto t_hit = tools::add_time(t_decide, (ctrl_to_fire_ + trajectory0.fly_time));
-    target_top.predict(t_hit);  // 预测如果这时候发射，紫蛋到达时的情况
-    auto armors_hit = target_top.armor_xyza_list();
+    target_rotate.predict(t_hit);  // 预测如果这时候发射，紫蛋到达时的情况
+    auto armors_hit = target_rotate.armor_xyza_list();
     int armor_num = armors_hit.size();
     int sig = ekf_x[7] < 0 ? -1 : +1;
     auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);  // - sig * 0.015;
-
+    auto armor_state = target.armor_state;
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
         if (
@@ -126,20 +126,24 @@ io::Command Shooter::shoot(
           tools::logger()->info("########## fire ##########");
           io::Command command = {true, true, yaw, direction_ * pitch};
           armor_state = 0;
-          SET_STATE(armor_state, aim_id, SHOOTED);
-          SET_STATE(armor_state, (aim_id - sig + armor_num) % armor_num, SKIP);
+          if (target_rotate.name = auto_aim::outpost) {
+            SET_STATE(armor_state, aim_id, SHOOTED);
+            SET_STATE(armor_state, (aim_id - sig + armor_num) % armor_num, SKIP);
+          }
           return command;
         }
       } else if (GET_STATE(armor_state, aim_id) == SKIP) {  // 上一块刚打过
         tools::logger()->info("---------- wait ----------");
         armor_state = 0;
-        SET_STATE(armor_state, aim_id, SHOOTED);
+        if (target_rotate.name = auto_aim::outpost) {
+          SET_STATE(armor_state, aim_id, SHOOTED);
+        }
       }
     }
     io::Command command = {true, false, yaw, direction_ * pitch};
     return command;
   }  // end of anti top/outpost
-  else {
+  else {  // 平动目标
     if (to_now) {
       auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + ctrl_to_fire_;
       t_fire = tools::add_time(t_img, dt);
@@ -194,9 +198,13 @@ io::Command Shooter::shoot(
       return command;
     }
 
-    auto yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
+    double yaw;
+    yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
+    tools::logger()->debug("xyz1[0] = {}, xyz1[1] = {}", xyz1[0], xyz1[1]);
+
     auto pitch = trajectory1.pitch + pitch_offset_;
     io::Command command = {true, false, yaw, direction_ * pitch};
+
     return command;
   }
 }

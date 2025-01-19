@@ -68,7 +68,6 @@ private:
   int last_hit_id_ = -1;
   int lock_id_ = -1;
   bool exit_;
-  uint8_t armor_state = 0;  //用位图管理
   std::thread when_to_fire_;
   tools::ThreadSafeQueue<shooter_info> queue_0_, queue_1_, queue_2_;
   int choose_armor(std::vector<std::chrono::steady_clock::time_point> send_times, std::chrono::steady_clock::time_point now)

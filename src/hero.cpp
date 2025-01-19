@@ -53,7 +53,7 @@ int main(int argc, char * argv[])
   auto_aim::YOLOV8 detector(config_path, debug);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
-  auto_outpost::Shooter shooter(config_path, cboard);
+  auto_outpost::Shooter shooter(config_path);
 
   cv::Mat img;
   Eigen::Quaterniond q;
@@ -75,7 +75,7 @@ int main(int argc, char * argv[])
     auto armors = detector.detect(img);
     auto targets = tracker.track(armors, t, true, mode);
     auto command = shooter.shoot(targets, t, cboard.bullet_speed, true);
-    cboard_.send(command);
+    cboard.send(command);
 
     if (!debug) continue;
 

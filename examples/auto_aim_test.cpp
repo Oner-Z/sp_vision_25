@@ -1,23 +1,27 @@
 #include <fmt/core.h>
 
 #include <chrono>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "tasks/auto_aim/aimer.hpp"
+#include "io/camera.hpp"
+#include "io/cboard.hpp"
+#include "tasks/auto_aim/classifier.hpp"
 #include "tasks/auto_aim/detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
+#include "tasks/auto_aim/yolov8.hpp"
+#include "tasks/auto_outpost/shooter.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
+#include "tools/recorder.hpp"
 
 const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明 }"
-  "{config-path c  | configs/standard4.yaml | yaml配置文件的路径}"
+  "{config-path c  | configs/hero-25_fric.yaml | yaml配置文件的路径}"
   "{start-index s  | 0                      | 视频起始帧下标    }"
   "{end-index e    | 0                      | 视频结束帧下标    }"
   "{@input-path    |                        | avi和txt文件的路径}";
@@ -43,10 +47,10 @@ int main(int argc, char * argv[])
   cv::VideoCapture video(video_path);
   std::ifstream text(text_path);
 
-  auto_aim::Detector detector(config_path);
+  auto_aim::YOLOV8 detector(config_path);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
-  auto_aim::Aimer aimer(config_path);
+  auto_outpost::Shooter shooter(config_path);
 
   cv::Mat img, drawing;
   auto t0 = std::chrono::steady_clock::now();
@@ -73,27 +77,22 @@ int main(int argc, char * argv[])
     /// 自瞄核心逻辑
 
     solver.set_R_gimbal2world({w, x, y, z});
-
     auto detector_start = std::chrono::steady_clock::now();
-    auto armors = detector.detect(img, frame_count);
-
+    auto armors = detector.detect(img);
     auto tracker_start = std::chrono::steady_clock::now();
-    auto targets = tracker.track(armors, timestamp, false);
-
+    auto targets = tracker.track(armors, timestamp, true);
     auto aimer_start = std::chrono::steady_clock::now();
-    auto command = aimer.aim(targets, timestamp, 27, false);
+    auto command = shooter.shoot(targets, timestamp, 15.8, true);
 
     /// 调试输出
 
     auto finish = std::chrono::steady_clock::now();
     tools::logger()->info(
       "[{}] detector: {:.1f}ms, tracker: {:.1f}ms, aimer: {:.1f}ms", frame_count,
-      tools::delta_time(tracker_start, detector_start) * 1e3,
-      tools::delta_time(aimer_start, tracker_start) * 1e3,
+      tools::delta_time(tracker_start, detector_start) * 1e3, tools::delta_time(aimer_start, tracker_start) * 1e3,
       tools::delta_time(finish, aimer_start) * 1e3);
 
-    tools::draw_text(
-      img, fmt::format("[{}] [{}]", frame_count, tracker.state()), {10, 30}, {255, 255, 255});
+    tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state()), {10, 30}, {255, 255, 255});
 
     nlohmann::json data;
 
@@ -107,41 +106,20 @@ int main(int argc, char * argv[])
       data["armor_yaw_raw"] = armor.yaw_raw * 57.3;
     }
 
-    if (!targets.empty()) {
-      auto target = targets.front();
-
-      if (last_t == -1) {
-        last_target = target;
-        last_t = t;
-        continue;
-      }
-
-      std::vector<Eigen::Vector4d> armor_xyza_list;
-
-      // // 上一帧target预测当前帧
-      // last_target.predict(t - last_t);
-      // armor_xyza_list = last_target.armor_xyza_list();
-      // for (const Eigen::Vector4d & xyza : armor_xyza_list) {
-      //   auto image_points =
-      //     solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
-      //   tools::draw_points(img, image_points, {255, 255, 255});
-      // }
-      // last_target = target;
-      // last_t = t;
-
+    tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
+    if (tracker.state()) {  // tracker.state() && targets.size()
       // 当前帧target更新后
-      armor_xyza_list = target.armor_xyza_list();
+      auto target = tracker.get_target();
+      std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
       for (const Eigen::Vector4d & xyza : armor_xyza_list) {
-        auto image_points =
-          solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
+        auto image_points = solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
         tools::draw_points(img, image_points, {0, 255, 0});
       }
 
       // aimer瞄准位置
-      auto aim_point = aimer.debug_aim_point;
+      auto aim_point = shooter.debug_aim_point_;
       Eigen::Vector4d aim_xyza = aim_point.xyza;
-      auto image_points =
-        solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
+      auto image_points = solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
       if (aim_point.valid)
         tools::draw_points(img, image_points, {0, 0, 255});
       else
@@ -149,6 +127,9 @@ int main(int argc, char * argv[])
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
+      // x vx y vy z a w r1 r2 h
+      // a: angle
+      // w: angular velocity
       data["x"] = x[0];
       data["vx"] = x[1];
       data["y"] = x[2];
@@ -161,6 +142,10 @@ int main(int argc, char * argv[])
       data["l"] = x[9];
       data["h"] = x[10];
       data["last_id"] = target.last_id;
+      data["bullet_speed"] = 15.8;
+      data["d"] = sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
+      data["command_yaw"] = command.yaw * 57.3;
+      data["command_pitch"] = command.pitch * 57.3;
     }
 
     plotter.plot(data);

@@ -17,6 +17,7 @@ class Target
 public:
   ArmorName name;
   ArmorType armor_type;
+  uint8_t armor_state = 0;  //用位图管理
   bool jumped;
   int last_id;  // debug only
 

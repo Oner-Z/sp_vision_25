@@ -65,7 +65,7 @@ void Target::set_target(
   tools::logger()->debug("---------- new target set!:{} ----------", armor->name);
   name = armor->name;
   armor_type = armor->type;
-  need_set_w_ = ( name == outpost ? 1 : 0 );
+  need_set_w_ = (name == outpost ? 1 : 0);
   jumped = false;
   last_id = 0;
   t_ = t;
@@ -95,15 +95,15 @@ void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防
   // l: r2 - r1
   // h: z2 - z1
   auto x = ekf_x();
-  if(std::abs(x[7])>0.4){
-    w_ = ((x[7] > 0) ? 1 : -1)*0.8*M_PI;
+  if (std::abs(x[7]) > 0.4) {
+    w_ = ((x[7] > 0) ? 1 : -1) * 0.8 * M_PI;
     Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
-  }
-  else{
+    P0_ = new_P0_dig_outpost.asDiagonal();
+  } else {
     w_ = 0;
     Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
+    P0_ = new_P0_dig_outpost.asDiagonal();
   }
-  P0_ = new_P0_dig_outpost.asDiagonal();
   Eigen::VectorXd new_x0{{x[0], x[1], x[2], x[3], x[4], x[5], x[6], w_, x[8], x[9], x[10]}};
 
   ekf_ = tools::ExtendedKalmanFilter(new_x0, P0_, x_add_);
@@ -172,7 +172,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
   int flag;
   switch (state_) {
     case LOST:
-      if (armor!=NULL) {
+      if (armor != NULL) {
         state_ = DETECTING;
         detect_count_ = 1;
         tools::logger()->debug("114514");
@@ -180,7 +180,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       }
       break;
     case DETECTING:
-      if (armor!=NULL) {
+      if (armor != NULL) {
         detect_count_++;
       } else {
         detect_count_ = 0;
@@ -193,7 +193,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       }
       break;
     case TEMP_LOST:
-      if (armor!=NULL) {
+      if (armor != NULL) {
         state_ = TRACKING;
         if (need_set_w_) {
           set_w();
@@ -207,7 +207,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       }
       break;
     case TRACKING:
-      if (armor==NULL) {
+      if (armor == NULL) {
         temp_lost_count_ = 1;
         state_ = TEMP_LOST;
       }
@@ -220,7 +220,7 @@ void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t
 {
   // 状态更新
   auto past = state_str();
-  if (transition(&armor, t)== 0) return;  // 如果装甲板为空，更新状态后就返回。
+  if (transition(&armor, t) == 0) return;  // 如果装甲板为空，更新状态后就返回。
 
   // 装甲板匹配
   int id;
