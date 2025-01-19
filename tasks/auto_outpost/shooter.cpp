@@ -49,18 +49,22 @@ Eigen::Vector3d Shooter::get_top_front(const auto_aim::Target & target_origin)
   auto armors = target_origin.armor_xyza_list();
   int armor_num = armors.size();
 
-  int sig_w = ekf_x[7] > 0 ? 1 : -1;  // 旋转方向
-  int armor_id;
-  double nearst_angle = INFINITY;
+  double w = ekf_x[7], T = 2 * M_PI / w;
+  int sig_w = w > 0 ? 1 : -1;  // 旋转方向
+  int armor_id = -1;
+  double dt_min = INFINITY, t;
+
   for (int aim_id = 0; aim_id < armor_num; aim_id++) {
-    if (sig_w * (armors[aim_id][3] - center_yaw) < 0) {  // 说明该装甲板正在转过来吃紫蛋:)
-      if (abs(armors[aim_id][3] - center_yaw) < nearst_angle) {
-        armor_id = aim_id;
-        nearst_angle = armors[aim_id][3];
-      }
+    if (sig_w == 1) {  // w>0
+      t = (armors[aim_id][3] > center_yaw) ? T - (armors[aim_id][3] - center_yaw) / w : (center_yaw - armors[aim_id][3] / w);
+    } else {
+      t = (armors[aim_id][3] < center_yaw) ? T + (armors[aim_id][3] - center_yaw) / w : (-center_yaw + armors[aim_id][3] / w);
+    }
+    if (t < dt_min) {
+      armor_id = aim_id;
+      dt_min = armors[aim_id][3];
     }
   }
-
   return {hit_point_xy[0], hit_point_xy[1], armors[armor_id][2]};
 }
 
@@ -95,7 +99,7 @@ io::Command Shooter::shoot(
       tools::logger()->info("anti outpost mode");
       xyz0 = get_outpost_front(target_rotate);  // 瞄准点
     } else {                                    // 反小陀螺，需要应对高低装甲板
-      // tools::logger()->info("anti top mode");
+      tools::logger()->info("anti top mode");
       xyz0 = get_top_front(target_rotate);  // 瞄准点
     }
 
@@ -116,7 +120,7 @@ io::Command Shooter::shoot(
     auto armors_hit = target_rotate.armor_xyza_list();
     int armor_num = armors_hit.size();
     int sig = ekf_x[7] < 0 ? -1 : +1;
-    auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);  // - sig * 0.015;
+    auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
     auto armor_state = target.armor_state;
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
@@ -240,7 +244,6 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
   }
   // tools::logger()->debug("-------------------------------------------");
 
-  // 绝无可能
   if (id_list.empty()) {
     tools::logger()->warn("Empty id list in Shooter!");
     return {false, armor_xyza_list[0]};
