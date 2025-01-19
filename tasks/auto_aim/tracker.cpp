@@ -49,33 +49,41 @@ std::list<Target> Tracker::track(
 
   update_targets(armors, t);
 
-  // 当前返回策略：距离屏幕中央最近的目标
-  armors.sort([](const Armor & a, const Armor & b) {
-    auto img_center_norm = cv::Point2f(0.5, 0.5);
-    auto distance_1 = cv::norm(a.center_norm - img_center_norm);
-    auto distance_2 = cv::norm(b.center_norm - img_center_norm);
-    return distance_1 < distance_2;
-  });
-
+  /* 当前返回策略：
+  如果是从idle进入auto_aim，返回距离屏幕中央最近的目标。
+  如果是其他状态变化，则判断:若原target没有lost，则返回原目标；如果原target已经lost，则返回距离屏幕中央最近的目标。
+  */
   std::list<Target> targets;
-  if (armors.size()) {  // if at least one armor is detected
-    auto armor = armors.front();
-    target_ = targets_[armor.name];
-    targets = {target_};
-    last_target_name_ = armor.name;
-  } else {                   // no enemy armor detected
-    if(last_target_name_!=-1){ // there was an target
-      target_ = targets_[last_target_name_];
-      if (targets_[last_target_name_].state()) {  // not lost yet
-        targets = {target_};
-      } else {  // already lost;
+  if (((last_mode_ == io::Mode::idle) && (mode == io::Mode::auto_aim)) || (target_.state() == 0)) {  //重新锁定
+    armors.sort([](const Armor & a, const Armor & b) {
+      auto img_center_norm = cv::Point2f(0.5, 0.5);
+      auto distance_1 = cv::norm(a.center_norm - img_center_norm);
+      auto distance_2 = cv::norm(b.center_norm - img_center_norm);
+      return distance_1 < distance_2;
+    });
+    if (armors.size()) {  // if at least one armor is detected
+      auto armor = armors.front();
+      target_ = targets_[armor.name];
+      targets = {target_};
+      last_target_name_ = armor.name;
+    } else {                          // no enemy armor detected
+      if (last_target_name_ != -1) {  // there was an target
+        target_ = targets_[last_target_name_];
+        if (targets_[last_target_name_].state()) {  // not lost yet
+          targets = {target_};
+        } else {  // already lost;
+          targets = {};
+        }
+      } else {
         targets = {};
       }
     }
-    else{
-      targets = {};
-    }
+  } else {  // 更新当前目标
+    target_ = targets_[target_.name];
+    targets = {target_};
+    last_target_name_ = target_.name;
   }
+  last_mode_ = mode;
   return targets;
 }
 
@@ -235,10 +243,10 @@ bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_cloc
 
   int count = 0;
   for (auto & armor_use : armors_use) {
-    if (armor_use!=NULL) {// PNP解算，识别到了才解算
+    if (armor_use != NULL) {  // PNP解算，识别到了才解算
       solver_.solve(*armor_use);
     }
-    targets_[count].update(*armor_use, t);     // 状态更新与跟踪
+    targets_[count].update(*armor_use, t);  // 状态更新与跟踪
     ++count;
   }
   return true;
