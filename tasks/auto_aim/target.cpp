@@ -15,7 +15,7 @@ Target::Target(ArmorName armor_name)
     P0_ = Eigen::VectorXd{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}}.asDiagonal();
     r0_ = 0.28;
     v1_ = 10;
-    v2_ = 40;
+    v2_ = 20;
   } else if (armor_name == ArmorName::base) {
     armor_num = 3;
     armor_type = big;
