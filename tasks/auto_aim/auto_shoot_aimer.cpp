@@ -16,7 +16,8 @@ Aimer::Aimer(const std::string & config_path)
   auto yaml = YAML::LoadFile(config_path);
   yaw_offset_ = yaml["yaw_offset"].as<double>() / 57.3;          // degree to rad
   pitch_offset_ = yaml["pitch_offset"].as<double>() / 57.3;      // degree to rad
-  shooting_angle_ = yaml["shooting_angle"].as<double>() / 57.3;  // degree to rad
+  coming_angle_ = yaml["coming_angle"].as<double>() / 57.3;  // degree to rad
+  leaving_angle_ = yaml["leaving_angle"].as<double>() / 57.3;
   delay_gimbal_ = yaml["delay_gimbal"].as<double>();
   delay_shoot_ = yaml["delay_shoot"].as<double>();
 }
@@ -235,15 +236,9 @@ std::optional<int> Aimer::choose_armor(const Target & target)
 
   // 在小陀螺时，一侧的装甲板不断出现，另一侧的装甲板不断消失，显然前者被打中的概率更高
   for (int i = 0; i < armor_num; i++) {
-    if (std::abs(delta_angle_list[i]) > shooting_angle_) continue;
-    if (ekf_x[7] > 0 && delta_angle_list[i] < shooting_angle_) {
-      tools::logger()->debug("[Aimer] aim at id {}, less than max", i);
-      return i;
-    }
-    if (ekf_x[7] < 0 && delta_angle_list[i] > -shooting_angle_) {
-      tools::logger()->debug("[Aimer] aim at id {}, greater than min", i);
-      return i;
-    }
+    if (std::abs(delta_angle_list[i]) > coming_angle_) continue;
+    if (ekf_x[7] > 0 && delta_angle_list[i] < leaving_angle_) return i;
+    if (ekf_x[7] < 0 && delta_angle_list[i] > -leaving_angle_) return i;
   }
   return std::nullopt;
 }

@@ -11,19 +11,6 @@
 
 namespace auto_aim
 {
-
-// struct AimPoint
-// {
-//   const Target& target;
-//   int id;
-
-//   Eigen::Vector4d xyza_at(std::chrono::steady_clock::time_point t){
-//     Target _target = target;
-//     _target.predict(t);
-//     return _target.armor_xyza_list()[id];
-//   }
-// };
-
 class Aimer
 {
 public:
@@ -41,7 +28,8 @@ public:
   double pitch_offset_;
 
 private:
-  double shooting_angle_;  // aim at -shooting_angle ~ shooting_angle
+  double coming_angle_;
+  double leaving_angle_;
   double delay_gimbal_;
   double delay_shoot_;
   int lock_id_ = -1;
