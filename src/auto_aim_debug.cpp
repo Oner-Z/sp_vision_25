@@ -108,10 +108,15 @@ int main(int argc, char * argv[])
     for (auto target : targets) {
       // 当前帧target更新后
       std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
-      for (const Eigen::Vector4d & xyza : armor_xyza_list) {
+      for (int i = 0; i < armor_xyza_list.size(); ++i) {
+        Eigen::Vector4d xyza = armor_xyza_list[i];
         auto image_points =
           solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
-        tools::draw_points(img, image_points, {0, 255, 0});
+        if (i == aimer.aim_id)
+          tools::draw_points(img, image_points, {0, 0, 255});
+        else
+          tools::draw_points(img, image_points, {0, 255, 0});
+        tools::draw_text(img, fmt::format("{}", i), image_points[2]);
       }
 
       // aimer瞄准位置
