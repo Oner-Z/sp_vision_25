@@ -19,8 +19,8 @@ usb_gain_: 10 #0-96
 
 #####-----工业相机参数-----#####
 camera_name: "hikrobot"
-exposure_ms:   3        #3
-gain: 10
+exposure_ms:   40        #3
+gain: 20
 
 #####-----传统方法参数-----#####
 threshold: 150
@@ -66,5 +66,16 @@ t_camera2gimbal: [0.27420934670256336, 0.0098763306562371159, 0.0437983859841973
 
 # 吊射所需要的数据
 t_distance: 20.0  # m
-t_height: 0.0     # m
-bullet_speed: 14.2 #m/s
+t_height: 0.405     # m
+bullet_speed: 16.22 #m/s
+rhio: 1.169
+C: 0.275
+
+# 
+img_num: 2
+
+
+# 目标坐标
+target_X: 46.5
+target_y: 86.4
+target_z: 1.085

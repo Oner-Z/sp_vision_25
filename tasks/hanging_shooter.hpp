@@ -20,8 +20,10 @@ static const cv::Mat distort_coeffs =
    -0.0079130702364351452,
    0);  // 12mm镜头参数为：-0.035346531904039129, 1.2817037157755276, -0.0012000404732901543,0.005985237112084223,0
 constexpr double PI = 3.1415926;
-constexpr double FAMILIAR = 0.80;           // 认定的判断值
-constexpr double MIN_AREA = 80;             // 能接受的最小面积
+constexpr double BIG_FAMILIAR = 0.875;      // 大的判断值
+constexpr double SMALL_FAMILIAR = 0.84;     // 小的判断值
+constexpr double MIN_AREA = 40;             // 能接受的最小面积
+constexpr double DIVIDE_AREA = 120;         // 大小区域的划分值
 constexpr double LIGHTSPOT_RADIUS = 55e-3;  // 发光板直径     单位：m
 
 // 弹道解算参数(参考沈阳航空航天开源资料)
@@ -48,10 +50,10 @@ struct LightSpot  //基地绿灯
     this->contour = contour;
     this->radius = radius;
     this->center = center;
-    this->left = cv::Point(center.x - std::trunc(radius * 100) / 100.0f, center.y);
-    this->top = cv::Point(center.x, center.y - std::trunc(radius * 100) / 100.0f);
-    this->bottom = cv::Point(center.x, center.y + std::trunc(radius * 100) / 100.0f);
-    this->right = cv::Point(center.x + std::trunc(radius * 100) / 100.0f, center.y);
+    this->left = cv::Point(center.x - std::trunc(radius * 1000) / 1000.0f, center.y);
+    this->top = cv::Point(center.x, center.y - std::trunc(radius * 1000) / 1000.0f);
+    this->bottom = cv::Point(center.x, center.y + std::trunc(radius * 1000) / 1000.0f);
+    this->right = cv::Point(center.x + std::trunc(radius * 1000) / 1000.0f, center.y);
     // this->left = cv::Point(center.x - int(radius), center.y);
     // this->top = cv::Point(center.x, center.y - int(radius));
     // this->bottom = cv::Point(center.x, center.y + int(radius));
@@ -114,15 +116,27 @@ public:
     double bullet_speed, double distance, double height,
     double & pitch);  // 默认无空气阻力的弹道解算
   void calculate_pitch(
-    double bulletSpeed, double distance, double height, double & pitch);  // 考虑空气阻力的弹道解算
+    double bulletSpeed, double distance, double height, double C, double rho,
+    double & pitch);  // 考虑空气阻力的弹道解算
 
 private:
+  double g_;
+  double C_;
+  double radius_;
+  double m_;
+  double rho_;
+
+  const double start_angle_ = 20.0;  // 迭代开始的角度
+  const double end_angle_ = 40.0;    // 迭代结束的角度（电控限位角）
+  const double accuracy_ = 0.01;     // 迭代精度
   void RungeKutta_4(
     std::vector<double> & x_vals, std::vector<double> & y_vals, double angle, double bullet_speed,
-    double height, double dt = 0.1, double max_time = 10);  // 使用4阶龙格库塔推导弹道方程
+    double height, double C, double rho, double dt = 0.01,
+    double max_time = 10);  // 使用4阶龙格库塔推导弹道方程
   void culculate_pitch(
     double & pitch);  // 根据得到的弹道方程逆向求解得到打中y高度目标所需的pitch角度。
 };
+
 };  // namespace hanging_shooting
 // namespace hanging_shooting
 #endif

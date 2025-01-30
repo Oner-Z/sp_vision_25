@@ -30,3 +30,13 @@ target_link_libraries(camera_test ${OpenCV_LIBS} fmt::fmt tools io)
 
 add_executable(hanging_shooting_example tests/hanging_shooting_example.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
 target_link_libraries(hanging_shooting_example tools io  ${OpenCV_LIBS} fmt::fmt)
+
+add_executable(shooting_angle_test tests/shooting_angle_test.cpp )
+target_link_libraries(shooting_angle_test tools io  ${OpenCV_LIBS} fmt::fmt)
+
+
+add_executable(hanging_shooting_with_lidar tests/hanging_shooting_with_lidar.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
+target_link_libraries(hanging_shooting_with_lidar tools io  ${OpenCV_LIBS} fmt::fmt)
+
+add_executable(communicate_test tests/communicate_test.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
+target_link_libraries(communicate_test tools io  ${OpenCV_LIBS} fmt::fmt)

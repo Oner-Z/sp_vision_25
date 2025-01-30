@@ -1,4 +1,5 @@
 #include <fmt/format.h>
+#include <yaml-cpp/yaml.h>
 
 #include <opencv2/opencv.hpp>
 
@@ -11,8 +12,11 @@
 using namespace hanging_shooting;
 int main(int argc, char * argv[])  //
 {
+  auto yaml = YAML::LoadFile("configs/example.yaml");
+  auto img_num = yaml["img_num"].as<std::string>();
+  std::string img_path = "./assets/img/" + img_num + ".jpg";
   cv::Mat img;
-  img = cv::imread("./assets/img/3.jpg");
+  img = cv::imread(img_path);
   HangingShooter hangingshooter;
 
   std::vector<LightSpot> lightspots = hangingshooter.detect(img);

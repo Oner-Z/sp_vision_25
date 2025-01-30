@@ -27,7 +27,6 @@ int main(int argc, char * argv[])  // 测试已对准目标情况下吊射效果
   tools::Exiter exiter;
   tools::Plotter plotter;
   tools::Recorder recorder;
-
   cv::CommandLineParser cli(argc, argv, keys);
   auto config_path = cli.get<std::string>(0);
   if (cli.has("help") || config_path.empty()) {
@@ -35,27 +34,18 @@ int main(int argc, char * argv[])  // 测试已对准目标情况下吊射效果
     return 0;
   }
   io::CBoard cboard(config_path);
-  io::Camera camera(config_path);
-  Eigen::Quaterniond q;
-  std::chrono::steady_clock::time_point t;
   h_solver solver;
   HangingShooter hangingshooter;
-  auto yaml = YAML::LoadFile(config_path);
-  auto t_distance = yaml["t_distance"].as<double>();
-  auto t_height = yaml["t_height"].as<double>();
-  auto bullet_speed = yaml["bullet_speed"].as<double>();
-  double pitch = 0;
+  NamedPipe pipe("/tmp/client_to_server", true);
+  // pipe.open();
   while (!exiter.exit()) {
-    q = cboard.imu_at(t - 1ms);
-    double c_yaw = std::atan2(
-      2.0f * (q.w() * q.z() + q.x() * q.y()), 1.0f - 2.0f * (q.y() * q.y() + q.z() * q.z()));
-    double c_pitch = std::asin(2.0f * (q.w() * q.y() - q.x() * q.z()));
-    double t_yaw = c_yaw;
-    double t_pitch = -pitch;
-
-    io::Command command{1, 0, t_yaw, t_pitch};
-    tools::logger()->info("c_pitch:{.2f} c_yaw:{.2f}", c_pitch, c_yaw);
+    DataPacket current_position;
+    if (pipe.read(&current_position, sizeof(current_position)))  //读取到数据
+    {
+      std::cout << "x : " << current_position.x << "y :" << current_position.y
+                << "z :" << current_position.z << std::endl;
     }
+  }
 
   return 0;
 }

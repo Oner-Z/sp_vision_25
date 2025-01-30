@@ -5,60 +5,68 @@ bool HangingShooter::isCircle(const std::vector<cv::Point> & contour)  // 判断
 {
   double area = cv::contourArea(contour);  // 计算该轮廓的面积
   if (area < MIN_AREA) return false;       // 排除干扰点
-
   double perimeter = cv::arcLength(contour, true);  // 计算该轮廓的周长，第二个>参数表示其是否封闭
 
   // 计算圆形度（PS：比较他两的面积）
   double circularity = (4 * PI * area) / (perimeter * perimeter);
-
-  // 设定一个阈值，接近1的值表示更接近圆形(PS::鉴于分辨率有限，阀值并不是很大。>。。)
-  return (circularity > FAMILIAR);  // 可以根据需要调整阈值
+  // 设定一个阈值，接近1的值表示更接近圆形
+  return (area > DIVIDE_AREA)
+           ? (circularity > BIG_FAMILIAR)
+           : (circularity >
+              SMALL_FAMILIAR);  // 大的区域圆形度更大，小的区域需要的圆形度更小（因为远距离探测到的光强会小）
 }
 
 std::vector<LightSpot> HangingShooter::detect(const cv::Mat & img)
 {
-  // 方案一，暴力找指示灯颜色上下值，强行过滤。
-  // 问题： 上下值会根据灯的不同而改变，鲁棒性存疑。
-  // cv::Mat hsvImage;
-  // cv::cvtColor(frame, hsvImage, cv::COLOR_BGR2HSV);
+  // 方案一，使用灰度图来寻找发光区域
+  // cv::Mat gray_img;
+  // cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
 
-  // // 定义颜色范围
-  // cv::Scalar lowerBound(20, 40, 40);    // 绿色下界   60 100 100
-  // cv::Scalar upperBound(50, 255, 130);  // 绿色上界   120 255 255
+  // cv::Mat test;
+  // cv::threshold(gray_img, test, 120, 255, cv::THRESH_BINARY);
+  // cv::imshow("test", test);
 
-  // cv::Mat mask;
-  // // 应用颜色过滤
-  // cv::inRange(hsvImage, lowerBound, upperBound, mask);
-  // cv::resize(mask, mask, {}, 0.5, 0.5);
-  // cv::imshow("mask", mask);
-
-  // 方案二，直接灰度图找最亮的地方。
-  cv::Mat gray_img;
-  cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
+  // 方案二，使用图片绿通道来进行二值化，高斯滤波后找出发绿光且最圆的地方
+  std::vector<cv::Mat> channels;
+  cv::split(img, channels);
+  cv::Mat green = channels.at(1);
+  // cv::resize(green, green, {}, 0.5, 0.5);
+  // cv::imshow("green", green);
+  cv::Mat gauss;
+  cv::GaussianBlur(green, gauss, cv::Size(15, 15), 0);  //降噪
+  // cv::imshow("gauss", gauss);
 
   // 进行二值化
   cv::Mat binary_img;
-  cv::threshold(gray_img, binary_img, 120, 255, cv::THRESH_BINARY);
+  cv::threshold(gauss, binary_img, 120, 255, cv::THRESH_BINARY);
+
   // 显示二值图,调试用
   std::vector<std::vector<cv::Point>> contours;
   cv::findContours(binary_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
   // RETR_EXTERNAL 只测最外围，内侧轮廓忽略
   // CHAIN_APPROX_NONE 保存物体所有边界点信息
 
+  // 把高于画面中心的筛除，这些明显是灯光之类的
   cv::Mat drawcontours = img.clone();
-  for (const auto & contour : contours) {
-    tools::draw_points(drawcontours, contour);
-  }
+  double middle_height = drawcontours.rows / 2;
 
-  //   cv::imshow("drawcontours", drawcontours);
+  // for (const auto & contour : contours) {
+  //   tools::draw_points(drawcontours, contour);
+  // }
+
+  // cv::imshow("drawcontours", drawcontours);
 
   std::vector<std::vector<cv::Point>> circles;
   for (const auto & contour : contours)  // 找到圆形的轮廓保存到circles当中
   {
     if (isCircle(contour)) {
+      double area = cv::contourArea(contour);  // 计算该轮廓的面积
       circles.emplace_back(contour);
+      tools::draw_points(drawcontours, contour);
     }
   }
+  // cv::imshow("drawcontours", drawcontours);
+
   std::vector<LightSpot> lightspots;
   for (const auto & circle : circles) {
     cv::Point2f center;
@@ -66,11 +74,62 @@ std::vector<LightSpot> HangingShooter::detect(const cv::Mat & img)
     cv::minEnclosingCircle(circle, center, radius);
     //使用OpenCV的函数来得到最小外接圆的半径和圆心
     auto lightspot = LightSpot(circle, radius, center);
-
+    // if (lightspot.center.y > middle_height)  // 筛掉高于画面中心的
     lightspots.emplace_back(lightspot);
   }
   cv::resize(binary_img, binary_img, {}, 0.5, 0.5);
   cv::imshow("binary", binary_img);
+
+  // 方案三，将图片使用用双边滤波后来平滑处理。
+  // std::vector<cv::Mat> channels;
+  // cv::split(img, channels);
+  // cv::Mat green = channels.at(1);
+
+  // cv::Mat median;
+  // cv::medianBlur(green, median, 3);
+
+  // cv::Mat bilate;
+  // cv::bilateralFilter(median, bilate, 3, 255, 15);
+
+  // cv::Mat binary_img;
+  // cv::threshold(bilate, binary_img, 120, 255, cv::THRESH_BINARY);
+  // std::vector<std::vector<cv::Point>> contours;
+  // cv::findContours(binary_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+  // // RETR_EXTERNAL 只测最外围，内侧轮廓忽略
+  // // CHAIN_APPROX_NONE 保存物体所有边界点信息
+
+  // // 把高于画面中心的筛除，这些明显是灯光之类的
+  // cv::Mat drawcontours = img.clone();
+  // double middle_height = drawcontours.rows / 2;
+
+  // // for (const auto & contour : contours) {
+  // //   tools::draw_points(drawcontours, contour);
+  // // }
+
+  // // cv::imshow("drawcontours", drawcontours);
+
+  // std::vector<std::vector<cv::Point>> circles;
+  // for (const auto & contour : contours)  // 找到圆形的轮廓保存到circles当中
+  // {
+  //   if (isCircle(contour)) {
+  //     circles.emplace_back(contour);
+  //     tools::draw_points(drawcontours, contour);
+  //   }
+  // }
+  // // cv::imshow("drawcontours", drawcontours);
+
+  // std::vector<LightSpot> lightspots;
+  // for (const auto & circle : circles) {
+  //   cv::Point2f center;
+  //   float radius;
+  //   cv::minEnclosingCircle(circle, center, radius);
+  //   //使用OpenCV的函数来得到最小外接圆的半径和圆心
+  //   auto lightspot = LightSpot(circle, radius, center);
+  //   // if (lightspot.center.y > middle_height)  // 筛掉高于画面中心的
+  //   lightspots.emplace_back(lightspot);
+  // }
+  // cv::resize(binary_img, binary_img, {}, 0.5, 0.5);
+  // cv::imshow("binary_img", binary_img);
   return lightspots;
 }
 

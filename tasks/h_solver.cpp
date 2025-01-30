@@ -41,12 +41,11 @@ max_time     极限时间     单位：s
 */
 void h_solver::RungeKutta_4(
   std::vector<double> & x_vals, std::vector<double> & y_vals, double angle, double bullet_speed,
-  double height, double dt, double max_time)
+  double height, double C, double rho, double dt, double max_time)
 {
   angle = angle * PI / 180.0;  //先转化为弧度制
   double vx = bullet_speed * cos(angle);
   double vy = bullet_speed * sin(angle);
-
   // 显然初始位置为(0,0)
   x_vals.emplace_back(0);
   y_vals.emplace_back(0);
@@ -63,20 +62,24 @@ void h_solver::RungeKutta_4(
       break;
     double k1x = vx;
     double k1y = vy;
-    double k1vx = -D / m * vx;
-    double k1vy = -g - D / m * vy;
-    double k2x = vx + 0.5 * dt * k1vx;
-    double k2y = vy + 0.5 * dt * k1vy;
-    double k2vx = -D / m * (vx + 0.5 * dt * k1vx);
-    double k2vy = -g - D / m * (vy + 0.5 * dt * k1vy);
+    double k1vx = -D / m * k1x * k1x;
+    double k1vy = -g - D / m * k1y * k1y;
+
+    double k2x = k1x + 0.5 * dt * k1vx;
+    double k2y = k1y + 0.5 * dt * k1vy;
+    double k2vx = k1vx + 0.5 * dt * (-D / m * k2x * k2x);
+    double k2vy = k1vy + 0.5 * dt * (-g - D / m * k2y * k2y);
+
     double k3x = vx + 0.5 * dt * k2vx;
     double k3y = vy + 0.5 * dt * k2vy;
-    double k3vx = -D / m * (vx + 0.5 * dt * k2vx);
-    double k3vy = -g - D / m * (vy + 0.5 * dt * k2vy);
+    double k3vx = k2vx + 0.5 * dt * (-D / m * k3x * k3x);
+    double k3vy = k2vy + 0.5 * dt * (-g - D / m * k3y * k3y);
+
     double k4x = vx + dt * k3vx;
     double k4y = vy + dt * k3vy;
-    double k4vx = -D / m * (vx + dt * k3vx);
-    double k4vy = -g - D / m * (vy + dt * k3vy);
+    double k4vx = k3vx + 0.5 * dt * (-D / m * k4x * k4x);
+    double k4vy = k3vy + 0.5 * dt * (-g - D / m * k4y * k4y);
+
     // 更新状态
     x += dt / 6 * (k1x + 2 * k2x + 2 * k3x + k4x);
     y += dt / 6 * (k1y + 2 * k2y + 2 * k3y + k4y);
@@ -87,30 +90,26 @@ void h_solver::RungeKutta_4(
     y_vals.emplace_back(y);
     // 计算下一时间点x和y的值
     t += dt;
-    std::cout << dt << std::endl;
-    // std::cout << t << std::endl;
-    std::cout << max_time << std::endl;
   }
 }
 
 // 考虑空气阻力计算吊射角度
-void h_solver::calculate_pitch(double bullet_speed, double distance, double height, double & pitch)
+void h_solver::calculate_pitch(
+  double bullet_speed, double distance, double height, double C, double rho, double & pitch)
 {
   std::vector<double> errors;  // 存储每个角度与实际打击位置的误差值
-
   // 开始迭代，存储每个角度对应的误差值
-  for (double angle = 10.0; angle < 85; angle++)  // 初始角度设置为10度角，迭代到85度
+  for (double angle = 5.0; angle < 45.0; angle += 0.01)  // 初始角度设置为5度角，迭代到45度
   {
     std::vector<double> x_vals, y_vals;
-    RungeKutta_4(x_vals, y_vals, angle, angle, bullet_speed, height);
+    RungeKutta_4(x_vals, y_vals, angle, bullet_speed, height, C, rho);
     double x_simple = x_vals.back(), y_simple = y_vals.back();
     double error = sqrt(
       (x_simple - distance) * (x_simple - distance) +
       (y_simple - height) * (y_simple - height));  // 计算方差
     errors.emplace_back(error);
-    auto min_iter =
-      std::min_element(errors.begin(), errors.end());  // 找到落地点与实际位置误差的角度
-    pitch = (min_iter - errors.begin() + 10.0) / 180.0 *
-            PI;  // 得到最佳发射角度，初始值是10度所以要加上10再转化为弧度制
   }
+  auto min_iter =
+    std::min_element(errors.begin(), errors.end());  // 找到落地点与实际位置误差最小的角度
+  pitch = (min_iter - errors.begin()) / 100.0 + 5.0;  // 得到最佳发射角度
 }
