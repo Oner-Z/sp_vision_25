@@ -42,7 +42,7 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_multicandidateboxes(cv::Mat & image)
   std::vector<float> confidences;                         // 置信度
   std::vector<std::vector<float>> objects_keypoints;      // 关键点
   // 输出格式是[15,8400], 每列代表一个框(即最多有8400个框), 前面4行分别是[cx, cy, ow, oh], 中间score, 最后5*2关键点(3代表每个关键点的信息, 包括[x, y, visibility],如果是2，则没有visibility)
-  // 15=4+1+5*2      56
+  // 15 = 4 + 1 + NUM_POINTS * 2      56
   for (int i = 0; i < det_output.cols; ++i) {
     const float score = det_output.at<float>(4, i);
     // 如果置信度满足条件则放进vector
@@ -64,8 +64,8 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_multicandidateboxes(cv::Mat & image)
 
       // 获取关键点
       std::vector<float> keypoints;
-      cv::Mat kpts = det_output.col(i).rowRange(5, 15);
-      for (int j = 0; j < 5; ++j) {
+      cv::Mat kpts = det_output.col(i).rowRange(NUM_POINTS, 15);
+      for (int j = 0; j < NUM_POINTS; ++j) {
         const float x = kpts.at<float>(j * 2 + 0, 0) * factor;
         const float y = kpts.at<float>(j * 2 + 1, 0) * factor;
         // const float s = kpts.at<float>(j * 3 + 2, 0);
@@ -89,7 +89,7 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_multicandidateboxes(cv::Mat & image)
     obj.prob = confidences[index];
 
     const std::vector<float> & keypoint = objects_keypoints[index];
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < NUM_POINTS; ++i) {
       const float x_coord = keypoint[i * 2];
       const float y_coord = keypoint[i * 2 + 1];
       obj.kpt.push_back(cv::Point2f(x_coord, y_coord));
@@ -108,10 +108,8 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_multicandidateboxes(cv::Mat & image)
       cv::Scalar(0, 0, 0));
     const int radius = 2;  // 绘制关键点
     const cv::Size & shape = image.size();
-    for (int i = 0; i < 5; ++i) {
-      const int idx = i * 2;
+    for (int i = 0; i < NUM_POINTS; ++i)
       cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 0, 0), -1, cv::LINE_AA);
-    }
   }
   /// 计算FPS
   const float t = (cv::getTickCount() - start) / static_cast<float>(cv::getTickFrequency());
@@ -137,12 +135,12 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_onecandidatebox(cv::Mat & image)
 
   infer_request.infer();
 
-  /// 处理推理计算结果  output输出格式是[15,8400], 每列代表一个框(即最多有8400个框), 前面4行分别是[cx, cy, ow, oh], 中间score, 最后5*2关键点(3代表每个关键点的信息, 包括[x, y, visibility],如果是2，则没有visibility)
+  /// 处理推理计算结果  output 输出格式是[17,8400], 每列代表一个框(即最多有8400个框), 前面4行分别是[cx, cy, ow, oh], 中间score, 最后6*2关键点
 
   const ov::Tensor output = infer_request.get_output_tensor();  // 获得推理结果
   const ov::Shape output_shape = output.get_shape();
   const float * output_buffer = output.data<const float>();
-  const int out_rows = output_shape[1];  // 获得"output"节点的rows 15
+  const int out_rows = output_shape[1];  // 获得"output"节点的rows 17
   const int out_cols = output_shape[2];  // 获得"output"节点的cols 8400
   const cv::Mat det_output(
     out_rows, out_cols, CV_32F, (float *)output_buffer);  // output_buff类型转换
@@ -173,8 +171,8 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_onecandidatebox(cv::Mat & image)
     // 获取置信度
     obj.prob = max_confidence;
     // 获取关键点
-    cv::Mat kpts = det_output.col(best_index).rowRange(5, 15);
-    for (int i = 0; i < 5; ++i) {
+    cv::Mat kpts = det_output.col(best_index).rowRange(5, 5 + NUM_POINTS * 2);
+    for (int i = 0; i < NUM_POINTS; ++i) {
       const float x = kpts.at<float>(i * 2 + 0, 0) * factor;
       const float y = kpts.at<float>(i * 2 + 1, 0) * factor;
       obj.kpt.push_back(cv::Point2f(x, y));
@@ -196,10 +194,8 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_onecandidatebox(cv::Mat & image)
       cv::Scalar(0, 0, 0));
     const int radius = 2;  // 绘制关键点
     const cv::Size & shape = image.size();
-    for (int i = 0; i < 5; ++i) {
-      const int idx = i * 2;
+    for (int i = 0; i < NUM_POINTS; ++i)
       cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 0, 0), -1, cv::LINE_AA);
-    }
   }
 
   /// 计算FPS

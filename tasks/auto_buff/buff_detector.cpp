@@ -82,8 +82,10 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
 
   cv::Point2f r_center_t = {0, 0};
   for (auto & fanblade : fanblades) {
-    auto point = (fanblade.points[3] + fanblade.points[2]) / 2;
-    r_center_t += 4.7 * point - (4.7 - 1) * fanblade.center;
+    auto point5 = fanblade.points[4];  // point5是扇叶的中心
+    auto point6 = fanblade.points[5];
+    r_center_t += (point6 - point5) * 1.4 + point5;  // TODO
+    // r_center_t += 4.7 * point - (4.7 - 1) * fanblade.center;
   }
   r_center_t /= float(fanblades.size());
 
@@ -94,11 +96,11 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
   double radius = cv::norm(fanblades[0].points[2] - fanblades[0].center) * 0.8;
   cv::Mat mask = cv::Mat::zeros(dilated_img.size(), CV_8U);  // mask
   circle(mask, r_center_t, radius, cv::Scalar(255), -1);
-  bitwise_and(dilated_img, mask, dilated_img);             // 将遮罩应用于二值化图像
-  tools::draw_point(bgr_img, r_center_t, {255, 0, 0}, 5);  // 调试用
+  bitwise_and(dilated_img, mask, dilated_img);               // 将遮罩应用于二值化图像
+  tools::draw_point(bgr_img, r_center_t, {255, 255, 0}, 5);  // 调试用
   // cv::imshow("Dilated Image", dilated_img);                // 调试用
 
-  /// 获取轮廓点,矩阵框筛选  修改
+  /// 获取轮廓点,矩阵框筛选  TODO
 
   std::vector<std::vector<cv::Point>> contours;
   auto r_center = r_center_t;

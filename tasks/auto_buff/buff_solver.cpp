@@ -41,7 +41,7 @@ Solver::Solver(const std::string & config_path) : R_gimbal2world_(Eigen::Matrix3
   cv::eigen2cv(camera_matrix, camera_matrix_);
   cv::eigen2cv(distort_coeffs, distort_coeffs_);
 
-  compute_rotated_points(OBJECT_POINTS);
+  // compute_rotated_points(OBJECT_POINTS);
 }
 
 Eigen::Matrix3d Solver::R_gimbal2world() const { return R_gimbal2world_; }
@@ -56,25 +56,24 @@ void Solver::solve(std::optional<PowerRune> & ps) const
 {
   if (!ps.has_value()) return;
   PowerRune & p = ps.value();
-  std::vector<cv::Point2f> image_points;
-  std::vector<cv::Point3f> object_points;
-  int i = 0;
-  for (auto & fanblade : p.fanblades) {
-    if (fanblade.type != _unlight) {
-      image_points.insert(image_points.end(), fanblade.points.begin(), fanblade.points.end());
-      image_points.emplace_back(fanblade.center);
-      object_points.insert(object_points.end(), OBJECT_POINTS[i].begin(), OBJECT_POINTS[i].end());
-    }
-    ++i;
-  }
-  image_points.emplace_back(p.r_center);  //r_center
-  object_points.emplace_back(cv::Point3f(0, 0, 0));
-  // std::vector<cv::Point2f> image_points = p.target.points;
-  // image_points.emplace_back(p.r_center);
-  // image_points.emplace_back(p.target.center);
+  // std::vector<cv::Point2f> image_points;
+  // std::vector<cv::Point3f> object_points;
+  // int i = 0;
+  // for (auto & fanblade : p.fanblades) {
+  //   if (fanblade.type != _unlight) {
+  //     image_points.insert(image_points.end(), fanblade.points.begin(), fanblade.points.end());
+  //     image_points.emplace_back(fanblade.center);
+  //     object_points.insert(object_points.end(), OBJECT_POINTS[i].begin(), OBJECT_POINTS[i].end());
+  //   }
+  //   ++i;
+  // }
+  // image_points.emplace_back(p.r_center);  //r_center
+  // object_points.emplace_back(cv::Point3f(0, 0, 0));
+  std::vector<cv::Point2f> image_points = p.target().points;
+  image_points.emplace_back(p.r_center);
 
   cv::solvePnP(
-    object_points, image_points, camera_matrix_, distort_coeffs_, rvec_, tvec_, false,
+    OBJECT_POINTS, image_points, camera_matrix_, distort_coeffs_, rvec_, tvec_, false,
     cv::SOLVEPNP_IPPE);
 
   Eigen::Vector3d t_buff2camera;
@@ -141,9 +140,7 @@ std::vector<cv::Point2f> Solver::reproject_buff(
 
   // reproject
   std::vector<cv::Point2f> image_points;
-  std::vector<cv::Point3f> object_points(OBJECT_POINTS[0]);
-  object_points.emplace_back(cv::Point3f(0., 0., 0.));
-  cv::projectPoints(object_points, rvec, tvec, camera_matrix_, distort_coeffs_, image_points);
+  cv::projectPoints(OBJECT_POINTS, rvec, tvec, camera_matrix_, distort_coeffs_, image_points);
   return image_points;
 }
 }  // namespace auto_buff

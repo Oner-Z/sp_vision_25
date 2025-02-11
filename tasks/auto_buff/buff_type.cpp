@@ -9,10 +9,7 @@ FanBlade::FanBlade(
   const std::vector<cv::Point2f> & kpt, cv::Point2f keypoints_center, FanBlade_type t)
 : center(keypoints_center), type(t)
 {
-  points.emplace_back(kpt[2]);
-  points.emplace_back(kpt[1]);
-  points.emplace_back(kpt[0]);
-  points.emplace_back(kpt[3]);
+  points.insert(points.end(), kpt.begin(), kpt.end());
 }
 
 FanBlade::FanBlade(FanBlade_type t) : type(t)

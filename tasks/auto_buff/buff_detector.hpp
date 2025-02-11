@@ -17,6 +17,8 @@ class Buff_Detector
 public:
   Buff_Detector(const std::string & config);
 
+  std::optional<PowerRune> detect_24(cv::Mat & bgr_img);
+
   std::optional<PowerRune> detect(cv::Mat & bgr_img);
 
 private:
