@@ -1,23 +1,18 @@
+camera_name: "hikrobot"
+exposure_ms: 3
+gain: 16
+
 enemy_color: "red"
 #enemy_color: "blue"
 
-#  0 -1  0
-#  1  0  0
-#  0  0  1
-R_gimbal2imubody: [0, -1, 0, 1, 0, 0, 0, 0, 1]
-
-# 重投影误差: 0.1281px
-camera_matrix: [1653.3374425928116, 0, 643.16968498371057, 0, 1653.8094850661487, 516.86185779888012, 0, 0, 1]
-distort_coeffs: [-0.47870471071469023, 0.24232828433628956, -0.0021671238713493832, -0.00029394153788307254, 0]
-
-# 相机同理想情况的偏角: yaw-0.91 pitch0.34 roll-1.90 degree
-# 标定板到世界坐标系原点的水平距离: 1.27 m
-# 标定板同竖直摆放时的偏角: yaw-7.25 pitch8.81 roll0.04 degree
-R_camera2gimbal: [0.015722706628389753, 0.0064187776631957801, 0.99985578749617088, -0.99932689005122843, -0.033047118885946934, 0.015926542433235782, 0.033144582013010487, -0.9994331829725529, 0.0058948669649344903]
-t_camera2gimbal: [0.1637115205490865, -0.0019712031041839747, 0.04928083465275554]
-
-model: "assets/best2-sim.onnx"
 classify_model: "assets/tiny_resnet.onnx"
+
+# model: "assets/buff.onnx"  # IOU:0.80  0.63      30FPS
+# model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.82   0.75
+
+model: "assets/buff_25/best_int8_openvino_model/best.xml"     # IOU: 
+# model: "assets/buff_25/best_openvino_model/best.xml"     # IOU: 
+# model: "assets/buff_25/buff_int8_openvino_model_1/best.xml"     # IOU: 
 
 threshold: 150
 max_angle_error: 45 # degree
@@ -42,3 +37,15 @@ camera_name: "mindvision"
 exposure_ms: 3
 gamma: 0.5
 vid_pid: "f622:d13a"
+
+R_gimbal2imubody: [0, -1, 0, 1, 0, 0, 0, 0, 1]
+# R_gimbal2imubody: [-1, 0, 0, 0, -1, 0, 0, 0, 1]
+
+# 重投影误差: 0.1139px
+camera_matrix: [1662.2291666047468, 0, 632.49165650792327, 0, 1665.2446521115799, 525.15966578247196, 0, 0, 1]
+distort_coeffs: [-0.48116517853073804, 0.24128884799628889, -0.003098440081953438, 0.0015508443119455063, 0]
+
+
+# 相机同理想情况的偏角: yaw-0.54 pitch1.44 roll-1.23 degree
+R_camera2gimbal: [0.0087958541095685128, 0.025405290353289194, 0.99963853675843661, -0.99973251961082155, -0.021160272223539334, 0.0093344583144423683, 0.021389768186718092, -0.99945325758711234, 0.025212372268941241]
+t_camera2gimbal: [0.15755228576785907, 0.00070179754807746166, 0.050827832321558707]
