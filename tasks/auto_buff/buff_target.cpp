@@ -81,7 +81,7 @@ void SmallTarget::get_target(
   update(time_gap, p.value());
 
   // 处理发散
-  if (std::abs(ekf_.x[6]) > SMALL_W * 1.5 || std::abs(ekf_.x[6]) < SMALL_W / 1.5) {
+  if (std::abs(ekf_.x[6]) > SMALL_W + CV_PI / 18 || std::abs(ekf_.x[6]) < SMALL_W - CV_PI / 18) {
     unsolvable_ = true;
     tools::logger()->debug("[Target] 小符角度发散spd: {:.2f}", ekf_.x[6] * 180 / CV_PI);
     first_in_ = true;

@@ -1,7 +1,3 @@
-camera_name: "hikrobot"
-exposure_ms: 3
-gain: 16
-
 enemy_color: "red"
 #enemy_color: "blue"
 
@@ -34,7 +30,7 @@ comming_angle: 50 # degree
 leaving_angle: 30 # degree
 
 camera_name: "mindvision"
-exposure_ms: 3
+exposure_ms: 5
 gamma: 0.5
 vid_pid: "f622:d13a"
 

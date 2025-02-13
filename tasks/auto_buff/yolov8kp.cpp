@@ -1,6 +1,6 @@
 #include "yolov8kp.hpp"
 
-const double ConfidenceThreshold = 0.8f;
+const double ConfidenceThreshold = 0.7f;
 const double IouThreshold = 0.4f;
 namespace auto_buff
 {
