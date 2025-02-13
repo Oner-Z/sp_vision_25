@@ -24,10 +24,10 @@
 // 定义命令行参数
 const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明 }"
-  "{config-path c  | configs/standard5.yaml | yaml配置文件的路径}"
+  "{config-path c  | configs/standard4.yaml | yaml配置文件的路径}"
   "{start-index s  | 0                      | 视频起始帧下标    }"
   "{end-index e    | 0                      | 视频结束帧下标    }"
-  "{show-iou i     | 1                      | 显示predict位置计算iou}"
+  "{show-iou i     | 0                      | 显示predict位置计算iou}"
   "{@input-path    |                        | avi和txt文件的路径}";
 
 double computeIOU(
@@ -86,8 +86,8 @@ int main(int argc, char * argv[])
   // 初始化跟踪器、解算器、追踪器和瞄准器
   auto_buff::Buff_Detector detector(config_path);
   auto_buff::Solver solver(config_path);
-  // auto_buff::SmallTarget target;
-  auto_buff::BigTarget target;
+  auto_buff::SmallTarget target;
+  // auto_buff::BigTarget target;
   auto_buff::Aimer aimer(config_path);
 
   cv::Mat img;
@@ -108,6 +108,7 @@ int main(int argc, char * argv[])
 
     video.read(img);
     if (img.empty()) break;
+    cv::rotate(img, img, cv::ROTATE_180);
 
     double t, w, x, y, z;
     text >> t >> w >> x >> y >> z;
@@ -163,19 +164,19 @@ int main(int argc, char * argv[])
     std::vector<cv::Point2f> image_points;
     if (!target.is_unsolve()) {
       auto power_rune = power_runes.value();
-      // // 显示detect的buff
-      // for (int i = 0; i < 4; i++)
-      //   tools::draw_point(img, power_rune.target().points[i], {0, 0, 255});
-      // tools::draw_point(img, power_rune.target().center, {0, 0, 255}, 3);
-      // tools::draw_point(img, power_rune.r_center, {0, 0, 255}, 3);
+      // 显示detect的buff
+      for (int i = 0; i < 6; i++)
+        tools::draw_point(img, power_rune.target().points[i], {0, 0, 255});
+      tools::draw_point(img, power_rune.r_center, {0, 0, 255}, 3);
 
       // 当前帧target更新后buff
       auto Rxyz_in_world_now = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.0));
       image_points = solver.reproject_buff(Rxyz_in_world_now, target.ekf_x()[4], target.ekf_x()[5]);
       tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {0, 255, 0});
+        img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4),
+        {255, 255, 0});
       tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {0, 255, 0});
+        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {255, 255, 0});
 
       // buff瞄准位置(预测)
       double dangle = target.ekf_x()[5] - target_pre.ekf_x()[5];

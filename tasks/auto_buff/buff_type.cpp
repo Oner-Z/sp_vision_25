@@ -75,7 +75,7 @@ PowerRune::PowerRune(
   double angle = atan_angle(ts[0].center);
   for (auto & t : ts) {
     t.angle = atan_angle(t.center) - angle;
-    if (t.angle < 0) t.angle += CV_2PI;
+    if (t.angle < -1e-3) t.angle += CV_2PI;
   }
 
   /// fanblades调整顺序

@@ -183,7 +183,7 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_onecandidatebox(cv::Mat & image)
     if (max_confidence < 0.7) save(std::to_string(start), image);
 
     /// 绘制关键点和连线
-    cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);  // 绘制矩形框
+    cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);                  // 绘制矩形框
     const std::string label = "buff:" + std::to_string(max_confidence).substr(0, 4);  // 绘制标签
     const cv::Size textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, nullptr);
     const cv::Rect textBox(
@@ -194,8 +194,12 @@ std::vector<YOLOV8KP::Object> YOLOV8KP::get_onecandidatebox(cv::Mat & image)
       cv::Scalar(0, 0, 0));
     const int radius = 2;  // 绘制关键点
     const cv::Size & shape = image.size();
-    for (int i = 0; i < NUM_POINTS; ++i)
-      cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 0, 0), -1, cv::LINE_AA);
+    for (int i = 0; i < NUM_POINTS; ++i) {
+      cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 255, 0), -1, cv::LINE_AA);
+      cv::putText(
+        image, std::to_string(i + 1), obj.kpt[i] + cv::Point2f(5, -5), cv::FONT_HERSHEY_SIMPLEX,
+        0.5, cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
+    }
   }
 
   /// 计算FPS

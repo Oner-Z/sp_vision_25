@@ -52,8 +52,9 @@ private:
 
   // TODO
   const std::vector<cv::Point3f> OBJECT_POINTS = {
-    cv::Point3f(0, 0, 825e-3),    cv::Point3f(0, 125e-3, 700e-3), cv::Point3f(0, 0, 575e-3),
-    cv::Point3f(0, -125, 700e-3), cv::Point3f(0, 0, 700e-3),      cv::Point3f(0, 0, 210e-3),
+    cv::Point3f(0, 0, 825e-3), cv::Point3f(0, 125e-3, 700e-3),
+    cv::Point3f(0, 0, 575e-3), cv::Point3f(0, -125e-3, 700e-3),
+    cv::Point3f(0, 0, 700e-3), cv::Point3f(0, 0, 210e-3),
     cv::Point3f(0, 0, 0)};  // 单位：米
 
   // 函数：生成绕x轴旋转的旋转矩阵
