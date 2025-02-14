@@ -1,14 +1,27 @@
 enemy_color: "red"
-#enemy_color: "blue"
+# enemy_color: "blue"
 
 classify_model: "assets/tiny_resnet.onnx"
 
-# model: "assets/buff.onnx"  # IOU:0.80  0.63      30FPS
-# model: "assets/2ns_int8_openvino_model2/2ns_int8.xml"  # IOU: 0.82   0.75
-
 model: "assets/buff_25/best_int8_openvino_model/best.xml"     # IOU: 
-# model: "assets/buff_25/best_openvino_model/best.xml"     # IOU: 
-# model: "assets/buff_25/buff_int8_openvino_model_1/best.xml"     # IOU: 
+
+detect:
+  contrast: 1
+  brightness: 
+    blue: -120
+    red: -100
+  canny_low_threshold: 100
+  canny_high_threshold: 180
+  approx_epsilon: 1.0
+  R_contours_min_area: 400
+  R_contours_max_area: 600
+  # 2000 8000  10000 14000
+  target_contours_min_area: 6000
+  target_contours_max_area: 8000
+  brightness_threshold:
+    blue: 130
+    red: 40
+  standard_fanblade_path: ./assets/standard_fanblade.jpg
 
 threshold: 150
 max_angle_error: 45 # degree
@@ -29,10 +42,9 @@ pitch_offset: -0.5 # degree
 comming_angle: 50 # degree
 leaving_angle: 30 # degree
 
-camera_name: "mindvision"
-exposure_ms: 5
-gamma: 0.5
-vid_pid: "f622:d13a"
+camera_name: "hikrobot"
+exposure_ms: 3
+gain: 16
 
 # R_gimbal2imubody: [0, -1, 0, 1, 0, 0, 0, 0, 1]
 R_gimbal2imubody: [-1, 0, 0, 0, -1, 0, 0, 0, 1]

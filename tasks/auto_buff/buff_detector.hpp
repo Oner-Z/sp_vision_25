@@ -24,6 +24,10 @@ public:
 private:
   void handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img);
 
+  std::optional<FanBlade> detect_fanblades(const cv::Mat & handled_img);
+
+  bool detect_center_r(const cv::Mat & handled_img);
+
   cv::Point2f get_r_center(std::vector<FanBlade> & fanblades, cv::Mat & bgr_img);
 
   void handle_lose();
@@ -38,6 +42,10 @@ private:
   int R_contours_max_area_;
   int target_contours_min_area_;
   int target_contours_max_area_;
+  int brightness_threshold_;
+  cv::Mat standard_fanblade;
+  cv::Size standard_fanblade_size;
+
   Track_status status_;
   int lose_;  // 丢失的次数
   double lastlen_;

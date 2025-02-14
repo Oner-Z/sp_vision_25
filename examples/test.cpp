@@ -24,7 +24,7 @@
 // 定义命令行参数
 const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明 }"
-  "{config-path c  | configs/standard5.yaml | yaml配置文件的路径}"
+  "{config-path c  | configs/standard4.yaml | yaml配置文件的路径}"
   "{start-index s  | 0                      | 视频起始帧下标    }"
   "{end-index e    | 0                      | 视频结束帧下标    }"
   "{show-iou i     | 1                      | 显示predict位置计算iou}"
@@ -76,12 +76,9 @@ int main(int argc, char * argv[])
 
     // -------------- 调试输出 --------------
 
-    // auto finish = std::chrono::steady_clock::now();
-    // tools::logger()->info(
-    //   "[{}] detector: {:.1f}ms, tracker: {:.1f}ms, aimer: {:.1f}ms", frame_count,
-    //   tools::delta_time(tracker_start, detector_start) * 1e3,
-    //   tools::delta_time(aimer_start, tracker_start) * 1e3,
-    //   tools::delta_time(finish, aimer_start) * 1e3);
+    auto finish = std::chrono::steady_clock::now();
+    tools::logger()->info(
+      "[{}] detector: {:.1f}ms", frame_count, tools::delta_time(finish, detector_start) * 1e3);
 
     // nlohmann::json data;
 
@@ -104,7 +101,7 @@ int main(int argc, char * argv[])
     // }
 
     // cv::resize(img, img, cv::Size(img.size().width * 0.7, img.size().height * 0.7));
-    cv::imshow("result", img);
+    // cv::imshow("result", img);
 
     int key = cv::waitKey(1);
     if (key == 'q') break;
