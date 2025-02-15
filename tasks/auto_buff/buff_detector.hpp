@@ -35,6 +35,8 @@ private:
   std::string enemy_color_;
   int contrast_;
   int brightness_;
+  int morphology_size_;
+  int dilate_size_;
   // int canny_low_threshold_;
   // int canny_high_threshold_;
   int R_contours_min_area_;

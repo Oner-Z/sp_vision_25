@@ -41,6 +41,8 @@ Buff_Detector::Buff_Detector(const std::string & config_path) : status_(LOSE), l
   contrast_ = fsDetect["contrast"].as<int>();
   brightness_ = fsDetect["brightness"][enemy_color_].as<int>();
   brightness_threshold_ = fsDetect["brightness_threshold"][enemy_color_].as<int>();
+  morphology_size_ = fsDetect["morphology_size"][enemy_color_].as<int>();
+  dilate_size_ = fsDetect["dilate_size"].as<int>();
   // canny_low_threshold_ = fsDetect["canny_low_threshold"].as<int>();
   // canny_high_threshold_ = fsDetect["canny_high_threshold"].as<int>();
 
@@ -61,7 +63,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
   /// get filled_image
   cv::Mat handled_img;
   handle_img(bgr_img, handled_img);
-  cv::imshow("handled_img", handled_img);
+  // cv::imshow("handled_img", handled_img);
 
   cv::cvtColor(handled_img, output, cv::COLOR_GRAY2BGR);
 
@@ -122,11 +124,12 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
   cv::threshold(gray_image, threshold_image, brightness_threshold_, 255, cv::THRESH_BINARY);
 
   // 闭运算
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(4, 4));
+  cv::Mat element =
+    cv::getStructuringElement(cv::MORPH_RECT, cv::Size(morphology_size_, morphology_size_));
   cv::morphologyEx(threshold_image, threshold_image, cv::MORPH_CLOSE, element);
 
   // 膨胀操作 (让轮廓更完整)
-  cv::dilate(threshold_image, threshold_image, element, cv::Point(-1, -1), 1);
+  cv::dilate(threshold_image, threshold_image, element, cv::Point(-1, -1), dilate_size_);
 
   handled_img = threshold_image;
 
@@ -202,10 +205,7 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   head_center = (head_rect.tl() + head_rect.br()) / 2;
   head_radius = (head_rect.width + head_rect.height) / 4;
-
-  // 绘制最佳匹配区域
-  cv::rectangle(output, head_rect, DETECTOR_COLOR_DEBUG, 2);
-  cv::putText(output, "head", head_rect.tl(), cv::FONT_HERSHEY_SIMPLEX, 1, DETECTOR_COLOR_DEBUG, 2);
+  cv::rectangle(output, head_rect, DETECTOR_COLOR_KEY, 2);
   tools::draw_point(output, head_center, DETECTOR_COLOR_KEY, 2);
 
   /// 扇叶杆
@@ -215,7 +215,7 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
     return F;
   }
   for (int i = 0; i < 4; i++) {
-    cv::line(output, body_box[i], body_box[(i + 1) % 4], DETECTOR_COLOR_DEBUG, 2);
+    cv::line(output, body_box[i], body_box[(i + 1) % 4], DETECTOR_COLOR_KEY, 2);
   }
 
   /// 扇叶
@@ -286,7 +286,7 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   FanBlade fanblade(kpt, head_center, _light);
   F.emplace(fanblade);
-  std::cout << "angle: " << angle << std::endl;
+  // std::cout << "angle: " << angle << std::endl;
   return F;
 }
 
@@ -322,15 +322,14 @@ bool Buff_Detector::detect_fanblades_head(const cv::Mat & handled_img, cv::Rect 
       head_rect = bounding_box;
     }
 
-    // // 绘制所有检测的矩形
-    // cv::rectangle(output, bounding_box, cv::Scalar(255, 255, 0), 2);
-    // cv::putText(
-    //   output, std::to_string(best_match_score), bounding_box.tl(), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-    //   cv::Scalar(255, 255, 0), 1);
+    // 绘制所有检测的矩形
+    cv::rectangle(output, bounding_box, DETECTOR_COLOR_DEBUG, 1);
+    cv::putText(
+      output, std::to_string(best_match_score), bounding_box.tl(), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+      DETECTOR_COLOR_DEBUG, 1);
   }
 
   return best_match_score > 0.15;
-
   // double best_rotation_angle = 0;  // 最佳匹配的旋转角度
   // cv::Mat roi = handled_img(best_match_rect);
   // cv::resize(roi, roi, standard_fanblade_size, 0, 0, cv::INTER_AREA);
@@ -371,9 +370,9 @@ bool Buff_Detector::detect_fanblades_body(
     }
 
     bounding_box.points(body_box);
-    // for (int i = 0; i < 4; i++) {
-    //   cv::line(output, box[i], box[(i + 1) % 4], cv::Scalar(255, 255, 0), 2);
-    // }
+    for (int i = 0; i < 4; i++) {
+      cv::line(output, body_box[i], body_box[(i + 1) % 4], DETECTOR_COLOR_DEBUG, 1);
+    }
 
     // 检查矩形是否超出图像范围 跳过不符合宽高比的矩形
     float half_width = size.width / 2.0, half_height = size.height / 2.0;
@@ -410,7 +409,7 @@ cv::Point2f Buff_Detector::detect_r_center(FanBlade & fanblade, const cv::Mat & 
   cv::Mat mask = cv::Mat::zeros(handled_img.size(), CV_8U);  // mask
   circle(mask, r_center_t, head_radius * 0.8, cv::Scalar(255), -1);
   bitwise_and(dilated_img, mask, dilated_img);  // mask选出大概范围
-  tools::draw_point(output, r_center_t, DETECTOR_COLOR_DEBUG, 2);
+  tools::draw_point(output, r_center_t, DETECTOR_COLOR_DEBUG, 4);
   cv::circle(output, r_center_t, head_radius * 0.8, DETECTOR_COLOR_DEBUG, 1);
 
   /// 获取轮廓点,矩阵框筛选  TODO

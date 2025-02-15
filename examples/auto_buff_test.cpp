@@ -165,7 +165,7 @@ int main(int argc, char * argv[])
     if (!target.is_unsolve()) {
       auto power_rune = power_runes.value();
       // 显示detect的buff
-      for (int i = 0; i < 6; i++)
+      for (int i = 0; i < power_rune.target().points.size(); i++)
         tools::draw_point(img, power_rune.target().points[i], {0, 0, 255});
       tools::draw_point(img, power_rune.r_center, {0, 0, 255}, 3);
 
@@ -176,7 +176,10 @@ int main(int argc, char * argv[])
         img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4),
         {255, 255, 0});
       tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {255, 255, 0});
+        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8),
+        {255, 255, 0});
+      tools::draw_points(
+        img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 255, 0});
 
       // buff瞄准位置(预测)
       double dangle = target.ekf_x()[5] - target_pre.ekf_x()[5];
@@ -186,7 +189,10 @@ int main(int argc, char * argv[])
       tools::draw_points(
         img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {255, 0, 0});
       tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {255, 0, 0});
+        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8),
+        {255, 0, 0});
+      tools::draw_points(
+        img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 0, 0});
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
@@ -217,60 +223,60 @@ int main(int argc, char * argv[])
       data["cmd_pitch"] = command.pitch * 57.3;
     }
 
-    ///
+    // ///
 
-    if (!target.is_unsolve() && show_iou) {
-      // 显示预测buff点位
-      double angle = target.ekf_x()[5] - target_pre.ekf_x()[5];
-      // cv::Point2f pre_in_img =
-      //   solver.point_buff2pixel(cv::Point3f(0.0, 0.7 * std::sin(angle), 0.7 * std::cos(angle)));
-      // tools::draw_point(img, pre_in_img, {255, 0, 0}, 5);
+    // if (!target.is_unsolve() && show_iou) {
+    //   // 显示预测buff点位
+    //   double angle = target.ekf_x()[5] - target_pre.ekf_x()[5];
+    //   // cv::Point2f pre_in_img =
+    //   //   solver.point_buff2pixel(cv::Point3f(0.0, 0.7 * std::sin(angle), 0.7 * std::cos(angle)));
+    //   // tools::draw_point(img, pre_in_img, {255, 0, 0}, 5);
 
-      // 显示t_pre秒后的buff
-      auto t_pre = t + aimer.t_gap;
+    //   // 显示t_pre秒后的buff
+    //   auto t_pre = t + aimer.t_gap;
 
-      std::streampos text_position = text.tellg();  // 保存当前文件指针位置
-      int cn = 0;
-      while (true) {
-        text >> t >> w >> x >> y >> z;  //0.05-0.06
-        cn++;
-        if (std::abs(t - t_pre) < 0.03 || t > t_pre) break;
-      }
-      text.seekg(text_position);  // 将文件指针移动到之前保存的位置
+    //   std::streampos text_position = text.tellg();  // 保存当前文件指针位置
+    //   int cn = 0;
+    //   while (true) {
+    //     text >> t >> w >> x >> y >> z;  //0.05-0.06
+    //     cn++;
+    //     if (std::abs(t - t_pre) < 0.03 || t > t_pre) break;
+    //   }
+    //   text.seekg(text_position);  // 将文件指针移动到之前保存的位置
 
-      if (std::abs(t - t_pre) < 0.03) {
-        double vedio_position = video.get(cv::CAP_PROP_POS_FRAMES);  // 保存当前视频帧的位置
-        cv::Mat img_pre;
-        while (cn--) video >> img_pre;
-        video.set(cv::CAP_PROP_POS_FRAMES, vedio_position);  // 设置视频帧位置到之前保存的位置
+    //   if (std::abs(t - t_pre) < 0.03) {
+    //     double vedio_position = video.get(cv::CAP_PROP_POS_FRAMES);  // 保存当前视频帧的位置
+    //     cv::Mat img_pre;
+    //     while (cn--) video >> img_pre;
+    //     video.set(cv::CAP_PROP_POS_FRAMES, vedio_position);  // 设置视频帧位置到之前保存的位置
 
-        auto_buff::Solver solverpre(config_path);  ///调试用
-        solverpre.set_R_gimbal2world({w, x, y, z});
-        auto power_runes_pre =
-          detector.detect_debug(img_pre, image_points[4] - power_runes.value().r_center);
-        if (power_runes_pre.has_value()) {
-          // clang-format off
-          auto power_rune_pre = power_runes_pre.value();
-          auto R_pre2R = power_runes.value().r_center - power_rune_pre.r_center;
-          for (auto & i : power_rune_pre.target().points) i = i + R_pre2R;
-          power_rune_pre.target().center+=R_pre2R;
-          power_rune_pre.r_center +=R_pre2R;
-          tools::draw_points(img, power_rune_pre.target().points, {0, 0, 255});
-          tools::draw_points(img,std::vector<cv::Point2f>{power_rune_pre.target().center, power_rune_pre.r_center},{0, 0, 255});
+    //     auto_buff::Solver solverpre(config_path);  ///调试用
+    //     solverpre.set_R_gimbal2world({w, x, y, z});
+    //     auto power_runes_pre =
+    //       detector.detect_debug(img_pre, image_points[4] - power_runes.value().r_center);
+    //     if (power_runes_pre.has_value()) {
+    //       // clang-format off
+    //       auto power_rune_pre = power_runes_pre.value();
+    //       auto R_pre2R = power_runes.value().r_center - power_rune_pre.r_center;
+    //       for (auto & i : power_rune_pre.target().points) i = i + R_pre2R;
+    //       power_rune_pre.target().center+=R_pre2R;
+    //       power_rune_pre.r_center +=R_pre2R;
+    //       tools::draw_points(img, power_rune_pre.target().points, {0, 0, 255});
+    //       tools::draw_points(img,std::vector<cv::Point2f>{power_rune_pre.target().center, power_rune_pre.r_center},{0, 0, 255});
 
-          // iou
-          auto iou = computeIOU(img.cols, img.rows, power_rune_pre.target().points,std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4));
-          if (iou > 0) {
-            ious.push_back(iou);
-            data["iou"] = iou;
-            double evg_iou = 0;
-            for (double i : ious) evg_iou += i;
-            tools::draw_text(img, fmt::format("iou:{:.2f}", evg_iou / ious.size()), power_rune_pre.target().points[0]);
-          }
-          // clang-format on
-        }
-      }
-    }
+    //       // iou
+    //       auto iou = computeIOU(img.cols, img.rows, power_rune_pre.target().points,std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4));
+    //       if (iou > 0) {
+    //         ious.push_back(iou);
+    //         data["iou"] = iou;
+    //         double evg_iou = 0;
+    //         for (double i : ious) evg_iou += i;
+    //         tools::draw_text(img, fmt::format("iou:{:.2f}", evg_iou / ious.size()), power_rune_pre.target().points[0]);
+    //       }
+    //       // clang-format on
+    //     }
+    //   }
+    // }
 
     plotter.plot(data);
 

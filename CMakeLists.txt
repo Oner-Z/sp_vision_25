@@ -26,8 +26,8 @@ add_subdirectory(tasks/auto_buff)
 # target_link_libraries(camera_test ${OpenCV_LIBS} fmt::fmt tools io)
 # target_link_libraries(cboard_test ${OpenCV_LIBS} fmt::fmt tools)
 
-# add_executable(auto_buff_test examples/auto_buff_test.cpp)
-# target_link_libraries(auto_buff_test ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools)
+add_executable(auto_buff_test examples/auto_buff_test.cpp)
+target_link_libraries(auto_buff_test ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools)
 
 # add_executable(capture examples/capture.cpp)
 # add_executable(calibrate_camera examples/calibrate_camera.cpp)
