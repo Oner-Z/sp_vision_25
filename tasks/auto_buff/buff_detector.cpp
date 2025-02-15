@@ -192,28 +192,37 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 {
   std::optional<FanBlade> F;
 
-  cv::Rect head_rect;  // 最佳匹配的矩形区域
+  cv::Rect head_rect;
+  std::vector<cv::Rect> head_rects;
+
   cv::Point2f body_box[4];
-  int angle = 0;
+  int fanblades_angle = 0;
 
   /// 扇叶头
 
-  if (!detect_fanblades_head(handled_img, head_rect)) {
+  if (!detect_fanblades_head(handled_img, head_rects)) {
     tools::logger()->debug("[Buff_Detector] 未找到扇叶头!");
     return F;
   }
 
-  head_center = (head_rect.tl() + head_rect.br()) / 2;
-  head_radius = (head_rect.width + head_rect.height) / 4;
-  cv::rectangle(output, head_rect, DETECTOR_COLOR_KEY, 2);
-  tools::draw_point(output, head_center, DETECTOR_COLOR_KEY, 2);
-
   /// 扇叶杆
-
-  if (!detect_fanblades_body(handled_img, body_box, angle)) {
+  for (auto it = head_rects.begin(); it != head_rects.end();) {
+    head_center = (it->tl() + it->br()) / 2;
+    head_radius = (it->width + it->height) / 4;
+    if (!detect_fanblades_body(handled_img, body_box, fanblades_angle)) {
+      it = head_rects.erase(it);
+    } else {
+      head_rect = *it;
+      break;
+      // ++it;
+    }
+  }
+  if (head_rects.empty()) {
     tools::logger()->debug("[Buff_Detector] 未找到扇叶杆!");
     return F;
   }
+  cv::rectangle(output, head_rect, DETECTOR_COLOR_KEY, 2);
+  tools::draw_point(output, head_center, DETECTOR_COLOR_KEY, 2);
   for (int i = 0; i < 4; i++) {
     cv::line(output, body_box[i], body_box[(i + 1) % 4], DETECTOR_COLOR_KEY, 2);
   }
@@ -222,8 +231,8 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   std::vector<cv::Point2f> kpt;
 
-  if (head_center.y < body_center.y) angle -= 180;
   if (head_center.y < body_center.y) {
+    // fanblades_angle -= 180;
     cv::swap(body_box[0], body_box[2]);
     cv::swap(body_box[1], body_box[3]);
   }
@@ -234,7 +243,7 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
   cv::Mat masked_img;
   handled_img.copyTo(masked_img, mask);
 
-  cv::Mat rotation_matrix = cv::getRotationMatrix2D(head_center, angle, 1.0);
+  cv::Mat rotation_matrix = cv::getRotationMatrix2D(head_center, fanblades_angle, 1.0);
   cv::Mat rotated_img;
   cv::warpAffine(masked_img, rotated_img, rotation_matrix, handled_img.size());
 
@@ -286,19 +295,17 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   FanBlade fanblade(kpt, head_center, _light);
   F.emplace(fanblade);
-  // std::cout << "angle: " << angle << std::endl;
   return F;
 }
 
-bool Buff_Detector::detect_fanblades_head(const cv::Mat & handled_img, cv::Rect & head_rect)
+bool Buff_Detector::detect_fanblades_head(
+  const cv::Mat & handled_img, std::vector<cv::Rect> & head_rects)
 {
   auto contours_list =
     get_contours(handled_img, fanblades_head_contours_min_area_, fanblades_head_contours_max_area_);
 
   /// 扇叶头
-  double best_match_score = -1;  // 最高匹配度
   cv::Mat result;
-
   for (const auto & contours : contours_list) {
     cv::Rect bounding_box = cv::boundingRect(contours);
     // 检查矩形是否超出图像范围 跳过不符合宽高比的矩形
@@ -317,19 +324,18 @@ bool Buff_Detector::detect_fanblades_head(const cv::Mat & handled_img, cv::Rect 
     cv::matchTemplate(roi, standard_fanblade, result, cv::TM_CCOEFF_NORMED);
     double min_val, max_val;
     cv::minMaxLoc(result, &min_val, &max_val);
-    if (max_val > best_match_score) {
-      best_match_score = max_val;
-      head_rect = bounding_box;
+    if (max_val > 0.15) {
+      head_rects.push_back(bounding_box);
     }
 
     // 绘制所有检测的矩形
     cv::rectangle(output, bounding_box, DETECTOR_COLOR_DEBUG, 1);
     cv::putText(
-      output, std::to_string(best_match_score), bounding_box.tl(), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+      output, std::to_string(max_val), bounding_box.tl(), cv::FONT_HERSHEY_SIMPLEX, 1.0,
       DETECTOR_COLOR_DEBUG, 1);
   }
 
-  return best_match_score > 0.15;
+  return head_rects.size() > 0;
   // double best_rotation_angle = 0;  // 最佳匹配的旋转角度
   // cv::Mat roi = handled_img(best_match_rect);
   // cv::resize(roi, roi, standard_fanblade_size, 0, 0, cv::INTER_AREA);
@@ -352,7 +358,7 @@ bool Buff_Detector::detect_fanblades_head(const cv::Mat & handled_img, cv::Rect 
 }
 
 bool Buff_Detector::detect_fanblades_body(
-  const cv::Mat & handled_img, cv::Point2f body_box[4], int & angle)
+  const cv::Mat & handled_img, cv::Point2f body_box[4], int & fanblades_angle)
 {
   bool found = false;
   auto contours_list =
@@ -380,19 +386,32 @@ bool Buff_Detector::detect_fanblades_body(
       body_center.x - half_width < 0 || body_center.y - half_height < 0 ||
       body_center.x + half_width > handled_img.cols ||
       body_center.y + half_height > handled_img.rows) {
+      tools::logger()->debug("[Buff_Detector] 超出图像范围!");
+      continue;
+    }
+    if (
+      size.width < head_radius * 1.5 || size.width > head_radius * 3.0 ||
+      size.height < head_radius * 0.3 || size.height > head_radius * 0.9) {
+      tools::logger()->debug(
+        "[Buff_Detector] 宽高比不符合要求! width: {}, height: {}, head_radius{}", size.width,
+        size.height, head_radius);  // width: 117.57067, height: 32.267525  46
       continue;
     }
 
-    if (
-      size.width < head_radius * 1.5 || size.width > head_radius * 2.5 ||
-      size.height < head_radius * 0.3 || size.height > head_radius * 0.8)
-      continue;
-
     auto distance = cv::norm(body_center - head_center);
-    if (distance < head_radius * 2 || distance > head_radius * 3) continue;
+    if (distance < head_radius * 2 || distance > head_radius * 3) {
+      tools::logger()->debug("[Buff_Detector] distance:{}head_radius:{}", distance, head_radius);
+      continue;
+    }
 
+    fanblades_angle =
+      std::atan2(head_center.y - body_center.y, head_center.x - body_center.x) * 180 / CV_PI;
+    auto angle_gap = int(std::abs(fanblades_angle - bounding_box.angle)) % 180;
+    if (angle_gap > 5 && angle_gap < 175) {
+      tools::logger()->debug("[Buff_Detector] 宽高比{}", angle_gap);
+      continue;
+    }
     found = true;
-    angle = bounding_box.angle;
     break;
   }
   return found;

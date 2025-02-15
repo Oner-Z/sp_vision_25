@@ -25,8 +25,9 @@ private:
   void handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img);
 
   std::optional<FanBlade> detect_fanblades(const cv::Mat & handled_img);
-  bool detect_fanblades_head(const cv::Mat & handled_img, cv::Rect & head_rect);
-  bool detect_fanblades_body(const cv::Mat & handled_img, cv::Point2f body_box[4], int & angle);
+  bool detect_fanblades_head(const cv::Mat & handled_img, std::vector<cv::Rect> & head_rects);
+  bool detect_fanblades_body(
+    const cv::Mat & handled_img, cv::Point2f body_box[4], int & fanblades_angle);
 
   cv::Point2f detect_r_center(FanBlade & fanblade, const cv::Mat & handled_img);
 
