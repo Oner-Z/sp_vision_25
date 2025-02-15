@@ -78,6 +78,7 @@ public:
   explicit PowerRune(
     std::vector<FanBlade> & ts, const cv::Point2f r_center,
     std::optional<PowerRune> last_powerrune);
+  explicit PowerRune(FanBlade & t, const cv::Point2f r_center);
   explicit PowerRune() = default;
 
   FanBlade & target() { return fanblades[0]; };

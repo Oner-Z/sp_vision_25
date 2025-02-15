@@ -10,17 +10,18 @@ detect:
   brightness: 
     blue: -120
     red: -100
-  canny_low_threshold: 100
-  canny_high_threshold: 180
-  approx_epsilon: 1.0
-  R_contours_min_area: 400
-  R_contours_max_area: 600
-  # 2000 8000  10000 14000
-  target_contours_min_area: 6000
-  target_contours_max_area: 8000
   brightness_threshold:
     blue: 130
     red: 40
+  # canny_low_threshold: 100
+  # canny_high_threshold: 180
+  # approx_epsilon: 1.0
+  R_contours_min_area: 400
+  R_contours_max_area: 600
+  fanblades_head_contours_min_area: 6000
+  fanblades_head_contours_max_area: 8000
+  fanblades_body_contours_min_area: 1000
+  fanblades_body_contours_max_area: 3000
   standard_fanblade_path: ./assets/standard_fanblade.jpg
 
 threshold: 150
