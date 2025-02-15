@@ -108,7 +108,6 @@ int main(int argc, char * argv[])
 
     video.read(img);
     if (img.empty()) break;
-    cv::rotate(img, img, cv::ROTATE_180);
 
     double t, w, x, y, z;
     text >> t >> w >> x >> y >> z;
