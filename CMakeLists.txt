@@ -46,8 +46,8 @@ target_link_libraries(auto_buff_test ${OpenCV_LIBS} openvino::runtime fmt::fmt y
 # add_executable(fix_video examples/fix_video.cpp)
 # target_link_libraries(fix_video ${OpenCV_LIBS} fmt::fmt tools)
 
-# add_executable(auto_buff_debug src/auto_buff_debug.cpp)
-# target_link_libraries(auto_buff_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools io)
+add_executable(auto_buff_debug src/auto_buff_debug.cpp)
+target_link_libraries(auto_buff_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools io)
 
 add_executable(test examples/test.cpp)
 target_link_libraries(test ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools)
