@@ -165,6 +165,7 @@ int main(int argc, char * argv[])
     }
 
     data["cmd_shoot"] = command.shoot;
+    data["aim_id"] = aimer.aim_id_;
     plotter.plot(data);
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸

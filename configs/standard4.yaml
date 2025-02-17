@@ -9,8 +9,8 @@ device: AUTO
 
 #####-----工业相机参数-----#####
 camera_name: "mindvision"
-exposure_ms: 3
-gamma: 0.7
+exposure_ms: 2
+gamma: 0.5
 vid_pid: "f622:d13a"
 
 #####-----传统方法参数-----#####
@@ -38,11 +38,11 @@ outpost_max_temp_lost_count: 25
 
 #####-----aimer参数-----#####
 yaw_offset: -1.5 # degree -2.5
-pitch_offset: 0 # degree 2
-coming_angle: 55 # degree
-leaving_angle: 45 # degree
+pitch_offset: 0.8 # degree 2
+coming_angle: 60 # degree
+leaving_angle: 20 # degree
 min_spin_speed: 2 # rad/s
-delay_gimbal: 0.03
+delay_gimbal: 0.05
 delay_shoot: 0.0
 #####-----工业相机标定参数-----#####
 R_gimbal2imubody: [-1, 0, 0, 0, -1, 0, 0, 0, 1]

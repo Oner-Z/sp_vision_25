@@ -131,6 +131,7 @@ io::Command Aimer::aim(
     fire_judger_.change_target_or_armor();
   }
   aim_id_ = chosen_id;
+  tools::logger()->debug("==> now aim at {}", aim_id_);
 
   Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id].head(3);
   auto d_compensate =
@@ -180,7 +181,8 @@ io::Command Aimer::aim(
   double pitch_should = trajectory_hit.pitch + pitch_offset_;
   yp_should = {yaw_should, pitch_should};
 
-  bool can_fire = fire_judger_.can_fire(yp_should.value(), {yaw_send, pitch_send});
+  bool can_fire =
+    fire_judger_.can_fire({yaw_should, pitch_should}, solver_.gimbal_ypr_latest().head(2));
   return {true, can_fire, yaw_send, pitch_send};
 }
 
@@ -309,15 +311,15 @@ std::optional<int> Aimer::choose_armor(const Target & target)
 
 bool Aimer::FireJudger::can_fire(const Eigen::Vector2d & yp_should, const Eigen::Vector2d & yp_real)
 {
-  if (gimbal_is_following_this_armor) return true;
-  double dist = (yp_should - yp_real).norm();
-  if (dist < 0.3 / 57.3) {
-    gimbal_is_following_this_armor = true;
+  if (gimbal_is_following_this_armor_) return true;
+  double dist = std::abs(yp_should[0] - yp_real[0]);
+  if (dist < 0.5 / 57.3) {
+    gimbal_is_following_this_armor_ = true;
     return true;
   }
   return false;
 }
 
-void Aimer::FireJudger::change_target_or_armor() { gimbal_is_following_this_armor = false; }
+void Aimer::FireJudger::change_target_or_armor() { gimbal_is_following_this_armor_ = false; }
 
 }  // namespace auto_aim

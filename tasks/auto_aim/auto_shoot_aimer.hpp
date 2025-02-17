@@ -49,7 +49,9 @@ private:
     FireJudger() = default;
     bool can_fire(const Eigen::Vector2d & yp_should, const Eigen::Vector2d & yp_real);
     void change_target_or_armor();
-    bool gimbal_is_following_this_armor = false;
+
+  private:
+    bool gimbal_is_following_this_armor_ = false;
   };
 
   FireJudger fire_judger_;
