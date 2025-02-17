@@ -5,17 +5,18 @@
 #include <cmath>
 #include <vector>
 
+#include "io/cboard.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/trajectory.hpp"
 
 namespace auto_aim
 {
-Aimer::Aimer(const std::string & config_path)
+Aimer::Aimer(const std::string & config_path, const auto_aim::Solver & solver) : solver_(solver)
 {
   auto yaml = YAML::LoadFile(config_path);
-  yaw_offset_ = yaml["yaw_offset"].as<double>() / 57.3;          // degree to rad
-  pitch_offset_ = yaml["pitch_offset"].as<double>() / 57.3;      // degree to rad
+  yaw_offset_ = yaml["yaw_offset"].as<double>() / 57.3;      // degree to rad
+  pitch_offset_ = yaml["pitch_offset"].as<double>() / 57.3;  // degree to rad
   coming_angle_ = yaml["coming_angle"].as<double>() / 57.3;  // degree to rad
   leaving_angle_ = yaml["leaving_angle"].as<double>() / 57.3;
   delay_gimbal_ = yaml["delay_gimbal"].as<double>();
@@ -68,6 +69,7 @@ std::optional<Target> Aimer::choose_target(
     // tools::logger()->warn("ERROR: targets not empty, but refused to aim!");
     return std::nullopt;
   }
+  if (!choose_last) fire_judger_.change_target_or_armor();
   return chosen_target;
 }
 
@@ -84,8 +86,6 @@ io::Command Aimer::aim(
   if (to_now) {
     chosen_target.predict(std::chrono::steady_clock::now());
   }
-
-  bool can_fire = true;
 
   /// 预选 装甲板
   std::optional<int> opt_rough_chosen_id = choose_armor(chosen_target);
@@ -127,7 +127,10 @@ io::Command Aimer::aim(
     return {false, false, 0, 0};
   }
   int chosen_id = opt_chosen_id.value();
-  aim_id = chosen_id;
+  if (aim_id_ != chosen_id) {
+    fire_judger_.change_target_or_armor();
+  }
+  aim_id_ = chosen_id;
 
   Eigen::Vector3d xyz_compensate = chosen_target.armor_xyza_list()[chosen_id].head(3);
   auto d_compensate =
@@ -175,8 +178,9 @@ io::Command Aimer::aim(
 
   double yaw_should = std::atan2(xyz_hit[1], xyz_hit[0]) + yaw_offset_;
   double pitch_should = trajectory_hit.pitch + pitch_offset_;
-  yp_should = std::make_pair(yaw_should, pitch_should);
+  yp_should = {yaw_should, pitch_should};
 
+  bool can_fire = fire_judger_.can_fire(yp_should.value(), {yaw_send, pitch_send});
   return {true, can_fire, yaw_send, pitch_send};
 }
 
@@ -302,5 +306,18 @@ std::optional<int> Aimer::choose_armor(const Target & target)
 //   }
 //   return {0, armor_xyza_list[0]};  // 不会运行到这里
 // }
+
+bool Aimer::FireJudger::can_fire(const Eigen::Vector2d & yp_should, const Eigen::Vector2d & yp_real)
+{
+  if (gimbal_is_following_this_armor) return true;
+  double dist = (yp_should - yp_real).norm();
+  if (dist < 0.3 / 57.3) {
+    gimbal_is_following_this_armor = true;
+    return true;
+  }
+  return false;
+}
+
+void Aimer::FireJudger::change_target_or_armor() { gimbal_is_following_this_armor = false; }
 
 }  // namespace auto_aim

@@ -48,7 +48,7 @@ int main(int argc, char * argv[])
   auto_aim::Detector detector(config_path, false);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
-  auto_aim::Aimer aimer(config_path);
+  auto_aim::Aimer aimer(config_path, solver);
 
   cv::Mat img;
   auto t0 = std::chrono::steady_clock::now();
@@ -139,7 +139,7 @@ int main(int argc, char * argv[])
         Eigen::Vector4d xyza = armor_xyza_list[i];
         auto image_points =
           solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
-        if (i == aimer.aim_id)
+        if (i == aimer.aim_id_)
           tools::draw_points(img, image_points, {0, 0, 255});
         else
           tools::draw_points(img, image_points, {0, 255, 0});
@@ -147,9 +147,9 @@ int main(int argc, char * argv[])
       }
 
       // aimer瞄准位置
-      auto aim_point = aimer.yp_should;
-      if (aim_point.has_value()) {
-        auto [yaw, pitch] = aim_point.value();
+      auto opt_yp_should = aimer.yp_should;
+      if (opt_yp_should.has_value()) {
+        double yaw = opt_yp_should.value().x(), pitch = opt_yp_should.value().y();
         auto image_point = solver.reproject_gimbal(yaw, pitch);
         tools::draw_circle(img, image_point, color::GREEN);  // 绿色为理想瞄准位置
       }

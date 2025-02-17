@@ -29,9 +29,9 @@ add_executable(fast_recorder examples/fast_recorder.cpp)
 target_link_libraries(fast_recorder ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io)
 
 add_executable(auto_aim_test examples/auto_aim_test.cpp)
-target_link_libraries(auto_aim_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
+target_link_libraries(auto_aim_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
 add_executable(armor_detector_video examples/armor_detector_video.cpp)
-target_link_libraries(armor_detector_video ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools)
+target_link_libraries(armor_detector_video ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
 
 add_executable(capture examples/capture.cpp)
 add_executable(calibrate_camera examples/calibrate_camera.cpp)

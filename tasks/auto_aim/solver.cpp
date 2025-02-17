@@ -140,6 +140,13 @@ cv::Point2f Solver::reproject_gimbal(double yaw, double pitch) const
   return image_points[0];
 }
 
+// 单位：rad
+Eigen::Vector3d Solver::gimbal_ypr_latest() const
+{
+  Eigen::Matrix3d latest_R_gimbal2world = q_to_R_gimbal2world(io::CBoard::get_instance().latest());
+  return tools::eulers(latest_R_gimbal2world, 2, 1, 0);
+}
+
 void Solver::optimize_yaw(Armor & armor) const
 {
   Eigen::Vector3d gimbal_ypr = tools::eulers(R_gimbal2world_, 2, 1, 0);

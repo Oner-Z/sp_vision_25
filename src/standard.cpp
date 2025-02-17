@@ -42,7 +42,7 @@ int main(int argc, char * argv[])
   auto_aim::YOLOV8 detector(config_path, false);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
-  auto_aim::Aimer aimer(config_path);
+  auto_aim::Aimer aimer(config_path, solver);
 
   cv::Mat img;
   Eigen::Quaterniond q;

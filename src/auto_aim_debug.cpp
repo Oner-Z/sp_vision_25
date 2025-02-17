@@ -7,9 +7,9 @@
 #include "io/camera.hpp"
 #include "io/cboard.hpp"
 #include "tasks/auto_aim/auto_shoot_aimer.hpp"
+#include "tasks/auto_aim/detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
-#include "tasks/auto_aim/detector.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
@@ -42,7 +42,7 @@ int main(int argc, char * argv[])
   auto_aim::Detector detector(config_path, true);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
-  auto_aim::Aimer aimer(config_path);
+  auto_aim::Aimer aimer(config_path, solver);
 
   cv::Mat img;
   Eigen::Quaterniond q;
@@ -80,14 +80,6 @@ int main(int argc, char * argv[])
 
     // aimer瞄准位置
     auto opt_yp_should = aimer.yp_should;
-    if (opt_yp_should.has_value()) {
-      auto [yaw, pitch] = opt_yp_should.value();
-      if (!(std::abs(yaw - gimbal_yaw) < 0.2 / 57.3 && command.control && command.shoot))
-        command.shoot = false;
-    } else {
-      command.shoot = false;
-    }
-
     cboard.send(command);
 
     /// 调试输出
@@ -112,7 +104,7 @@ int main(int argc, char * argv[])
         Eigen::Vector4d xyza = armor_xyza_list[i];
         auto image_points =
           solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
-        if (i == aimer.aim_id)
+        if (i == aimer.aim_id_)
           tools::draw_points(img, image_points, {0, 0, 255});
         else
           tools::draw_points(img, image_points, {0, 255, 0});
@@ -122,7 +114,7 @@ int main(int argc, char * argv[])
       // aimer瞄准位置
       auto aim_point = aimer.yp_should;
       if (aim_point.has_value()) {
-        auto [yaw, pitch] = aim_point.value();
+        double yaw = opt_yp_should.value().x(), pitch = opt_yp_should.value().y();
         auto image_point = solver.reproject_gimbal(yaw, pitch);
         tools::draw_circle(img, image_point, color::GREEN);  // 绿色为理想瞄准位置
       }
@@ -156,9 +148,9 @@ int main(int argc, char * argv[])
     }
 
     // 云台响应情况
-    Eigen::Vector3d debug_ypr = tools::eulers(solver.q_to_R_gimbal2world(q), 2, 1, 0);
-    data["gimbal_yaw"] = debug_ypr[0] * 57.3;
-    data["gimbal_pitch"] = -debug_ypr[1] * 57.3;
+    Eigen::Vector3d gimbal_ypr = solver.gimbal_ypr_latest();
+    data["gimbal_yaw"] = gimbal_ypr[0] * 57.3;
+    data["gimbal_pitch"] = -gimbal_ypr[1] * 57.3;
 
     if (command.control) {
       data["cmd_yaw"] = command.yaw * 57.3;
@@ -167,11 +159,12 @@ int main(int argc, char * argv[])
 
     auto yp_should = aimer.yp_should;
     if (yp_should.has_value()) {
-      auto [y, p] = yp_should.value();
-      data["yaw_should"] = y * 57.3;
-      data["pitch_should"] = p * 57.3;
+      double yaw = opt_yp_should.value().x(), pitch = opt_yp_should.value().y();
+      data["yaw_should"] = yaw * 57.3;
+      data["pitch_should"] = pitch * 57.3;
     }
 
+    data["cmd_shoot"] = command.shoot;
     plotter.plot(data);
 
     // cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸

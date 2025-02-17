@@ -6,6 +6,7 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "armor.hpp"
+#include "io/cboard.hpp"
 
 namespace auto_aim
 {
@@ -24,7 +25,10 @@ public:
 
   std::vector<cv::Point2f> reproject_armor(
     const Eigen::Vector3d & xyz_in_world, double yaw, ArmorType type, ArmorName name) const;
+
   cv::Point2f reproject_gimbal(double yaw, double pitch) const;
+
+  Eigen::Vector3d gimbal_ypr_latest() const;
 
 private:
   cv::Mat camera_matrix_;

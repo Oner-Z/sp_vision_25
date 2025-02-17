@@ -15,4 +15,4 @@ add_library(auto_aim OBJECT
     yolov8.cpp
 )
 
-target_link_libraries(auto_aim openvino::runtime)
+target_link_libraries(auto_aim openvino::runtime io)
