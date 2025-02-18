@@ -71,7 +71,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
   auto fanblade = detect_fanblades(handled_img);
   if (fanblade.has_value() == false) {
     handle_lose();
-    cv::imshow("Detector", output);
+    // cv::imshow("Detector", output);
     return std::nullopt;
   }
 
@@ -93,7 +93,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
   std::optional<PowerRune> P;
   P.emplace(powerrune);
   last_powerrune_ = P;
-  cv::imshow("Detector", output);
+  // cv::imshow("Detector", output);
 
   return P;
 }
@@ -117,7 +117,7 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
     gray_image = red - blue * 0.7;
   else
     gray_image = blue - red * 0.5;
-  imshow("Gray Image", gray_image);
+  // imshow("Gray Image", gray_image);
 
   // 二值化
   cv::Mat threshold_image;

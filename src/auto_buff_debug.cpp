@@ -45,6 +45,7 @@ int main(int argc, char * argv[])
   auto_buff::Buff_Detector detector(config_path);
   auto_buff::Solver solver(config_path);
   auto_buff::SmallTarget target;
+  // auto_buff::BigTarget target;
   auto_buff::Aimer aimer(config_path);
 
   cv::Mat img;
@@ -102,7 +103,10 @@ int main(int argc, char * argv[])
       tools::draw_points(
         img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {0, 255, 0});
       tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {0, 255, 0});
+        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8), {0, 255, 0});
+        tools::draw_points(
+          img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {0, 255, 0});
+  
 
       // buff瞄准位置(预测)
       double dangle = target.ekf_x()[5] - target_copy.ekf_x()[5];
@@ -112,7 +116,9 @@ int main(int argc, char * argv[])
       tools::draw_points(
         img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {255, 0, 0});
       tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {255, 0, 0});
+        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8), {0, 255, 0});
+      tools::draw_points(
+        img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {0, 255, 0});
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
