@@ -231,6 +231,12 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   std::vector<cv::Point2f> kpt;
 
+  if(std::fabs(head_center.y - body_center.y) < 5){
+    tools::logger()->debug("[Buff_Detector] 无法确认点位置!");
+    return F;
+  }
+
+
   if (head_center.y < body_center.y) {
     // fanblades_angle -= 180;
     cv::swap(body_box[0], body_box[2]);
