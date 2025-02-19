@@ -87,16 +87,8 @@ io::Command Aimer::aim(
     chosen_target.predict(std::chrono::steady_clock::now());
   }
 
-  /// 预选 装甲板
-  std::optional<int> opt_rough_chosen_id = choose_armor(chosen_target);
-  if (!opt_rough_chosen_id.has_value()) {
-    tools::logger()->debug("pre_choose invalid");
-    return {false, false, 0, 0};
-  }
-  int chosen_id_rough = opt_rough_chosen_id.value();
-
   /// 粗略计算弹道
-  Eigen::Vector3d xyz_rough = chosen_target.armor_xyza_list()[chosen_id_rough].head(3);
+  Eigen::Vector3d xyz_rough = chosen_target.center_xyz();
   auto d_rough = std::sqrt(xyz_rough[0] * xyz_rough[0] + xyz_rough[1] * xyz_rough[1]);
   tools::Trajectory trajectory_rough(bullet_speed, d_rough, xyz_rough[2]);
   if (trajectory_rough.unsolvable) {

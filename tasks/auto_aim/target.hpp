@@ -44,7 +44,7 @@ public:
 
   Eigen::Vector3d armor_xyz(int id = 0) const;
 
-  Eigen::Vector3d armor_v_xyz(int id = 0) const;
+  Eigen::Vector3d center_xyz() const;
 
 private:
   tools::ExtendedKalmanFilter ekf_;

@@ -261,29 +261,11 @@ Eigen::Vector3d Target::armor_xyz(int id) const
   return {armor_x, armor_y, armor_z};
 }
 
-Eigen::Vector3d Target::armor_v_xyz(int id) const
+Eigen::Vector3d Target::center_xyz()const
 {
   const Eigen::VectorXd & x = ekf_.x;
-  auto angle = tools::limit_rad(x[6] + id * 2 * CV_PI / armor_num);
-  auto use_l_h = (armor_num == 4) && (id == 1 || id == 3);
-
-  auto r = (use_l_h) ? x[8] + x[9] : x[8];
-  auto dx_da = r * std::sin(angle);
-  auto dy_da = -r * std::cos(angle);
-
-  auto dx_dr = -std::cos(angle);
-  auto dy_dr = -std::sin(angle);
-  auto dx_dl = (use_l_h) ? -std::cos(angle) : 0.0;
-  auto dy_dl = (use_l_h) ? -std::sin(angle) : 0.0;
-
-  auto dz_dh = (use_l_h) ? 1.0 : 0.0;
-
-  auto v_r = (use_l_h) ? x[9] : 0.0;
-  auto v_x = x[1] - dx_da * v_r;
-  auto v_y = x[3] - dy_da * v_r;
-  auto v_z = (use_l_h) ? x[5] + x[11] : x[5];
-
-  return {v_x, v_y, v_z};
+  const double center_x = x[0], center_y = x[2], center_z = x[4];
+  return {center_x,center_y,center_z};
 }
 
 Eigen::MatrixXd Target::h_jacobian(const Eigen::VectorXd & x, int id) const
