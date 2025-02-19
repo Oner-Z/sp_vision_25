@@ -37,13 +37,14 @@ max_temp_lost_count: 15
 outpost_max_temp_lost_count: 25
 
 #####-----aimer参数-----#####
-yaw_offset: -1.5 # degree -2.5
-pitch_offset: 0.8 # degree 2
+yaw_offset: -0.7 # degree -2.5
+pitch_offset: 2 # degree 2
 coming_angle: 60 # degree
 leaving_angle: 20 # degree
 min_spin_speed: 2 # rad/s
 delay_gimbal: 0.05
 delay_shoot: 0.0
+
 #####-----工业相机标定参数-----#####
 R_gimbal2imubody: [-1, 0, 0, 0, -1, 0, 0, 0, 1]
 
