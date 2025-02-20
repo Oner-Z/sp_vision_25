@@ -1,4 +1,4 @@
-#include "auto_shoot_aimer.hpp"
+#include "aimer.hpp"
 
 #include <yaml-cpp/yaml.h>
 

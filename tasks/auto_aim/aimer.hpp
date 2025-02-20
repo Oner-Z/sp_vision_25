@@ -1,5 +1,5 @@
-#ifndef AUTO_AIM__AUTO_SHOOT_AIMER_HPP
-#define AUTO_AIM__AUTO_SHOOT_AIMER_HPP
+#ifndef AUTO_AIM__AIMER_HPP
+#define AUTO_AIM__AIMER_HPP
 
 #include <Eigen/Dense>
 #include <chrono>
