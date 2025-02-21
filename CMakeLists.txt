@@ -18,6 +18,11 @@ include_directories(${PROJECT_SOURCE_DIR})
 add_subdirectory(tools)
 add_subdirectory(io)
 add_subdirectory(tasks/radar)
+add_subdirectory(tasks/auto_aim)
+
+##################tests##################
+add_executable(yolo11_test tests/yolo11_test.cpp)
+target_link_libraries(yolo11_test ${OpenCV_LIBS} fmt::fmt yaml-cpp tools auto_aim)
 
 add_executable(locator_test tests/locator_test.cpp)
 target_link_libraries(locator_test io tools ${OpenCV_LIBS} fmt::fmt Eigen3::Eigen spdlog::spdlog yaml-cpp nlohmann_json::nlohmann_json radar)
