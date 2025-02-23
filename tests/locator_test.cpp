@@ -1,11 +1,11 @@
-#include "tasks/radar/locator.hpp"
+#include "tasks/mono_loc/locator.hpp"
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
 
 #include "io/camera.hpp"
-#include "tasks/radar/arena.hpp"
+#include "tasks/mono_loc/arena.hpp"
 
 // 全局变量，用于存储鼠标点击的点
 cv::Point2d clicked_point;
@@ -27,7 +27,7 @@ int main()
   std::string config_path = "configs/radar.yaml";
 
   // 初始化 Locator 对象
-  radar::Locator locator(config_path);
+  mono_loc::Locator locator(config_path);
 
   // 打开视频文件
   cv::VideoCapture cap("records/2024-11-02_00-33-28.avi");

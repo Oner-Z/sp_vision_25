@@ -10,28 +10,28 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
+#include "visualization_msgs/msg/marker.hpp"
 
 namespace io
 {
-class Publish2Nav : public rclcpp::Node
+class VizNode : public rclcpp::Node
 {
 public:
   // 构造函数：初始化订阅者和发布者
-  Publish2Nav();
+  VizNode();
 
   // 析构函数
-  ~Publish2Nav();
+  ~VizNode();
 
   // 启动节点的事件循环
   void start();
 
-  // 发送Eigen::Vector3d数据到话题
-  void send_data(const Eigen::Vector4d & data);
+  // 发送marker数据到话题
+  void send_data(const visualization_msgs::msg::Marker & marker);
 
 private:
   // ROS2 发布者
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr publisher_;
 };
 
 }  // namespace io

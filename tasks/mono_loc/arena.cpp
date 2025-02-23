@@ -6,8 +6,10 @@
 #include <iostream>
 
 #include "tools/logger.hpp"
+namespace mono_loc
+{
 
-radar::Arena::Arena(std::string config_path)
+Arena::Arena(std::string config_path)
 {
   auto config = YAML::LoadFile(config_path);
   auto path_to_points = config["points"].as<std::string>();
@@ -64,7 +66,7 @@ radar::Arena::Arena(std::string config_path)
   }
 }
 
-std::vector<Eigen::Vector3d> radar::Arena::get_intersections(const Ray & ray) const
+std::vector<Eigen::Vector3d> Arena::intersections_with(const Ray & ray) const
 {
   std::vector<double> distances;
   for (const auto & triangle : triangles_) {
@@ -82,3 +84,4 @@ std::vector<Eigen::Vector3d> radar::Arena::get_intersections(const Ray & ray) co
   }
   return intersections;
 }
+}  // namespace mono_loc

@@ -3,7 +3,7 @@
 
 #include <eigen3/Eigen/Dense>
 
-namespace radar
+namespace mono_loc
 {
 class Ray
 {
@@ -28,5 +28,5 @@ public:
   Eigen::Vector3d direction() const { return direction_; }
   Eigen::Vector3d at(double t) const { return origin_ + t * direction_; }
 };
-}  // namespace radar
+}  // namespace mono_loc
 #endif  // RAY_HPP

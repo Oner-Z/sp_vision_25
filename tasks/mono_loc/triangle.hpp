@@ -5,21 +5,15 @@
 #include <optional>
 
 #include "ray.hpp"
-namespace radar
+namespace mono_loc
 {
 class Triangle
 {
-private:
-  Eigen::Vector3d a_;
-  Eigen::Vector3d b_;
-  Eigen::Vector3d c_;
-
 public:
+  Eigen::Vector3d a_, b_, c_;  // 三个顶点
+
   Triangle(Eigen::Vector3d a, Eigen::Vector3d b, Eigen::Vector3d c) : a_(a), b_(b), c_(c) {}
 
-  Eigen::Vector3d a() const { return a_; }
-  Eigen::Vector3d b() const { return b_; }
-  Eigen::Vector3d c() const { return c_; }
   Eigen::Vector3d normal() const { return (b_ - a_).cross(c_ - a_).normalized(); }
 
   // Möller–Trumbore intersection algorithm
@@ -82,6 +76,6 @@ public:
   }
 };
 
-}  // namespace radar
+}  // namespace mono_loc
 
 #endif  // PLANE_HPP

@@ -10,7 +10,7 @@
 
 #include "arena.hpp"
 #include "tools/logger.hpp"
-namespace radar
+namespace mono_loc
 {
 class Locator
 {
@@ -76,7 +76,7 @@ public:
       Eigen::Vector3d point_in_arena =
         R_camera_to_arena_ * point_on_normalized_plane + t_camera_to_arena_;
       Ray ray(t_camera_to_arena_, point_in_arena);
-      auto intersections = arena_.get_intersections(ray);
+      auto intersections = arena_.intersections_with(ray);
       if (!intersections.empty()) {
         Eigen::Vector3d intersection = intersections.front();
         result.push_back(intersection);
@@ -110,6 +110,6 @@ public:
   }
 };
 
-}  // namespace radar
+}  // namespace mono_loc
 
 #endif  // LOCATOR_HPP

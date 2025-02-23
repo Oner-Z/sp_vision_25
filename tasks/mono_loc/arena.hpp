@@ -5,8 +5,13 @@
 #include <string>
 #include <vector>
 
+// #include "io/ros2/visualizer.hpp"
 #include "triangle.hpp"
-namespace radar
+namespace io
+{
+class Visualizer;
+}
+namespace mono_loc
 {
 class Arena
 {
@@ -16,9 +21,12 @@ private:
 
 public:
   Arena(std::string config_path);
-  std::vector<Eigen::Vector3d> get_intersections(const Ray & ray) const;
+  std::vector<Eigen::Vector3d> intersections_with(const Ray & ray) const;
+  // visualization_msgs::msg::Marker get_triangles() const;
+
+  friend class io::Visualizer;
 };
 
-}  // namespace radar
+}  // namespace mono_loc
 
 #endif  // ARENA_HPP
