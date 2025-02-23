@@ -1,5 +1,5 @@
-#ifndef ARENA_HPP
-#define ARENA_HPP
+#ifndef MONO_LOC__ARENA_HPP
+#define MONO_LOC__ARENA_HPP
 
 #include <eigen3/Eigen/Dense>
 #include <string>

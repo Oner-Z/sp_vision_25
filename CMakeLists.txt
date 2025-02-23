@@ -27,8 +27,8 @@ add_subdirectory(tasks/mono_loc)
 add_subdirectory(tasks/auto_aim)
 
 ##################tests##################
-# add_executable(yolo11_test tests/yolo11_test.cpp)
-# target_link_libraries(yolo11_test ${OpenCV_LIBS} fmt::fmt yaml-cpp tools auto_aim)
+add_executable(robot_detect_test tests/robot_detect_test.cpp)
+target_link_libraries(robot_detect_test ${OpenCV_LIBS} fmt::fmt yaml-cpp tools mono_loc)
 
 add_executable(locator_test tests/locator_test.cpp)
 target_link_libraries(locator_test io tools ${OpenCV_LIBS} fmt::fmt spdlog::spdlog yaml-cpp nlohmann_json::nlohmann_json mono_loc)

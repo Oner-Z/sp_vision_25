@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
+set(OpenVINO_DIR "/opt/intel/openvino_2023.3.0/runtime/cmake")
+
+find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+
 find_package(ament_cmake)
 find_package(rclcpp)
 find_package(std_msgs)
@@ -21,5 +25,5 @@ include_directories(
 add_library(mono_loc OBJECT 
     arena.cpp
 )
-
-ament_target_dependencies(mono_loc rclcpp std_msgs visualization_msgs)
+target_link_libraries(mono_loc openvino::runtime)
+ament_target_dependencies(mono_loc rclcpp std_msgs visualization_msgs )

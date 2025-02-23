@@ -1,5 +1,5 @@
-#ifndef RAY_HPP
-#define RAY_HPP
+#ifndef MONO_LOC__RAY_HPP
+#define MONO_LOC__RAY_HPP
 
 #include <eigen3/Eigen/Dense>
 

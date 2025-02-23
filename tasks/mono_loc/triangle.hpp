@@ -1,5 +1,5 @@
-#ifndef PLANE_HPP
-#define PLANE_HPP
+#ifndef MONO_LOC__TRIANGLE_HPP
+#define MONO_LOC__TRIANGLE_HPP
 
 #include <eigen3/Eigen/Dense>
 #include <optional>
@@ -78,4 +78,4 @@ public:
 
 }  // namespace mono_loc
 
-#endif  // PLANE_HPP
+#endif

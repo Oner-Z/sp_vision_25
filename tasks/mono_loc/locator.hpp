@@ -1,5 +1,5 @@
-#ifndef LOCATOR_HPP
-#define LOCATOR_HPP
+#ifndef MONO_LOC__LOCATOR_HPP
+#define MONO_LOC__LOCATOR_HPP
 
 #include <yaml-cpp/yaml.h>
 

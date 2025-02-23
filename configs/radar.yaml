@@ -11,3 +11,7 @@ distort_coeffs: [-0.48599095566724387, 0.23999516531343185, -0.00029018466701866
 points: "configs/points.csv"
 
 triangles: "configs/triangles.csv"
+
+robot_model_path: "assets/robot_11s.onnx"
+device: AUTO
+min_confidence: 0.8
