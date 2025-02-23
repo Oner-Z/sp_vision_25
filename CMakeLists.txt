@@ -59,5 +59,8 @@ target_link_libraries(fix_video ${OpenCV_LIBS} fmt::fmt tools)
 add_executable(hero src/hero.cpp)
 target_link_libraries(hero ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost tools io)
 
+add_executable(gimbal_response_test tests/gimbal_response_test.cpp)
+target_link_libraries(gimbal_response_test ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io)
+
 # add_executable(temp src/temp.cpp)
 # target_link_libraries(temp ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost tools io)
