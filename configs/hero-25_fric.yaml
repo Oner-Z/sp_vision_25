@@ -29,7 +29,7 @@ min_detect_count: 5
 max_temp_lost_count: 20
 
 yaw_offset: 0.82 # degree -right
-pitch_offset: -2.5 # degree +up
+pitch_offset: -2.3 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
@@ -47,7 +47,7 @@ min_confidence: 0.8
 
 #####-----新增的ROI-----#####
 roi:
-  x: 420
-  y: 50
-  width: 600
-  height: 600
+  x: 0 
+  y: 0
+  width: 1440 # 1440 in full
+  height: 960
