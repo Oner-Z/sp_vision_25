@@ -81,6 +81,7 @@ int main(int argc, char * argv[])
 
     nlohmann::json data;
     tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
+    int armor_id = 0;
     if (tracker.state()) {  // tracker.state() && targets.size()
       // 当前帧target更新后
       auto target = tracker.get_target();
@@ -88,6 +89,8 @@ int main(int argc, char * argv[])
       for (const Eigen::Vector4d & xyza : armor_xyza_list) {
         auto image_points = solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
         tools::draw_points(img, image_points, {0, 255, 0});
+        tools::draw_text(img, fmt::format("No: {}", armor_id), image_points[0], {0, 255, 255});
+        armor_id ++;
       }
 
       // aimer瞄准位置
@@ -119,7 +122,7 @@ int main(int argc, char * argv[])
       data["bullet_speed"] = cboard.bullet_speed;
       data["d"] = sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
       data["command_yaw"] = command.yaw * 57.3;
-      data["command_pitch"] = command.pitch * 57.3;
+      data["command_pitch"] = - command.pitch * 57.3;
     }
     cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
