@@ -8,9 +8,9 @@ PnP_points_in_arena:
 camera_matrix: [1295.4665175006589, 0, 655.71498478800618, 0, 1297.2591156991834, 506.21320670125334, 0, 0, 1]
 distort_coeffs: [-0.48599095566724387, 0.23999516531343185, -0.00029018466701866776, -0.00083639963030895752, 0]
 
-points: "configs/points.csv"
+points: "assets/vertices_24.csv"
 
-triangles: "configs/triangles.csv"
+triangles: "assets/triangles_24.csv"
 
 robot_model_path: "assets/robot_11s.onnx"
 device: AUTO
