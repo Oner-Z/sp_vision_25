@@ -36,7 +36,7 @@ Arena::Arena(std::string config_path)
 
     double x, y, z;
     ss >> x >> y >> z;
-    points_.emplace_back(x, y, z);  // 将点存储到points向量中
+    points_.emplace_back(x / 1000, y / 1000, z / 1000);  // mm -> m 将点存储到points向量中
 
     ++num_points;
   }
@@ -62,7 +62,17 @@ Arena::Arena(std::string config_path)
     std::stringstream ss(line);
     int a, b, c;
     ss >> a >> b >> c;
-    triangles_.emplace_back(points_[a], points_[b], points_[c]);
+    if (a >= points_.size() || b >= points_.size() || c >= points_.size()) {
+      tools::logger()->warn("[Arena] Invalid triangle: {}, {}, {}", a, b, c);
+      continue;
+    }
+    Eigen::Vector3d ab = points_[b] - points_[a];
+    Eigen::Vector3d ac = points_[c] - points_[a];
+    Eigen::Vector3d normal = ab.cross(ac);
+    if (normal.dot(Eigen::Vector3d(0, 0, 1)) > 0)
+      triangles_.emplace_back(points_[a], points_[b], points_[c]);
+    else
+      triangles_.emplace_back(points_[b], points_[a], points_[c]);
   }
 }
 

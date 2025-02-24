@@ -13,14 +13,15 @@ namespace io
 
 VizNode::VizNode() : Node("visualization_publisher")
 {
-  publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
+  publisher_ =
+    this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_marker", 10);
 
   RCLCPP_INFO(this->get_logger(), "VizNode initialized.");
 }
 
 VizNode::~VizNode() { RCLCPP_INFO(this->get_logger(), "VizNode shutting down."); }
 
-void VizNode::send_data(const visualization_msgs::msg::Marker & marker)
+void VizNode::send_data(const visualization_msgs::msg::MarkerArray & marker)
 {
   // 发布消息
   publisher_->publish(marker);

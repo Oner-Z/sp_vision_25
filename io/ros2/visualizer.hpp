@@ -8,7 +8,7 @@ namespace io
 class Visualizer
 {
 public:
-  Visualizer();
+  Visualizer(bool debug = false);
 
   ~Visualizer();
 
@@ -19,6 +19,7 @@ public:
 private:
   std::shared_ptr<VizNode> viz_node_;
   std::unique_ptr<std::thread> spin_thread_;
+  bool debug_;
 };
 
 }  // namespace io

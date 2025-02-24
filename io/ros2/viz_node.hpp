@@ -8,10 +8,10 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include "rclcpp/rclcpp.hpp"
 #include "visualization_msgs/msg/marker.hpp"
-
 namespace io
 {
 class VizNode : public rclcpp::Node
@@ -27,11 +27,11 @@ public:
   void start();
 
   // 发送marker数据到话题
-  void send_data(const visualization_msgs::msg::Marker & marker);
+  void send_data(const visualization_msgs::msg::MarkerArray & marker);
 
 private:
   // ROS2 发布者
-  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr publisher_;
 };
 
 }  // namespace io
