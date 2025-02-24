@@ -15,7 +15,7 @@ namespace mono_loc
 class Locator
 {
 private:
-  Arena arena_;
+  const Arena & arena_;
   Eigen::Vector3d t_camera_to_arena_;
   Eigen::Matrix3d R_camera_to_arena_;
   bool ready_ = false;
@@ -28,7 +28,7 @@ private:
   std::vector<cv::Point3d> PnP_points_in_arena_;
 
 public:
-  Locator(std::string config_path) : arena_(config_path)
+  Locator(std::string config_path, const Arena & arena) : arena_(arena)
   {
     auto yaml = YAML::LoadFile(config_path);
 
@@ -54,7 +54,7 @@ public:
     * @param points_img 场地上的点拍摄进相机后得到的 像素平面上的点，未去除畸变
     * @return 返回赛场坐标系下的3维坐标，包含z轴信息
   */
-  std::vector<Eigen::Vector3d> locate(std::vector<cv::Point2d> points_img)
+  std::vector<Eigen::Vector3d> locate(std::vector<cv::Point2f> points_img)
   {
     if (!ready_) {
       tools::logger()->error("Locator not ready!");
@@ -63,7 +63,7 @@ public:
 
     std::vector<Eigen::Vector3d> result;
 
-    std::vector<cv::Point2d> undistort_points = {};
+    std::vector<cv::Point2f> undistort_points = {};
     cv::undistortPoints(
       points_img, undistort_points, camera_matrix_cv_, distort_coeffs_cv_, cv::noArray(),
       camera_matrix_cv_);
@@ -99,13 +99,14 @@ public:
       exit(1);
     }
     cv::Mat rvec, tvec, rmat;
-    std::cout << camera_matrix_cv_ << std::endl;
-    std::cout << distort_coeffs_cv_ << std::endl;
+    for (auto & p : PnP_points_in_arena_) std::cout << "**" << p << std::endl;
+    for (auto & p : points_img) std::cout << "//" << p << std::endl;
     cv::solvePnP(
       PnP_points_in_arena_, points_img, camera_matrix_cv_, distort_coeffs_cv_, rvec, tvec);
     cv::Rodrigues(rvec, rmat);
-    cv::cv2eigen(rmat, R_camera_to_arena_);
-    cv::cv2eigen(tvec, t_camera_to_arena_);
+    cv::cv2eigen(rmat.t(), R_camera_to_arena_);
+    cv::cv2eigen(rmat.t() * (-tvec), t_camera_to_arena_);
+    // std::cout << "t_c2a" << tvec << std::endl;
     ready_ = true;
   }
 };

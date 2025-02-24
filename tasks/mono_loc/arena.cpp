@@ -42,9 +42,9 @@ Arena::Arena(std::string config_path)
   }
 
   tools::logger()->info("[Arena] Constructed with {} points.", num_points);
-  for (auto point : points_) {
-    std::cout << point << std::endl;
-  }
+  // for (auto point : points_) {
+  //   std::cout << point << std::endl;
+  // }
 
   // Load triangles
   file = std::ifstream(path_to_triangles);
@@ -89,7 +89,7 @@ std::vector<Eigen::Vector3d> Arena::intersections_with(const Ray & ray) const
 
   std::vector<Eigen::Vector3d> intersections;
   for (auto dist : distances) {
-    tools::logger()->info("dist: {}", dist);
+    // tools::logger()->info("dist: {}", dist);
     intersections.push_back(ray.at(dist));
   }
   return intersections;

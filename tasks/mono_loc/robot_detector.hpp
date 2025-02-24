@@ -114,7 +114,7 @@ public:
     std::list<cv::Point2f> ret;
     for (auto box : boxes) {
       // cv::rectangle(bgr_img, box, {0, 255, 0}, 2);
-      cv::Point2f bottom_center = {box.x + box.width / 2, box.y + box.height};
+      cv::Point2f bottom_center = {box.x + box.width / 2, box.y + (0.9 * box.height)};
       ret.push_back(bottom_center);
     }
     return ret;

@@ -35,10 +35,10 @@ void Visualizer::visualize(const mono_loc::Arena & arena)
   triangle_marker.scale.x = 1;                                            // 设置缩放
   triangle_marker.scale.y = 1;
   triangle_marker.scale.z = 1;
-  triangle_marker.color.r = 0.5;  // 设置颜色为红色
-  triangle_marker.color.g = 0.5;  // 设置绿色为 0
-  triangle_marker.color.b = 0.5;  // 设置蓝色为 0
-  triangle_marker.color.a = 0.7;  // 设置透明度为不透明
+  triangle_marker.color.r = 0.6;   // 设置颜色为红色
+  triangle_marker.color.g = 0.6;   // 设置绿色为 0
+  triangle_marker.color.b = 0.6;   // 设置蓝色为 0
+  triangle_marker.color.a = 0.91;  // 设置透明度为不透明
 
   for (const auto & triangle : arena.triangles_) {
     geometry_msgs::msg::Point p1, p2, p3;
@@ -80,7 +80,7 @@ void Visualizer::visualize(const mono_loc::Arena & arena)
 
     for (int i = 0; i < arena.points_.size(); ++i) {
       point_marker.id = i;  // 每个点一个唯一的 id
-      std::cout << "point " << i << ": " << arena.points_[i].transpose() << std::endl;
+      // std::cout << "point " << i << ": " << arena.points_[i].transpose() << std::endl;
 
       geometry_msgs::msg::Point p;
       p.x = arena.points_[i][0];
@@ -98,5 +98,51 @@ void Visualizer::visualize(const mono_loc::Arena & arena)
     // 发布顶点编号的 MarkerArray
     viz_node_->send_data(marker_array);
   }
+}
+
+void Visualizer::visualize(const std::vector<Eigen::Vector3d> & positions)
+{
+  // 创建 MarkerArray 消息
+  visualization_msgs::msg::MarkerArray marker_array;
+
+  // 1. 清除所有之前的标记
+  visualization_msgs::msg::Marker clear_marker;
+  clear_marker.header.frame_id = "map";                              // 设置坐标系
+  clear_marker.header.stamp = rclcpp::Clock().now();                 // 设置时间戳
+  clear_marker.ns = "robots";                                        // 设置命名空间
+  clear_marker.id = 0;                                               // 设置标识符
+  clear_marker.action = visualization_msgs::msg::Marker::DELETEALL;  // 清除所有标记
+  marker_array.markers.push_back(clear_marker);
+
+  // 可视化三角形列表
+  visualization_msgs::msg::Marker cylindar_marker;
+  cylindar_marker.header.frame_id = "map";                           // 设置坐标系
+  cylindar_marker.header.stamp = rclcpp::Clock().now();              // 设置时间戳
+  cylindar_marker.ns = "robots";                                     // 设置命名空间
+  cylindar_marker.id = 0;                                            // 设置标识符
+  cylindar_marker.type = visualization_msgs::msg::Marker::CYLINDER;  // 类型设置为三角形列表
+  cylindar_marker.action = visualization_msgs::msg::Marker::ADD;     // 动作为添加
+  cylindar_marker.pose.orientation.w = 1.0;                          // 设置姿态，旋转为零
+  cylindar_marker.scale.x = 1;                                       // 设置缩放
+  cylindar_marker.scale.y = 1;
+  cylindar_marker.scale.z = 1;
+  cylindar_marker.color.r = 0.6;
+  cylindar_marker.color.g = 0.2;
+  cylindar_marker.color.b = 0.2;
+  cylindar_marker.color.a = 1.0;  // 设置透明度为不透明
+
+  for (const auto & position : positions) {
+    geometry_msgs::msg::Point p;
+
+    p.x = position[0];
+    p.y = position[1];
+    p.z = position[2];
+
+    cylindar_marker.pose.position = p;
+    cylindar_marker.id++;
+    // 将形标记添加到 MarkerArray 中
+    marker_array.markers.push_back(cylindar_marker);
+  }
+  viz_node_->send_data(marker_array);
 }
 }  // namespace io

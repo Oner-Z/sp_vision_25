@@ -14,7 +14,7 @@ public:
 
   void visualize(const mono_loc::Arena & arena);
 
-  // void visualize(const std::vector<Eigen::Vector3d> & positions);
+  void visualize(const std::vector<Eigen::Vector3d> & positions);
 
 private:
   std::shared_ptr<VizNode> viz_node_;
