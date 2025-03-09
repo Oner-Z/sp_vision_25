@@ -1,8 +1,10 @@
-## 雷达分支
+## 雷达 单目定位demo 遗留分支
 
+使用 Pin-hole camera model 和 Möller–Trumbore 算法实现的雷达站单目定位子系统。
 
-还不能运行，发布此分支仅做备份用途。
+主要算法在 `tasks/mono_loc/` 文件夹。一共只有327行，不必留文档了吧，逐行看你也该看懂了。
 
+程序入口在 `tests/locator_test.cpp`。
 
 ## Deploy
 
