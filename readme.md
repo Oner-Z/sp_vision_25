@@ -1,9 +1,6 @@
-## 调试用分支
+## 步兵自瞄 遗留代码分支
 
-用于自瞄调试的分支。
-
-上传到本分支的代码是仍在开发中、仅供调试使用的代码，表现和稳定性未经充分验证。
-
+因个人学业原因，原 `auto_aim_standard_debug` 和 `auto_aim_standard` 分支不再维护，故回退至一个比较具有代表性的版本，重新发布于此。
 
 ## Some instructions
 - This branch will provide the common code for `sp_vision`, and other branches need to **be created from this branch**
