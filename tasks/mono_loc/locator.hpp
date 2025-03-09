@@ -52,6 +52,7 @@ public:
     * @brief 定位
     * 
     * @param points_img 场地上的点拍摄进相机后得到的 像素平面上的点，未去除畸变
+    * @warning 传入和传出的vec大小不一定相等！这个函数现在只是用来可视化点的，若要给指定的车做定位，请自行实现。
     * @return 返回赛场坐标系下的3维坐标，包含z轴信息
   */
   std::vector<Eigen::Vector3d> locate(std::vector<cv::Point2f> points_img)

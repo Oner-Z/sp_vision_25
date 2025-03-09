@@ -17,6 +17,9 @@ namespace mono_loc
 class RobotDetector
 {
 public:
+  /**
+   * @warning 纯CPU推理的，这个超级慢！不要用这个！
+   */
   RobotDetector(const std::string & config_path, bool debug = true)
   {
     auto yaml = YAML::LoadFile(config_path);

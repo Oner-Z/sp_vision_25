@@ -30,9 +30,9 @@ Arena::Arena(std::string config_path)
 
     size_t pos = 0;
     while ((pos = line.find(',')) != std::string::npos) {
-      line.replace(pos, 1, " ");  // 将逗号替换为空格
+      line.replace(pos, 1, " ");
     }
-    std::stringstream ss(line);  // 使用stringstream解析每行数据
+    std::stringstream ss(line);
 
     double x, y, z;
     ss >> x >> y >> z;
@@ -42,9 +42,6 @@ Arena::Arena(std::string config_path)
   }
 
   tools::logger()->info("[Arena] Constructed with {} points.", num_points);
-  // for (auto point : points_) {
-  //   std::cout << point << std::endl;
-  // }
 
   // Load triangles
   file = std::ifstream(path_to_triangles);
@@ -57,7 +54,7 @@ Arena::Arena(std::string config_path)
     }
     size_t pos = 0;
     while ((pos = line.find(',')) != std::string::npos) {
-      line.replace(pos, 1, " ");  // 将逗号替换为空格
+      line.replace(pos, 1, " ");
     }
     std::stringstream ss(line);
     int a, b, c;
@@ -76,6 +73,10 @@ Arena::Arena(std::string config_path)
   }
 }
 
+/**
+    * @brief 求射线与场地的交点，结果按距离升序
+    * 
+  */
 std::vector<Eigen::Vector3d> Arena::intersections_with(const Ray & ray) const
 {
   std::vector<double> distances;
@@ -88,10 +89,8 @@ std::vector<Eigen::Vector3d> Arena::intersections_with(const Ray & ray) const
   sort(distances.begin(), distances.end());
 
   std::vector<Eigen::Vector3d> intersections;
-  for (auto dist : distances) {
-    // tools::logger()->info("dist: {}", dist);
-    intersections.push_back(ray.at(dist));
-  }
+  for (auto dist : distances) intersections.push_back(ray.at(dist));
+
   return intersections;
 }
 }  // namespace mono_loc

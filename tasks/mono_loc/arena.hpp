@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-// #include "io/ros2/visualizer.hpp"
 #include "triangle.hpp"
 namespace io
 {
@@ -22,7 +21,6 @@ private:
 public:
   Arena(std::string config_path);
   std::vector<Eigen::Vector3d> intersections_with(const Ray & ray) const;
-  // visualization_msgs::msg::Marker get_triangles() const;
 
   friend class io::Visualizer;
 };
