@@ -1,5 +1,5 @@
-#ifndef IO__ROS2_HPP
-#define IO__ROS2_HPP
+#ifndef IO__VISUALIZER_HPP
+#define IO__VISUALIZER_HPP
 #include "Eigen/Dense"
 #include "tasks/mono_loc/arena.hpp"
 #include "viz_node.hpp"
