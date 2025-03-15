@@ -200,7 +200,7 @@ double Solver::armor_reprojection_error(const Armor & armor, double yaw, double 
       //                       );
       // 计算加权误差
       double cost_i = std::pow(pixel_dis * std::sin(inclined), 2) 
-                    + std::pow(angular_dis * std::cos(inclined), 2) * 1; // 最后一个参数2可调
+                    + std::pow(angular_dis * std::cos(inclined), 2) * 2; // 最后一个参数2可调
 
       // 取平方根并累加
       cost += std::sqrt(cost_i);
