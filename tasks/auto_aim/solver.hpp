@@ -23,6 +23,9 @@ public:
   std::vector<cv::Point2f> reproject_armor(
     const Eigen::Vector3d & xyz_in_world, double yaw, ArmorType type, ArmorName name) const;
 
+  void optimize_yaw(Armor & armor, double center_yaw) const;
+
+
 private:
   cv::Mat camera_matrix_;
   cv::Mat distort_coeffs_;
@@ -31,9 +34,9 @@ private:
   Eigen::Vector3d t_camera2gimbal_;
   Eigen::Matrix3d R_gimbal2world_;
 
-  void optimize_yaw(Armor & armor) const;
 
   double armor_reprojection_error(const Armor & armor, double yaw) const;
+  double armor_reprojection_error(const Armor & armor, double yaw, double inclined) const;
 };
 
 }  // namespace auto_aim

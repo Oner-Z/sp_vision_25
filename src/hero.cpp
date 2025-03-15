@@ -73,8 +73,9 @@ int main(int argc, char * argv[])
 
     solver.set_R_gimbal2world(q);
     auto armors = detector.detect(img);
-    auto targets = tracker.track(armors, t, true, mode);
-    auto command = shooter.shoot(targets, t, cboard.bullet_speed, true);
+    Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+    auto targets = tracker.track(armors, t, ypr[0], true, mode);
+    auto command = shooter.shoot(targets, t, cboard.bullet_speed, true, ypr);
     cboard.send(command);
 
     if (!debug) continue;
@@ -114,6 +115,7 @@ int main(int argc, char * argv[])
       data["z"] = x[4];
       data["vz"] = x[5];
       data["a"] = x[6] * 57.3;
+      data["v"] = sqrt(x[1]*x[1]+x[3]*x[3]);
       data["w"] = x[7];
       data["r"] = x[8];
       data["l"] = x[9];
@@ -128,7 +130,7 @@ int main(int argc, char * argv[])
     cv::imshow("reprojection", img);
 
     // 云台响应情况
-    Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+    // Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
 
     data["gimbal_yaw"] = ypr[0] * 57.3;
     data["gimbal_pitch"] = -ypr[1] * 57.3;

@@ -240,6 +240,7 @@ void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t
 
   if (id != 0) jumped = true;
   last_id = id;
+  // tools::logger()->debug("id = {}", id);
 
   update_ypda(armor, id);
 

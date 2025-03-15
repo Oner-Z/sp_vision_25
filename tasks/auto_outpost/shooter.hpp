@@ -41,7 +41,7 @@ public:
   void schedule(auto_aim::Target target_at_t0);
   int get_next_armor(const auto_aim::Target & target, double flytime, std::chrono::steady_clock::time_point timestamp);
   io::Command shoot(
-    std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now);
+    std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now, Eigen::Vector3d ypr);
   Eigen::Vector3d get_outpost_front(const auto_aim::Target & target);
   Eigen::Vector3d get_top_front(const auto_aim::Target & target);
 
@@ -61,10 +61,14 @@ private:
 // 获取状态的宏
 #define GET_STATE(bitmap, object) static_cast<State>((bitmap >> (object * 2)) & 0b11)
 
-  double ctrl_to_fire_;
+  double ctrl_to_fire_;  // 自瞄控制，发射命令至摩擦轮减速的延迟
+  double mouse_to_fire_; // 鼠标操控，发射命令至摩擦轮减速的延迟
   double yaw_offset_;
   double pitch_offset_;
   double direction_;
+  double max_fire_error_yaw_;
+  double max_fire_error_pitch_;
+  double max_shoot_angle_;
   int last_hit_id_ = -1;
   int lock_id_ = -1;
   bool exit_;

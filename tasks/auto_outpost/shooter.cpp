@@ -14,9 +14,13 @@ Shooter::Shooter(const std::string & config_path) : exit_{false}, queue_0_(500),
 {
   auto yaml = YAML::LoadFile(config_path);
   ctrl_to_fire_ = yaml["shoot_delay"].as<double>();
+  mouse_to_fire_ = yaml["mouse_to_fire"].as<double>();
   yaw_offset_ = yaml["yaw_offset"].as<double>() / 57.3;      // degree to rad
   pitch_offset_ = yaml["pitch_offset"].as<double>() / 57.3;  // degree to rad
   direction_ = yaml["direction"].as<double>();               // pitch正方向。气动为1，摩擦轮为-1
+  max_fire_error_yaw_ = yaml["max_fire_error_yaw"].as<double>();
+  max_fire_error_pitch_ = yaml["max_fire_error_pitch"].as<double>();
+  max_shoot_angle_ = yaml["max_shoot_angle"].as<double>();
 }
 
 // 对于outpost，我们要打的位置AimPoint
@@ -62,16 +66,17 @@ Eigen::Vector3d Shooter::get_top_front(const auto_aim::Target & target_origin)
     }
     if (t < dt_min) {
       armor_id = aim_id;
-      dt_min = armors[aim_id][3];
+      dt_min = t;
     }
   }
   return {hit_point_xy[0], hit_point_xy[1], armors[armor_id][2]};
 }
 
 io::Command Shooter::shoot(
-  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now)
+  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now, Eigen::Vector3d ypr)
 {
   int mode = 1;  // debug使用，0表示不考虑空气阻力，1表示考虑空气阻力
+  tools::Plotter plotter;
 
   // 没有有效目标时：
   if (targets.empty()) {
@@ -83,7 +88,7 @@ io::Command Shooter::shoot(
   auto target_predicted = target;
   auto t_img = timestamp;
   auto t_fire = timestamp;
-  if (bullet_speed < 15.2 || bullet_speed > 16.5) bullet_speed = 16.3;
+  if (bullet_speed < 12.0 || bullet_speed > 16.5) bullet_speed = 15.3;
   auto ekf_x = target_predicted.ekf_x();
 
   if (std::abs(ekf_x[7]) > 1) {  // w 大于1就认为在旋转
@@ -96,10 +101,10 @@ io::Command Shooter::shoot(
     Eigen::Vector3d xyz0;
 
     if (target.name == auto_aim::outpost) {  // 反前哨站。不存在高低装甲板
-      tools::logger()->info("anti outpost mode");
+      // tools::logger()->info("anti outpost mode");
       xyz0 = get_outpost_front(target_rotate);  // 瞄准点
     } else {                                    // 反小陀螺，需要应对高低装甲板
-      tools::logger()->info("anti top mode");
+      // tools::logger()->info("anti top mode");
       xyz0 = get_top_front(target_rotate);  // 瞄准点
     }
 
@@ -122,15 +127,19 @@ io::Command Shooter::shoot(
     int sig = ekf_x[7] < 0 ? -1 : +1;
     auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
     auto armor_state = target.armor_state;
+    nlohmann::json data;
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
-        if (
+        if ((aim_id != last_hit_id_) &&
           ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.08) &&
           (sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");
+          last_hit_id_ = aim_id;
           io::Command command = {true, true, yaw, direction_ * pitch};
-          armor_state = 0;
+          // data["shoot"] = 1;
+          // plotter.plot(data);
           if (target_rotate.name = auto_aim::outpost) {
+            armor_state = 0;
             SET_STATE(armor_state, aim_id, SHOOTED);
             SET_STATE(armor_state, (aim_id - sig + armor_num) % armor_num, SKIP);
           }
@@ -138,18 +147,20 @@ io::Command Shooter::shoot(
         }
       } else if (GET_STATE(armor_state, aim_id) == SKIP) {  // 上一块刚打过
         tools::logger()->info("---------- wait ----------");
-        armor_state = 0;
         if (target_rotate.name = auto_aim::outpost) {
+          armor_state = 0;
           SET_STATE(armor_state, aim_id, SHOOTED);
         }
       }
     }
     io::Command command = {true, false, yaw, direction_ * pitch};
+    data["shoot"] = 0;
+    plotter.plot(data);
     return command;
   }  // end of anti top/outpost
   else {  // 平动目标
     if (to_now) {
-      auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + ctrl_to_fire_;
+      auto dt = tools::delta_time(std::chrono::steady_clock::now(), timestamp) + mouse_to_fire_;
       t_fire = tools::add_time(t_img, dt);
       // t_img + std::chrono::microseconds(int(dt * 1e6));  意义不明的一句 ???
       target_predicted.predict(t_fire);  // 预测紫蛋出膛时的目标状态
@@ -204,14 +215,63 @@ io::Command Shooter::shoot(
 
     double yaw;
     yaw = std::atan2(xyz1[1], xyz1[0]) + yaw_offset_;
-    tools::logger()->debug("xyz1[0] = {}, xyz1[1] = {}", xyz1[0], xyz1[1]);
+    // tools::logger()->debug("xyz1[0] = {}, xyz1[1] = {}", xyz1[0], xyz1[1]);
 
     auto pitch = trajectory1.pitch + pitch_offset_;
-    io::Command command = {true, false, yaw, direction_ * pitch};
+
+    bool is_fire = false;
+    if((std::abs(ypr[0] - yaw)< max_fire_error_yaw_ ) && (std::abs(ypr[1] - direction_ * pitch) < max_fire_error_pitch_)){
+      // is_fire = true;
+      // tools::logger()->info("########## fire ##########");
+    }
+
+    io::Command command = {true, is_fire, yaw, direction_ * pitch};
 
     return command;
   }
 }
+
+// AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
+// {
+//   Eigen::VectorXd ekf_x = target.ekf_x();
+//   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
+//   auto armor_num = armor_xyza_list.size();
+
+//   // 整车旋转中心的球坐标yaw
+//   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
+
+//   int armor_id;
+//   int first_id = -1, second_id = -1;
+//   float min1 = std::numeric_limits<float>::max();
+//   float min2 = std::numeric_limits<float>::max();
+  
+//   for (int aim_id = 0; aim_id < armor_num; aim_id++) {
+//       float delta = std::abs(armor_xyza_list[aim_id][3] - center_yaw);
+      
+//       if (delta < min1) {
+//           // 更新第一小的值，同时把原来的第一小的值变成第二小的值
+//           min2 = min1;
+//           second_id = first_id;
+          
+//           min1 = delta;
+//           first_id = aim_id;
+//       } else if (delta < min2) {
+//           // 仅更新第二小的值
+//           min2 = delta;
+//           second_id = aim_id;
+//       }
+//   }
+
+//   Eigen::Vector3d xyz1 = armor_xyza_list[first_id].head(3);
+//   Eigen::Vector3d xyz2 = armor_xyza_list[second_id].head(3);
+
+//   double yaw1 = std::atan2(xyz1[1], xyz1[0]);
+//   double yaw2 = std::atan2(xyz2[1], xyz2[0]);
+
+//   armor_id = (std::abs(armor_xyza_list[first_id][3]-yaw1) < std::abs(armor_xyza_list[second_id][3]-yaw2)) ? first_id : second_id;
+
+//   return {true, armor_xyza_list[armor_id]};
+// }
 
 AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
 {
@@ -225,45 +285,99 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
   // 整车旋转中心的球坐标yaw
   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
 
-  // 如果delta_angle为0，则该装甲板中心和整车中心的连线在世界坐标系的xy平面过原点
-  std::vector<double> delta_angle_list;
-  for (int i = 0; i < 3; i++) {
-    auto delta_angle = tools::limit_rad(armor_xyza_list[i][3] - center_yaw);
-    delta_angle_list.emplace_back(delta_angle);
+  int armor_id;
+  int first_id = -1, second_id = -1;
+  float min1 = std::numeric_limits<float>::max();
+  float min2 = std::numeric_limits<float>::max();
+  
+  for (int aim_id = 0; aim_id < armor_num; aim_id++) {
+      float delta = std::abs(armor_xyza_list[aim_id][3] - center_yaw);
+      
+      if (delta < min1) {
+          // 更新第一小的值，同时把原来的第一小的值变成第二小的值
+          min2 = min1;
+          second_id = first_id;
+          
+          min1 = delta;
+          first_id = aim_id;
+      } else if (delta < min2) {
+          // 仅更新第二小的值
+          min2 = delta;
+          second_id = aim_id;
+      }
   }
 
-  // 选择在可射击范围内的装甲板
-  std::vector<int> id_list;
-  // tools::logger()->debug("-------------------------------------------");
-  for (int i = 0; i < armor_num; i++) {
-    if (std::abs(delta_angle_list[i]) > 60 / 57.3) {
-      // tools::logger()->debug(std::to_string(std::abs(delta_angle_list[i] * 57.3)));
-      continue;  // 以60度为射击范围
-    }
-    id_list.push_back(i);
-  }
-  // tools::logger()->debug("-------------------------------------------");
+  Eigen::Vector3d xyz1 = armor_xyza_list[first_id].head(3);
+  Eigen::Vector3d xyz2 = armor_xyza_list[second_id].head(3);
 
-  if (id_list.empty()) {
-    tools::logger()->warn("Empty id list in Shooter!");
-    return {false, armor_xyza_list[0]};
-  }
+  double yaw1 = std::atan2(xyz1[1], xyz1[0]);
+  double yaw2 = std::atan2(xyz2[1], xyz2[0]);
 
+  if (std::abs(armor_xyza_list[first_id][3]-yaw1) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[second_id]};
+
+  if (std::abs(armor_xyza_list[second_id][3]-yaw2) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[first_id]};
+
+  armor_id = (std::abs(armor_xyza_list[first_id][3]-yaw1) < std::abs(armor_xyza_list[second_id][3]-yaw2)) ? first_id : second_id;
+  
   // 锁定模式：防止在两个都呈45度的装甲板之间来回切换
-  if (id_list.size() > 1) {
-    int id0 = id_list[0], id1 = id_list[1];
+  // 未处于锁定模式时，选择delta_angle绝对值较小（更“正对”机器人）的装甲板，进入锁定模式
+  if (lock_id_ != first_id && lock_id_ != second_id)
+    lock_id_ = (std::abs(armor_xyza_list[first_id][3]-yaw1) < std::abs(armor_xyza_list[second_id][3]-yaw2)) ? first_id : second_id;
 
-    // 未处于锁定模式时，选择delta_angle绝对值较小（更“正对”机器人）的装甲板，进入锁定模式
-    if (lock_id_ != id0 && lock_id_ != id1)
-      lock_id_ = (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
-
-    return {true, armor_xyza_list[lock_id_]};
-  }
-
-  // 只有一个装甲板在可射击范围内时，退出锁定模式
-  lock_id_ = -1;
-  return {true, armor_xyza_list[id_list[0]]};
+  return {true, armor_xyza_list[lock_id_]};
 }
+
+// AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
+// {
+//   Eigen::VectorXd ekf_x = target.ekf_x();
+//   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
+//   auto armor_num = armor_xyza_list.size();
+
+//   // 如果装甲板未发生过跳变，则只有当前装甲板的位置已知
+//   if (!target.jumped) return {true, armor_xyza_list[0]};
+
+//   // 整车旋转中心的球坐标yaw
+//   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
+
+//   // 如果delta_angle为0，则该装甲板中心和整车中心的连线在世界坐标系的xy平面过原点
+//   std::vector<double> delta_angle_list;
+//   for (int i = 0; i < 3; i++) {
+//     auto delta_angle = tools::limit_rad(armor_xyza_list[i][3] - center_yaw);
+//     delta_angle_list.emplace_back(delta_angle);
+//   }
+
+//   // 选择在可射击范围内的装甲板
+//   std::vector<int> id_list;
+//   // tools::logger()->debug("-------------------------------------------");
+//   for (int i = 0; i < armor_num; i++) {
+//     if (std::abs(delta_angle_list[i]) > 60 / 57.3) {
+//       // tools::logger()->debug(std::to_string(std::abs(delta_angle_list[i] * 57.3)));
+//       continue;  // 以60度为射击范围
+//     }
+//     id_list.push_back(i);
+//   }
+//   // tools::logger()->debug("-------------------------------------------");
+
+//   if (id_list.empty()) {
+//     tools::logger()->warn("Empty id list in Shooter!");
+//     return {false, armor_xyza_list[0]};
+//   }
+
+//   // 锁定模式：防止在两个都呈45度的装甲板之间来回切换
+//   if (id_list.size() > 1) {
+//     int id0 = id_list[0], id1 = id_list[1];
+
+//     // 未处于锁定模式时，选择delta_angle绝对值较小（更“正对”机器人）的装甲板，进入锁定模式
+//     if (lock_id_ != id0 && lock_id_ != id1)
+//       lock_id_ = (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
+
+//     return {true, armor_xyza_list[lock_id_]};
+//   }
+
+//   // 只有一个装甲板在可射击范围内时，退出锁定模式
+//   lock_id_ = -1;
+//   return {true, armor_xyza_list[id_list[0]]};
+// }
 
 Shooter::~Shooter()
 {

@@ -68,15 +68,15 @@ int main(int argc, char * argv[])
         cmd_yaw = init_yaw;
         error /= slice;
         tools::logger()->info("average dynamic error is {:.4f} degree", error * 57.3);
-        // command = {1, 0, cmd_yaw / 57.3, 0};
-        command = {1, 0, 0, cmd_yaw / 57.3};
+        command = {1, 0, cmd_yaw / 57.3, 0};
+        // command = {1, 0, 0, cmd_yaw / 57.3};
         count = 0;
 
       } else {
         cmd_yaw += dyaw;
         error += last_command.yaw - eulers[0];
-        // command = {1, 0, cmd_yaw / 57.3, 0};
-        command = {1, 0, 0, cmd_yaw / 57.3};
+        command = {1, 0, cmd_yaw / 57.3, 0};
+        // command = {1, 0, 0, cmd_yaw / 57.3};
         count++;
       }
 

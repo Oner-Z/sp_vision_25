@@ -16,16 +16,17 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
   enemy_color_ = (yaml["enemy_color"].as<std::string>() == "red") ? Color::red : Color::blue;
   int min_detect_count = yaml["min_detect_count"].as<int>();
   int max_temp_lost_count = yaml["max_temp_lost_count"].as<int>();
-  Eigen::VectorXd P0_dig_car{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
+  // x vx y vy z vz a w r1 r2 h
+  Eigen::VectorXd P0_dig_car{{0.1, 9, 0.1, 9, 1, 9, 0.4, 100, 1, 1, 1}};
   Eigen::VectorXd P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 10, 0.0001, 0, 0}};
   Eigen::VectorXd P0_dig_base{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}};
 
-  targets_[0] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // hero
-  targets_[1] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // engineer
-  targets_[2] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // standard 3
-  targets_[3] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // standard 4
-  targets_[4] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // standard 5
-  targets_[5] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count);                        // sentry
+  targets_[0] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);                        // hero
+  targets_[1] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);                        // engineer
+  targets_[2] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);                        // standard 3
+  targets_[3] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);                        // standard 4
+  targets_[4] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);                        // standard 5
+  targets_[5] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);                        // sentry
   targets_[6] = Target(3, 0.2765, P0_dig_outpost, min_detect_count, max_temp_lost_count, 0.01, 0.01, 0);  // outpost
   targets_[7] = Target(3, 0.3205, P0_dig_base, min_detect_count, max_temp_lost_count);                    // base
 }
@@ -33,7 +34,7 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
 // std::string Tracker::state() const { return state_; }
 
 std::list<Target> Tracker::track(
-  std::list<Armor> & armors, std::chrono::steady_clock::time_point t, bool use_enemy_color, io::Mode mode)
+  std::list<Armor> & armors, std::chrono::steady_clock::time_point t, double yaw, bool use_enemy_color, io::Mode mode)
 {
   auto dt = tools::delta_time(t, last_timestamp_);
   last_timestamp_ = t;
@@ -47,7 +48,7 @@ std::list<Target> Tracker::track(
   // 过滤掉我方颜色的装甲板
   if (use_enemy_color) armors.remove_if([&](const Armor & a) { return a.color != enemy_color_; });
 
-  update_targets(armors, t);
+  update_targets(armors, t, yaw);
 
   /* 当前返回策略：
   如果是从idle进入auto_aim，返回距离屏幕中央最近的目标。
@@ -215,7 +216,7 @@ bool Tracker::set_target(std::list<Armor> & armors, std::chrono::steady_clock::t
 //   return true;
 // }
 
-bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t)
+bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t, double yaw)
 {
   for (auto & target : targets_) {
     if (target.state()) {  // 预测所有非空敌方目标的位置。
@@ -242,9 +243,11 @@ bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_cloc
   }
 
   int count = 0;
+  Eigen::VectorXd ekf_x;
   for (auto & armor_use : armors_use) {
     if (armor_use != NULL) {  // PNP解算，识别到了才解算
       solver_.solve(*armor_use);
+      solver_.optimize_yaw(*armor_use, yaw);
     }
     targets_[count].update(*armor_use, t);  // 状态更新与跟踪
     ++count;

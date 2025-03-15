@@ -23,7 +23,7 @@ public:
   Target get_target();
 
   std::list<Target> track(
-    std::list<Armor> & armors, std::chrono::steady_clock::time_point t, bool use_enemy_color = true,
+    std::list<Armor> & armors, std::chrono::steady_clock::time_point t, double yaw, bool use_enemy_color = true,
     io::Mode mode = io::Mode::auto_aim);
 
 private:
@@ -42,7 +42,7 @@ private:
 
   bool update_target(std::list<Armor> & armors, std::chrono::steady_clock::time_point t);
 
-  bool update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t);
+  bool update_targets(std::list<Armor> & armors, std::chrono::steady_clock::time_point t, double yaw);
 
   void clear_targets();
 };
