@@ -141,7 +141,7 @@ void Solver::optimize_yaw(Armor & armor, double yaw) const
     // auto error = armor_reprojection_error(armor, yaw);
     // tools::logger()->debug("armor yaw = {:.2f}, gimbal yaw = {:.2f}", tools::limit_rad(armor.ypr_in_gimbal[0]) * 57.3,tools::limit_rad(yaw)*57.3);
     // tools::logger()->debug("inclined = {}", std::abs(tools::limit_rad(armor.ypr_in_gimbal[0])) * 57.3);
-    auto error = armor_reprojection_error(armor, yaw, std::abs(tools::limit_rad(armor.ypr_in_gimbal[0])));
+    auto error = armor_reprojection_error(armor, yaw, std::abs((i- 50) * CV_PI / 180.0));
 
     if (error < min_error) {
       min_error = error;
