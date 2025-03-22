@@ -173,7 +173,8 @@ std::list<Armor> YOLOV8::parse(double scale, cv::Mat & output, const cv::Mat & b
 
 bool YOLOV8::check_name(const Armor & armor) const
 {
-  auto name_ok = armor.name != ArmorName::not_armor;
+  // auto name_ok = armor.name != ArmorName::not_armor;
+  auto name_ok = (armor.name == ArmorName::one) || (armor.name == ArmorName::three) || (armor.name == ArmorName::sentry);
   auto confidence_ok = armor.confidence > min_confidence_;
 
   // 保存不确定的图案，用于分类器的迭代
