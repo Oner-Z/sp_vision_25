@@ -34,7 +34,7 @@ io::Command Decider::decide(
     cv::Mat usb_img;
     std::chrono::steady_clock::time_point timestamp;
     cams[i]->read(usb_img, timestamp);
-    auto armors = yolov8.detect(usb_img).get();
+    auto armors = yolov8.detect(usb_img);
     auto empty = armor_filter(armors);
 
     if (!empty) {

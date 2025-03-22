@@ -30,7 +30,7 @@ tools::OrderedQueue frame_queue;
 
 void detect_frame(tools::Frame && frame, auto_aim::YOLOV8 & yolo)
 {
-  frame.armors = yolo.detect(frame.img).get();
+  frame.armors = yolo.detect(frame.img);
   frame_queue.enqueue(frame);
 }
 

@@ -33,7 +33,7 @@ tools::ThreadSafeQueue<std::future<tools::Frame>> results(1000);
 // 处理detect任务的线程函数
 tools::Frame detect_frame(tools::Frame && frame, auto_aim::YOLOV8 & yolo)
 {
-  frame.armors = yolo.detect(frame.img).get();
+  frame.armors = yolo.detect(frame.img);
   return frame;
 }
 

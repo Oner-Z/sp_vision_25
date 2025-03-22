@@ -11,6 +11,7 @@
 #include "armor.hpp"
 #include "classifier.hpp"
 #include "detector.hpp"
+#include "tools/math_tools.hpp"
 
 namespace auto_aim
 {
@@ -20,7 +21,7 @@ class YOLOV8
 public:
   YOLOV8(const std::string & config_path, bool debug = true);
 
-  std::future<std::list<Armor>> detect(const cv::Mat & bgr_img, int frame_count = -1);
+  std::list<Armor> detect(const cv::Mat & bgr_img, int frame_count = -1);
 
 private:
   Classifier classifier_;
