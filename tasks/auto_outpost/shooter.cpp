@@ -73,7 +73,8 @@ Eigen::Vector3d Shooter::get_top_front(const auto_aim::Target & target_origin)
 }
 
 io::Command Shooter::shoot(
-  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now, Eigen::Vector3d ypr)
+  std::list<auto_aim::Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed, bool to_now,
+  Eigen::Vector3d ypr)
 {
   int mode = 1;  // debug使用，0表示不考虑空气阻力，1表示考虑空气阻力
   tools::Plotter plotter;
@@ -130,8 +131,8 @@ io::Command Shooter::shoot(
     nlohmann::json data;
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
-        if ((aim_id != last_hit_id_) &&
-          ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.08) &&
+        if (
+          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.10) &&
           (sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");
           last_hit_id_ = aim_id;
@@ -220,7 +221,7 @@ io::Command Shooter::shoot(
     auto pitch = trajectory1.pitch + pitch_offset_;
 
     bool is_fire = false;
-    if((std::abs(ypr[0] - yaw)< max_fire_error_yaw_ ) && (std::abs(ypr[1] - direction_ * pitch) < max_fire_error_pitch_)){
+    if ((std::abs(ypr[0] - yaw) < max_fire_error_yaw_) && (std::abs(ypr[1] - direction_ * pitch) < max_fire_error_pitch_)) {
       // is_fire = true;
       // tools::logger()->info("########## fire ##########");
     }
@@ -244,15 +245,15 @@ io::Command Shooter::shoot(
 //   int first_id = -1, second_id = -1;
 //   float min1 = std::numeric_limits<float>::max();
 //   float min2 = std::numeric_limits<float>::max();
-  
+
 //   for (int aim_id = 0; aim_id < armor_num; aim_id++) {
 //       float delta = std::abs(armor_xyza_list[aim_id][3] - center_yaw);
-      
+
 //       if (delta < min1) {
 //           // 更新第一小的值，同时把原来的第一小的值变成第二小的值
 //           min2 = min1;
 //           second_id = first_id;
-          
+
 //           min1 = delta;
 //           first_id = aim_id;
 //       } else if (delta < min2) {
@@ -289,22 +290,22 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
   int first_id = -1, second_id = -1;
   float min1 = std::numeric_limits<float>::max();
   float min2 = std::numeric_limits<float>::max();
-  
+
   for (int aim_id = 0; aim_id < armor_num; aim_id++) {
-      float delta = std::abs(armor_xyza_list[aim_id][3] - center_yaw);
-      
-      if (delta < min1) {
-          // 更新第一小的值，同时把原来的第一小的值变成第二小的值
-          min2 = min1;
-          second_id = first_id;
-          
-          min1 = delta;
-          first_id = aim_id;
-      } else if (delta < min2) {
-          // 仅更新第二小的值
-          min2 = delta;
-          second_id = aim_id;
-      }
+    float delta = std::abs(armor_xyza_list[aim_id][3] - center_yaw);
+
+    if (delta < min1) {
+      // 更新第一小的值，同时把原来的第一小的值变成第二小的值
+      min2 = min1;
+      second_id = first_id;
+
+      min1 = delta;
+      first_id = aim_id;
+    } else if (delta < min2) {
+      // 仅更新第二小的值
+      min2 = delta;
+      second_id = aim_id;
+    }
   }
 
   Eigen::Vector3d xyz1 = armor_xyza_list[first_id].head(3);
@@ -313,16 +314,18 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
   double yaw1 = std::atan2(xyz1[1], xyz1[0]);
   double yaw2 = std::atan2(xyz2[1], xyz2[0]);
 
-  if (std::abs(armor_xyza_list[first_id][3]-yaw1) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[second_id]};
+  if (std::abs(armor_xyza_list[first_id][3] - yaw1) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[second_id]};
 
-  if (std::abs(armor_xyza_list[second_id][3]-yaw2) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[first_id]};
+  if (std::abs(armor_xyza_list[second_id][3] - yaw2) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[first_id]};
 
-  armor_id = (std::abs(armor_xyza_list[first_id][3]-yaw1) < std::abs(armor_xyza_list[second_id][3]-yaw2)) ? first_id : second_id;
-  
+  armor_id =
+    (std::abs(armor_xyza_list[first_id][3] - yaw1) < std::abs(armor_xyza_list[second_id][3] - yaw2)) ? first_id : second_id;
+
   // 锁定模式：防止在两个都呈45度的装甲板之间来回切换
   // 未处于锁定模式时，选择delta_angle绝对值较小（更“正对”机器人）的装甲板，进入锁定模式
   if (lock_id_ != first_id && lock_id_ != second_id)
-    lock_id_ = (std::abs(armor_xyza_list[first_id][3]-yaw1) < std::abs(armor_xyza_list[second_id][3]-yaw2)) ? first_id : second_id;
+    lock_id_ =
+      (std::abs(armor_xyza_list[first_id][3] - yaw1) < std::abs(armor_xyza_list[second_id][3] - yaw2)) ? first_id : second_id;
 
   return {true, armor_xyza_list[lock_id_]};
 }
