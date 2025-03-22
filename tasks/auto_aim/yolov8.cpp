@@ -55,9 +55,13 @@ YOLOV8::YOLOV8(const std::string & config_path, bool debug)
     .scale(255.0);
 
   // TODO: ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)
+  // 配置参数
+  ov::AnyMap config = {
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+    {ov::num_streams(ov::streams::AUTO)}  // 或 ov::streams::AUTO
+  };
   model = ppp.build();
-  compiled_model_ = core_.compile_model(
-    model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+  compiled_model_ = core_.compile_model(model, device_, config);
 }
 
 std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
@@ -111,7 +115,6 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
 std::list<Armor> YOLOV8::async_function(
   ov::Tensor input_tensor, double scale, const cv::Mat & raw_img, int frame_count)
 {
-  auto t1 = std::chrono::steady_clock::now();
   // infer
   auto infer_request = compiled_model_.create_infer_request();
   infer_request.set_input_tensor(input_tensor);
@@ -122,15 +125,12 @@ std::list<Armor> YOLOV8::async_function(
   auto output_shape = output_tensor.get_shape();
   cv::Mat output(output_shape[1], output_shape[2], CV_32F, output_tensor.data());
 
-  tools::logger()->debug("infer use {}s", tools::delta_time(std::chrono::steady_clock::now(), t1));
-
   return parse(scale, output, raw_img, frame_count);
 }
 
 std::list<Armor> YOLOV8::parse(
   double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
 {
-  auto t1 = std::chrono::steady_clock::now();
   // for each row: xywh + classess
   cv::transpose(output, output);
 
@@ -208,7 +208,6 @@ std::list<Armor> YOLOV8::parse(
   }
 
   if (debug_) draw_detections(bgr_img, armors, frame_count);
-  tools::logger()->debug("parse use {}s", tools::delta_time(std::chrono::steady_clock::now(), t1));
 
   return armors;
 }
