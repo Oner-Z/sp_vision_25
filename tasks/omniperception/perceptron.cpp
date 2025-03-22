@@ -83,7 +83,7 @@ void Perceptron::parallel_infer(
         continue;
       }
 
-      auto armors = yolov8_parallel->detect(usb_img);
+      auto armors = yolov8_parallel->detect(usb_img).get();
       if (!armors.empty()) {
         auto delta_angle = decider_.delta_angle(armors, cam->device_name);
 

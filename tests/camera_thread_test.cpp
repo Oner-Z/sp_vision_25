@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <future>
 #include <map>
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -27,13 +28,13 @@ const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明}"
   "{@config-path   | configs/ascento.yaml | 位置参数，yaml配置文件路径 }";
 
-tools::OrderedQueue frame_queue;
+tools::ThreadSafeQueue<std::future<tools::Frame>> results(1000);
 
 // 处理detect任务的线程函数
-void detect_frame(tools::Frame && frame, auto_aim::YOLOV8 & yolo)
+tools::Frame detect_frame(tools::Frame && frame, auto_aim::YOLOV8 & yolo)
 {
-  frame.armors = yolo.detect(frame.img);
-  frame_queue.enqueue(frame);
+  frame.armors = yolo.detect(frame.img).get();
+  return frame;
 }
 
 int main(int argc, char * argv[])
@@ -51,9 +52,10 @@ int main(int argc, char * argv[])
 
   // 处理线程函数
   auto process_thread = std::thread([&]() {
-    tools::Frame process_frame;
+    std::future<tools::Frame> out;
     while (!exiter.exit()) {
-      process_frame = frame_queue.dequeue();
+      results.pop_by_move(out);
+      auto process_frame = out.get();
       auto img = process_frame.img;
       auto armors = process_frame.armors;
       auto t = process_frame.t;
@@ -67,12 +69,8 @@ int main(int argc, char * argv[])
     }
   });
 
+  auto_aim::YOLOV8 yolov8(config_path, true);
   io::Camera camera(config_path);
-  int num_yolo_thread = 8;
-  auto yolos = tools::create_yolov8s(config_path, num_yolo_thread, true);
-  // auto yolos = tools::create_yolo11s(config_path, num_yolo_thread, true);
-  std::vector<bool> yolo_used(num_yolo_thread, false);
-  tools::ThreadPool thread_pool(num_yolo_thread);
 
   cv::Mat img;
   Eigen::Quaterniond q;
@@ -92,27 +90,9 @@ int main(int argc, char * argv[])
     data["fps"] = 1 / dt;
 
     frame_id++;
-
-    // 将处理任务提交到线程池
-    std::mutex yolo_mutex;
-    thread_pool.enqueue([&, frame_id, t] {
-      auto_aim::YOLOV8 * yolo = nullptr;
-      int yolo_id = -1;
-      for (int i = 0; i < num_yolo_thread; i++) {
-        if (!yolo_used[i]) {
-          yolo_used[i] = true;
-          yolo = &yolos[i];
-          yolo_id = i;
-          break;
-        }
-      }
-      if (yolo) {
-        tools::Frame frame{frame_id, img.clone(), t};
-        detect_frame(std::move(frame), *yolo);
-
-        yolo_used[yolo_id] = false;
-      }
-    });
+    tools::Frame frame{frame_id, img.clone(), t};
+    auto result = std::async(std::launch::async, detect_frame, std::move(frame), std::ref(yolov8));
+    results.push_by_move(std::move(result));
     plotter.plot(data);
 
     auto key = cv::waitKey(1);

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <future>
 #include <random>
 
 #include "armor.hpp"
@@ -59,12 +60,12 @@ YOLOV8::YOLOV8(const std::string & config_path, bool debug)
     model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 }
 
-std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
+std::future<std::list<Armor>> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
 {
-  if (raw_img.empty()) {
-    tools::logger()->warn("Empty img!, camera drop!");
-    return std::list<Armor>();
-  }
+  // if (raw_img.empty()) {
+  //   tools::logger()->warn("Empty img!, camera drop!");
+  //   return std::async([]() { return std::list<Armor>; });
+  // }
 
   cv::Mat bgr_img;
   if (use_roi_) {
@@ -91,7 +92,24 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
   cv::resize(bgr_img, input(roi), {w, h});
   ov::Tensor input_tensor(ov::element::u8, {1, 416, 416, 3}, input.data);
 
-  /// infer
+  // // infer
+  // auto infer_request = compiled_model_.create_infer_request();
+  // infer_request.set_input_tensor(input_tensor);
+  // infer_request.infer();
+
+  // // postprocess
+  // auto output_tensor = infer_request.get_output_tensor();
+  // auto output_shape = output_tensor.get_shape();
+  // cv::Mat output(output_shape[1], output_shape[2], CV_32F, output_tensor.data());
+
+  return std::async(
+    std::launch::async, &YOLOV8::async_function, this, input_tensor, scale, raw_img, frame_count);
+}
+
+std::list<Armor> YOLOV8::async_function(
+  ov::Tensor input_tensor, double scale, const cv::Mat & raw_img, int frame_count)
+{
+  // infer
   auto infer_request = compiled_model_.create_infer_request();
   infer_request.set_input_tensor(input_tensor);
   infer_request.infer();

@@ -55,6 +55,19 @@ public:
     not_empty_condition_.notify_all();
   }
 
+  void push_by_move(T && value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (queue_.size() >= max_size_) {
+      full_handler_();
+      return;
+    }
+
+    queue_.push(std::move(value));
+    not_empty_condition_.notify_all();
+  }
+
   void pop(T & value)
   {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -67,6 +80,21 @@ public:
     }
 
     value = queue_.front();
+    queue_.pop();
+  }
+
+  void pop_by_move(T & value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    not_empty_condition_.wait(lock, [this] { return !queue_.empty(); });
+
+    if (queue_.empty()) {
+      std::cerr << "Error: Attempt to pop from an empty queue." << std::endl;
+      return;
+    }
+
+    value = std::move(queue_.front());
     queue_.pop();
   }
 

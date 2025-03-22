@@ -1,6 +1,7 @@
 #ifndef AUTO_AIM__YOLOV8_HPP
 #define AUTO_AIM__YOLOV8_HPP
 
+#include <future>
 #include <list>
 #include <opencv2/opencv.hpp>
 #include <openvino/openvino.hpp>
@@ -19,7 +20,7 @@ class YOLOV8
 public:
   YOLOV8(const std::string & config_path, bool debug = true);
 
-  std::list<Armor> detect(const cv::Mat & bgr_img, int frame_count = -1);
+  std::future<std::list<Armor>> detect(const cv::Mat & bgr_img, int frame_count = -1);
 
 private:
   Classifier classifier_;
@@ -52,6 +53,9 @@ private:
   void save(const Armor & armor) const;
   void draw_detections(const cv::Mat & img, const std::list<Armor> & armors, int frame_count) const;
   void sort_keypoints(std::vector<cv::Point2f> & keypoints);
+
+  std::list<Armor> async_function(
+    ov::Tensor input_tensor, double scale, const cv::Mat & bgr_img, int frame_count);
 };
 
 }  // namespace auto_aim
