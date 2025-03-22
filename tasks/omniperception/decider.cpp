@@ -61,7 +61,9 @@ io::Command Decider::decide(tools::ThreadSafeQueue<DetectionResult> & detection_
 
   DetectionResult dr;
   detection_queue.pop(dr);
-  tools::logger()->info("omniperceptron find {}", auto_aim::ARMOR_NAMES[dr.armors.front().name]);
+  tools::logger()->info(
+    "omniperceptron find {},delta yaw is {:.4f}", auto_aim::ARMOR_NAMES[dr.armors.front().name],
+    dr.delta_yaw * 57.3);
 
   return io::Command{true, false, dr.delta_yaw, dr.delta_pitch};
 };
@@ -71,19 +73,19 @@ Eigen::Vector2d Decider::delta_angle(
 {
   Eigen::Vector2d delta_angle;
   if (camera == "front_left") {
-    delta_angle[0] = 45 + (fov_h_ / 2) - armors.front().center_norm.x * fov_h_;
+    delta_angle[0] = 35 + (fov_h_ / 2) - armors.front().center_norm.x * fov_h_;
     delta_angle[1] = -(armors.front().center_norm.y * fov_v_ - fov_v_ / 2);
     return delta_angle;
   } else if (camera == "front_right") {
-    delta_angle[0] = -45 + (fov_h_ / 2) - armors.front().center_norm.x * fov_h_;
+    delta_angle[0] = -35 + (fov_h_ / 2) - armors.front().center_norm.x * fov_h_;
     delta_angle[1] = -(armors.front().center_norm.y * fov_v_ - fov_v_ / 2);
     return delta_angle;
   } else if (camera == "back_left") {
-    delta_angle[0] = 135 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
+    delta_angle[0] = 105 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
     delta_angle[1] = -(armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2);
     return delta_angle;
   } else {
-    delta_angle[0] = -135 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
+    delta_angle[0] = -105 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
     delta_angle[1] = -(armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2);
     return delta_angle;
   }
@@ -180,10 +182,12 @@ Eigen::Vector4d Decider::get_target_info(
 
 void Decider::get_invincible_armor(const std::vector<int8_t> & invincible_enemy_ids)
 {
+  invincible_armor_.clear();
+
   if (invincible_enemy_ids.empty()) return;
 
-  invincible_armor_.clear();
   for (const auto & id : invincible_enemy_ids) {
+    tools::logger()->info("invincible armor id: {}", id);
     invincible_armor_.push_back(auto_aim::ArmorName(id - 1));
   }
 }
