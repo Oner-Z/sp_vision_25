@@ -1,15 +1,15 @@
-# enemy_color: "blue"
-enemy_color: "red"
+enemy_color: "blue"
+# enemy_color: "red"
 
 R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
-# 重投影误差: 0.1714px
-camera_matrix: [2336.8747141497033, 0, 731.75316240497511, 0, 2341.7695512231685, 528.09897954384235, 0, 0, 1]
-distort_coeffs: [-0.01531661656231261, 0.0023598565927001221, 0.0007067488226429351, -0.0017562324455039577, 0]
+# 重投影误差: 0.1541px
+camera_matrix: [2387.2147932242888, 0, 686.34524678747948, 0, 2387.4543829926574, 558.14351239364782, 0, 0, 1]
+distort_coeffs: [-0.01687008657547975, -0.0033348779669969838, 0.0015597112269685094, -0.0043794657500283267, 0]
 
-# 相机同理想情况的偏角: yaw1.92 pitch-15.86 roll-6.90 degree
-R_camera2gimbal: [-0.00053679967721660552, -0.27521605848371172, 0.96138225123974275, -0.99330379073032116, -0.11092223561915637, -0.032308465856836527, 0.11553047722086393, -0.95496197767133018, -0.27331361114145208]
-t_camera2gimbal: [0.23938598868513136, -0.0042472296642928611, 0.0763962265116888]
+# 相机同理想情况的偏角: yaw-1.96 pitch-14.63 roll2.02 degree
+R_camera2gimbal: [0.025252513363553837, -0.25339644609557527, 0.96703285966659658, -0.99909722060560258, 0.026659828194520108, 0.033075630588054704, -0.034162177140550115, -0.96699508513061772, -0.25249445733767462]
+t_camera2gimbal: [0.15534974944089203, 0.0080373454275713373, 0.082417470891242031]
 
 
 model: assets/tiny_resnet.onnx
@@ -26,10 +26,10 @@ max_rectangular_error: 25 # degree
 min_confidence: 0.8
 
 min_detect_count: 5
-max_temp_lost_count: 20
+max_temp_lost_count: 10
 
-yaw_offset: 0.97 # degree -right
-pitch_offset: 0.5 # degree +up
+yaw_offset: 0.38 # degree -right
+pitch_offset: 0.35 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
@@ -39,6 +39,7 @@ mouse_to_fire: 0.06
 camera_name: "hikrobot"
 exposure_ms: 3
 gain: 16.5
+vid_pid: "2bdf:0001"
 
 #####-----神经网络参数-----#####
 classify_model: assets/tiny_resnet.onnx
