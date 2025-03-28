@@ -1,3 +1,8 @@
-sleep 1
+sleep 5
 cd ~/Desktop/sp_vision_25/
-screen -d -m bash -c "./build/hero  ./configs/hero-25_fric.yaml"
+screen \
+    -L \
+    -Logfile logs/$(date "+%Y-%m-%d_%H-%M-%S").screenlog \
+    -d \
+    -m \
+    bash -c "./watchdog.sh"
