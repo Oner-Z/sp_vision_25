@@ -1,5 +1,5 @@
-enemy_color: "blue"
-# enemy_color: "red"
+# enemy_color: "blue"
+enemy_color: "red"
 
 R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
