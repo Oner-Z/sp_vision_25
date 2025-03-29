@@ -57,7 +57,9 @@ Eigen::Vector3d Shooter::get_top_front(const auto_aim::Target & target_origin)
   int sig_w = w > 0 ? 1 : -1;  // 旋转方向
   int armor_id = -1;
   double dt_min = INFINITY, t;
-
+  if (std::fabs(w) > 3) {
+    return {hit_point_xy[0], hit_point_xy[1], ekf_x[4]};
+  }
   for (int aim_id = 0; aim_id < armor_num; aim_id++) {
     if (sig_w == 1) {  // w>0
       t = (armors[aim_id][3] > center_yaw) ? T - (armors[aim_id][3] - center_yaw) / w : (center_yaw - armors[aim_id][3] / w);
@@ -132,8 +134,9 @@ io::Command Shooter::shoot(
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
         if (
-          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.10) &&
-          (sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) {  // 在击打窗口内
+          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.09) &&
+          ((sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) &&
+          (std::fabs(armors_hit[aim_id][2] - xyz0[2]) <= 0.01)) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");
           last_hit_id_ = aim_id;
           io::Command command = {true, true, yaw, direction_ * pitch};
