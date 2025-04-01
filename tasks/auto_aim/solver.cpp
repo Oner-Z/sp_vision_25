@@ -6,6 +6,7 @@
 
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/plotter.hpp"
 
 namespace auto_aim
 {
@@ -53,13 +54,10 @@ void Solver::set_R_gimbal2world(const Eigen::Quaterniond & q)
 
 void Solver::solve(Armor & armor) const
 {
-  const auto & object_points =
-    (armor.type == ArmorType::big) ? BIG_ARMOR_POINTS : SMALL_ARMOR_POINTS;
+  const auto & object_points = (armor.type == ArmorType::big) ? BIG_ARMOR_POINTS : SMALL_ARMOR_POINTS;
 
   cv::Vec3d rvec, tvec;
-  cv::solvePnP(
-    object_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false,
-    cv::SOLVEPNP_IPPE);
+  cv::solvePnP(object_points, armor.points, camera_matrix_, distort_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
 
   Eigen::Vector3d xyz_in_camera;
   cv::cv2eigen(tvec, xyz_in_camera);
@@ -79,8 +77,15 @@ void Solver::solve(Armor & armor) const
 
   // 平衡不做yaw优化，因为pitch假设不成立
   auto is_balance = (armor.type == ArmorType::big) &&
-                    (armor.name == ArmorName::three || armor.name == ArmorName::four ||
-                     armor.name == ArmorName::five);
+                    (armor.name == ArmorName::three || armor.name == ArmorName::four || armor.name == ArmorName::five);
+  tools::Plotter plotter;
+  nlohmann::json data;
+  data["pnp_x"] = armor.xyz_in_world[0];
+  data["pnp_y"] = armor.xyz_in_world[1];
+  data["pnp_z"] = armor.xyz_in_world[2];
+  data["pnp_d"] = std::sqrt(armor.xyz_in_world[0] * armor.xyz_in_world[0] + armor.xyz_in_world[1] * armor.xyz_in_world[1]);
+  plotter.plot(data);
+
   if (is_balance) return;
 
   // optimize_yaw(armor);
@@ -106,8 +111,7 @@ std::vector<cv::Point2f> Solver::reproject_armor(
 
   // get R_armor2camera t_armor2camera
   const Eigen::Vector3d & t_armor2world = xyz_in_world;
-  Eigen::Matrix3d R_armor2camera =
-    R_camera2gimbal_.transpose() * R_gimbal2world_.transpose() * R_armor2world;
+  Eigen::Matrix3d R_armor2camera = R_camera2gimbal_.transpose() * R_gimbal2world_.transpose() * R_armor2world;
   Eigen::Vector3d t_armor2camera =
     R_camera2gimbal_.transpose() * (R_gimbal2world_.transpose() * t_armor2world - t_camera2gimbal_);
 
@@ -129,7 +133,7 @@ void Solver::optimize_yaw(Armor & armor, double yaw) const
 {
   Eigen::Vector3d gimbal_ypr = tools::eulers(R_gimbal2world_, 2, 1, 0);
 
-  auto range = 100;  // degree
+  auto range = 120;  // degree
   auto yaw0 = tools::limit_rad(gimbal_ypr[0] - range / 2 * CV_PI / 180.0);
 
   auto min_error = 1e10;
@@ -141,7 +145,7 @@ void Solver::optimize_yaw(Armor & armor, double yaw) const
     // auto error = armor_reprojection_error(armor, yaw);
     // tools::logger()->debug("armor yaw = {:.2f}, gimbal yaw = {:.2f}", tools::limit_rad(armor.ypr_in_gimbal[0]) * 57.3,tools::limit_rad(yaw)*57.3);
     // tools::logger()->debug("inclined = {}", std::abs(tools::limit_rad(armor.ypr_in_gimbal[0])) * 57.3);
-    auto error = armor_reprojection_error(armor, yaw, std::abs((i- 50) * CV_PI / 180.0));
+    auto error = armor_reprojection_error(armor, yaw, std::abs((i - range / 2) * CV_PI / 180.0));
 
     if (error < min_error) {
       min_error = error;
@@ -168,45 +172,42 @@ double Solver::armor_reprojection_error(const Armor & armor, double yaw, double 
   auto cv_pts = armor.points;
   std::size_t size = cv_refs.size();
   if (size != cv_pts.size() || size < 2) {
-      throw std::invalid_argument("Input vectors must have the same size and at least 2 points.");
+    throw std::invalid_argument("Input vectors must have the same size and at least 2 points.");
   }
 
   double cost = 0.0;
   for (std::size_t i = 0u; i < size; ++i) {
-      std::size_t p = (i + 1u) % size;  // 形成闭合形状
+    std::size_t p = (i + 1u) % size;  // 形成闭合形状
 
-      // 计算相邻点形成的线段向量
-      cv::Point2f ref_d = cv_refs[p] - cv_refs[i];  // 参考形状的边
-      cv::Point2f pt_d  = cv_pts[p] - cv_pts[i];    // 目标形状的边
+    // 计算相邻点形成的线段向量
+    cv::Point2f ref_d = cv_refs[p] - cv_refs[i];  // 参考形状的边
+    cv::Point2f pt_d = cv_pts[p] - cv_pts[i];     // 目标形状的边
 
-      // 计算欧几里得距离（点误差）
-      double ref_norm = std::hypot(ref_d.x, ref_d.y);
-      double pt_norm  = std::hypot(pt_d.x, pt_d.y);
-      double pixel_dis = 
-          (0.5 * (cv::norm(cv_refs[i] - cv_pts[i]) + cv::norm(cv_refs[p] - cv_pts[p])) 
-           + std::fabs(ref_norm - pt_norm)) / ref_norm;
+    // 计算欧几里得距离（点误差）
+    double ref_norm = std::hypot(ref_d.x, ref_d.y);
+    double pt_norm = std::hypot(pt_d.x, pt_d.y);
+    double pixel_dis =
+      (0.5 * (cv::norm(cv_refs[i] - cv_pts[i]) + cv::norm(cv_refs[p] - cv_pts[p])) + std::fabs(ref_norm - pt_norm)) / ref_norm;
 
-      // 计算角度误差
-      double dot_product = ref_d.x * pt_d.x + ref_d.y * pt_d.y;
-      double cos_angle = dot_product / (ref_norm * pt_norm + 1e-6); // 避免除零
-      cos_angle = std::max(-1.0, std::min(1.0, cos_angle));  // 限制在 [-1,1] 之间
-      double angular_dis = ref_norm * std::acos(cos_angle) / ref_norm;
+    // 计算角度误差
+    double dot_product = ref_d.x * pt_d.x + ref_d.y * pt_d.y;
+    double cos_angle = dot_product / (ref_norm * pt_norm + 1e-6);  // 避免除零
+    cos_angle = std::max(-1.0, std::min(1.0, cos_angle));          // 限制在 [-1,1] 之间
+    double angular_dis = ref_norm * std::acos(cos_angle) / ref_norm;
 
+    // tools::logger()->debug("when inclined = {:.2f}, pix = {:.2f}, ang = {:.2f}",
+    //                         std::abs(tools::limit_rad(armor.ypr_in_gimbal[0])) * 57.3,
+    //                         std::pow(pixel_dis * std::sin(inclined), 2),
+    //                         std::pow(angular_dis * std::cos(inclined), 2) * 1
+    //                       );
+    // 计算加权误差
+    double cost_i =
+      std::pow(pixel_dis * std::sin(inclined), 2) + std::pow(angular_dis * std::cos(inclined), 2) * 2;  // 最后一个参数2可调
 
-      // tools::logger()->debug("when inclined = {:.2f}, pix = {:.2f}, ang = {:.2f}", 
-      //                         std::abs(tools::limit_rad(armor.ypr_in_gimbal[0])) * 57.3,
-      //                         std::pow(pixel_dis * std::sin(inclined), 2),
-      //                         std::pow(angular_dis * std::cos(inclined), 2) * 1
-      //                       );
-      // 计算加权误差
-      double cost_i = std::pow(pixel_dis * std::sin(inclined), 2) 
-                    + std::pow(angular_dis * std::cos(inclined), 2) * 2; // 最后一个参数2可调
-
-      // 取平方根并累加
-      cost += std::sqrt(cost_i);
+    // 取平方根并累加
+    cost += std::sqrt(cost_i);
   }
   return cost;
 }
-
 
 }  // namespace auto_aim
