@@ -85,6 +85,7 @@ void Target::set_target(
   Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], w_, r_, 0, 0}};
 
   ekf_ = tools::ExtendedKalmanFilter(x0, P0_, x_add_);
+  tools::logger()->info("set to: {}", ekf_x()[7]);
 }
 
 void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防止远距离不认为它在旋转
@@ -95,20 +96,23 @@ void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防
   // l: r2 - r1
   // h: z2 - z1
   auto x = ekf_x();
-  if (std::abs(x[7]) > 0.4) {
-    w_ = ((x[7] > 0) ? 1 : -1) * 0.8 * M_PI;
-    Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
-    P0_ = new_P0_dig_outpost.asDiagonal();
-  } else {
-    w_ = 0;
-    Eigen::VectorXd new_P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 0.01, 0.0001, 0, 0}};
-    P0_ = new_P0_dig_outpost.asDiagonal();
-  }
-  Eigen::VectorXd new_x0{{x[0], x[1], x[2], x[3], x[4], x[5], x[6], w_, x[8], x[9], x[10]}};
+  double w_temp;
+  Eigen::MatrixXd P0_temp;
 
-  ekf_ = tools::ExtendedKalmanFilter(new_x0, P0_, x_add_);
+  if (std::abs(x[7]) > 0.6) {
+    w_temp = ((x[7] > 0) ? 1 : -1) * 0.8 * M_PI;
+    Eigen::VectorXd new_P0_dig_outpost{{0.01, 0, 0.01, 0, 0.01, 0, 0.4, 0.01, 0.0001, 0, 0}};
+    P0_temp = new_P0_dig_outpost.asDiagonal();
+  } else {
+    w_temp = 0;
+    Eigen::VectorXd new_P0_dig_outpost{{0.01, 0, 0.01, 0, 0.01, 0, 0.4, 0.01, 0.0001, 0, 0}};
+    P0_temp = new_P0_dig_outpost.asDiagonal();
+  }
+  Eigen::VectorXd new_x0{{x[0], 0, x[2], 0, x[4], 0, x[6], w_temp, x[8], x[9], x[10]}};
+
+  ekf_ = tools::ExtendedKalmanFilter(new_x0, P0_temp, x_add_);
   need_set_w_ = 0;
-  tools::logger()->info("w_ set to: {}", w_);
+  tools::logger()->info("w_ set to: {} {}", w_temp, x[7]);
 }
 
 void Target::predict(std::chrono::steady_clock::time_point t)
@@ -190,6 +194,10 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
 
       if (detect_count_ > min_detect_count_) {
         state_ = TRACKING;
+        detect_count_ = 0;
+        if (need_set_w_) {
+          set_w();
+        }
       }
       break;
     case TEMP_LOST:
@@ -204,6 +212,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       if (temp_lost_count_ > max_temp_lost_count_) {
         state_ = LOST;
         need_set_w_ = 0;
+        detect_count_ = 0;
       }
       break;
     case TRACKING:
@@ -255,7 +264,7 @@ void Target::update_ypda(const Armor & armor, int id)
 {
   Eigen::MatrixXd H = h_jacobian(ekf_.x, id);
   // {4e-3, 4e-3, 1, 2e-1}
-  Eigen::VectorXd R_dig{{4e-3, 8e-2, 1, 2e-1}};  // 观测噪声 yaw pitch distance angle, 前三个是球坐标系坐标，最后一个是朝向
+  Eigen::VectorXd R_dig{{4e-3, 4e-3, 1, 2e-1}};  // 观测噪声 yaw pitch distance angle, 前三个是球坐标系坐标，最后一个是朝向
   Eigen::MatrixXd R = R_dig.asDiagonal();
 
   // 定义非线性转换函数h: x -> z

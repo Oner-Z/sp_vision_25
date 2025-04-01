@@ -21,14 +21,14 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
   Eigen::VectorXd P0_dig_outpost{{1, 64, 1, 64, 1, 9, 0.4, 10, 0.0001, 0, 0}};
   Eigen::VectorXd P0_dig_base{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}};
 
-  targets_[0] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);              // hero
-  targets_[1] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);              // engineer
-  targets_[2] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);              // standard 3
-  targets_[3] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);              // standard 4
-  targets_[4] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);              // standard 5
-  targets_[5] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);              // sentry
-  targets_[6] = Target(3, 0.2765, P0_dig_outpost, min_detect_count, max_temp_lost_count, 0.01, 0.01, 0);  // outpost
-  targets_[7] = Target(3, 0.3205, P0_dig_base, min_detect_count, max_temp_lost_count);                    // base
+  targets_[0] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);        // hero
+  targets_[1] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);        // engineer
+  targets_[2] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);        // standard 3
+  targets_[3] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);        // standard 4
+  targets_[4] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);        // standard 5
+  targets_[5] = Target(4, 0.2, P0_dig_car, min_detect_count, max_temp_lost_count, 100, 400);        // sentry
+  targets_[6] = Target(3, 0.2765, P0_dig_outpost, min_detect_count, max_temp_lost_count, 0, 0, 0);  // outpost
+  targets_[7] = Target(3, 0.3205, P0_dig_base, min_detect_count, max_temp_lost_count);              // base
 }
 
 // std::string Tracker::state() const { return state_; }
