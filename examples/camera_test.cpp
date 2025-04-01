@@ -30,12 +30,10 @@ int main(int argc, char * argv[])
   auto last_stamp = std::chrono::steady_clock::now();
   while (!exiter.exit()) {
     camera.read(img, timestamp);
-
     auto dt = tools::delta_time(timestamp, last_stamp);
     last_stamp = timestamp;
 
     tools::logger()->info("{:.2f} fps", 1 / dt);
-
     if (!display) continue;
     cv::imshow("img", img);
     if (cv::waitKey(1) == 'q') break;

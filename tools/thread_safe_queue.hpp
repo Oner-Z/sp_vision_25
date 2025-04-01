@@ -3,6 +3,7 @@
 
 #include <condition_variable>
 #include <functional>
+#include <iostream>
 #include <mutex>
 #include <queue>
 
@@ -18,6 +19,29 @@ public:
   {
   }
 
+  // 复制构造函数
+  ThreadSafeQueue(const ThreadSafeQueue & other)
+  {
+    std::unique_lock<std::mutex> lock(other.mutex_);
+    queue_ = other.queue_;
+    max_size_ = other.max_size_;
+    full_handler_ = other.full_handler_;
+  }
+
+  // 赋值运算符
+  ThreadSafeQueue & operator=(const ThreadSafeQueue & other)
+  {
+    if (this != &other) {
+      std::unique_lock<std::mutex> lock1(mutex_, std::defer_lock);
+      std::unique_lock<std::mutex> lock2(other.mutex_, std::defer_lock);
+      std::lock(lock1, lock2);
+      queue_ = other.queue_;
+      max_size_ = other.max_size_;
+      full_handler_ = other.full_handler_;
+    }
+    return *this;
+  }
+
   void push(const T & value)
   {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -31,20 +55,80 @@ public:
     not_empty_condition_.notify_all();
   }
 
+  void push(T && value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (queue_.size() >= max_size_) {
+      full_handler_();
+      return;
+    }
+
+    queue_.push(std::move(value));
+    not_empty_condition_.notify_all();
+  }
+
   void pop(T & value)
   {
     std::unique_lock<std::mutex> lock(mutex_);
 
     not_empty_condition_.wait(lock, [this] { return !queue_.empty(); });
 
+    if (queue_.empty()) {
+      std::cerr << "Error: Attempt to pop from an empty queue." << std::endl;
+      return;
+    }
+
     value = queue_.front();
     queue_.pop();
+  }
+
+  void pop_by_move(T & value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    not_empty_condition_.wait(lock, [this] { return !queue_.empty(); });
+
+    if (queue_.empty()) {
+      std::cerr << "Error: Attempt to pop from an empty queue." << std::endl;
+      return;
+    }
+
+    value = std::move(queue_.front());
+    queue_.pop();
+  }
+
+  void back(T & value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (queue_.empty()) {
+      std::cerr << "Error: Attempt to access the back of an empty queue." << std::endl;
+      return;
+    }
+
+    value = queue_.back();
+  }
+
+  bool empty()
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return queue_.empty();
+  }
+
+  void clear()
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    while (!queue_.empty()) {
+      queue_.pop();
+    }
+    not_empty_condition_.notify_all();  // 如果其他线程正在等待队列不为空，这样可以唤醒它们
   }
 
 private:
   std::queue<T> queue_;
   size_t max_size_;
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable not_empty_condition_;
   std::function<void(void)> full_handler_;
 };

@@ -27,6 +27,8 @@ int main(int argc, char * argv[])
   auto display = cli.has("display");
   io::Camera camera(config_path);
 
+  double max_z = 0.0;
+
   cv::Mat frame;
   std::chrono::steady_clock::time_point timestamp;
   HangingShooter hangingshooter;
@@ -44,6 +46,10 @@ int main(int argc, char * argv[])
       // 更换相机后效果还挺好。
       cv::Mat tvec, rvec;
       hangingshooter.solvePnP(lightspot, tvec, rvec);
+      // if (max_z < tvec.at<double>(2)) {
+      //   max_z = tvec.at<double>(2);
+      //   std::cout << max_z << std::endl;
+      // }
 
       tools::draw_text(
         drawlightspot,
@@ -59,10 +65,13 @@ int main(int argc, char * argv[])
         cv::Point2f(10, 260), cv::Scalar(0, 255, 255));
     }
     cv::resize(drawlightspot, drawlightspot, {}, 0.5, 0.5);
+
     cv::imshow("lightspot", drawlightspot);
 
     // cv::imshow("camera", frame);
-    if (cv::waitKey(1) == 'q') break;
+
     // test
+    if (!display) continue;
+    if (cv::waitKey(1) == 'q') break;
   }
 }

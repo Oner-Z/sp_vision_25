@@ -19,24 +19,15 @@ include_directories(${PROJECT_SOURCE_DIR})
 add_subdirectory(tools)
 add_subdirectory(io)
 
-add_executable(test examples/find_lightspot_example.cpp  tasks/hanging_shooter.cpp )
-target_link_libraries(test tools io  ${OpenCV_LIBS} fmt::fmt)
 
-add_executable(find_lightspot_test tests/find_lightspot_test.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
-target_link_libraries(find_lightspot_test tools io  ${OpenCV_LIBS} fmt::fmt)
 
 add_executable(camera_test examples/camera_test.cpp)
 target_link_libraries(camera_test ${OpenCV_LIBS} fmt::fmt tools io)
 
-add_executable(hanging_shooting_example tests/hanging_shooting_example.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
-target_link_libraries(hanging_shooting_example tools io  ${OpenCV_LIBS} fmt::fmt)
-
-add_executable(shooting_angle_test tests/shooting_angle_test.cpp )
-target_link_libraries(shooting_angle_test tools io  ${OpenCV_LIBS} fmt::fmt)
+add_executable(capture examples/capture.cpp)
+target_link_libraries(capture ${OpenCV_LIBS} fmt::fmt tools io)
 
 
-add_executable(hanging_shooting_with_lidar tests/hanging_shooting_with_lidar.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
-target_link_libraries(hanging_shooting_with_lidar tools io  ${OpenCV_LIBS} fmt::fmt)
 
-add_executable(communicate_test tests/communicate_test.cpp  tasks/hanging_shooter.cpp  tasks/h_solver.cpp)
-target_link_libraries(communicate_test tools io  ${OpenCV_LIBS} fmt::fmt)
+add_executable(angle_test tests/shooting_angle_test.cpp tasks/hanging_shooter.cpp)
+target_link_libraries(angle_test tools io ${OpenCV_LIBS} fmt::fmt)

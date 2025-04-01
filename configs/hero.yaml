@@ -1,0 +1,87 @@
+# enemy_color: "red"
+enemy_color: "blue"
+
+
+#####-----神经网络参数-----#####
+classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
+device: AUTO
+
+#####-----USB相机参数-----#####
+image_width: 1920
+image_height: 1080
+fov_h: 87.7
+fov_v: 56.7
+usb_frame_rate: 60
+usb_exposure: 250 #1-80000______250
+usb_gamma_: 160
+usb_gain_: 10 #0-96
+
+#####-----工业相机参数-----#####
+camera_name: "hikrobot"
+exposure_ms:   3        #3  
+gain: 5                #10
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+#####-----cboard参数-----#####
+quaternion_canid: 0x100   #0x100
+bullet_speed_canid: 0x101
+send_canid: 0xFF   # 0xff
+can_interface: "can0"
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 15
+
+#####-----aimer参数-----#####
+yaw_offset: -2.5 # degree -2.5
+pitch_offset: 3 # degree 2
+comming_angle: 60 # degree
+leaving_angle: 20 # degree
+min_spin_speed: 2 # rad/s
+
+#####-----工业相机标定参数-----#####
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+# 重投影误差: 0.1573px
+camera_matrix: [4360.7139087362011, 0, 683.92579312415967, 0, 4390.4667853095989, 401.85596366353803, 0, 0, 1]
+distort_coeffs: [-0.046190212755841294, 1.6515418900072727, -5.1693400741013766e-05, -0.0079130702364351452, 0]
+# 标定板到世界坐标系原点的水平距离: 1.45 m
+# 标定板同竖直摆放时的偏角: yaw90.85 pitch8.54 roll-0.32 degree
+R_camera2gimbal: [0.046736929626455238, -0.055211941324114208, 0.99738021884550865, -0.99881598162461238, -0.016078770676278314, 0.0459141370909011, 0.013501639172863072, -0.99834518813322415, -0.055898041744621867]
+t_camera2gimbal: [0.27420934670256336, 0.0098763306562371159, 0.043798385984197351]
+        
+
+
+#####-----吊射所需数据-----#####
+target_x: 0.0
+target_y: 0.0
+target_z: 0.0
+
+bullet_speed: 15.6  # m/s
+rho: 1.285          # kg/m**3 空气密度
+C: 0.485            #         空气阻力系数  
+BigBulletRadius: 0.02165
+m: 0.041
+g: 9.794
+PI: 3.1415926
+# 目标点图中坐标
+target_x : 0.15
+target_y : 0.16
+target_z : 0.46
+
+
+# 测试图片编号
+img_num: 8
+
