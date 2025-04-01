@@ -17,6 +17,7 @@ add_library(auto_aim OBJECT
     ekfpnp.cpp
     yolo11.cpp
     shooter.cpp
+    Boomeranger.cpp
 )
 
 target_link_libraries(auto_aim openvino::runtime)
