@@ -99,7 +99,7 @@ void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防
   double w_temp;
   Eigen::MatrixXd P0_temp;
 
-  if (std::abs(x[7]) > 0.6) {
+  if (std::abs(x[7]) > 0.4) {
     w_temp = ((x[7] > 0) ? 1 : -1) * 0.8 * M_PI;
     Eigen::VectorXd new_P0_dig_outpost{{0.01, 0, 0.01, 0, 0.01, 0, 0.4, 0.01, 0.0001, 0, 0}};
     P0_temp = new_P0_dig_outpost.asDiagonal();
@@ -179,7 +179,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       if (armor != NULL) {
         state_ = DETECTING;
         detect_count_ = 1;
-        tools::logger()->debug("114514");
+        // tools::logger()->debug("114514");
         set_target(armor, t);
       }
       break;
