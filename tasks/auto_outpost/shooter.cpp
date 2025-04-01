@@ -134,7 +134,7 @@ io::Command Shooter::shoot(
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
         if (
-          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.06) &&
+          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= 0.08) &&
           ((sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) &&
           (std::fabs(armors_hit[aim_id][2] - xyz0[2]) <= 0.01)) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");

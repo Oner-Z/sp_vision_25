@@ -260,14 +260,13 @@ bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_cloc
   int count = 0;
   for (auto & armor_use : armors_use) {
     if (!armor_use.empty()) {  // PNP解算，识别到了才解算
+      // tools::logger()->debug("armors detected for target id:{}", count);
       for (auto & armor : armor_use) {
         solver_.solve(*armor);
         solver_.optimize_yaw(*armor, yaw);
       }
-    }
-    if (!armor_use.empty()) {  // PNP解算，识别到了才解算
       for (auto & armor : armor_use) {
-        targets_[count].update(*armor, t);  // 状态更新与跟踪
+        targets_[armor->name].update(*armor, t);  // 状态更新与跟踪
       }
     } else {
       Armor * ptr = NULL;
