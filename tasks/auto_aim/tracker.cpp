@@ -224,34 +224,59 @@ bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_cloc
     }
   }
 
-  int bestconf[ENEMY_NUM] = {0, 0, 0, 0, 0, 0, 0, 0};
+  // int bestconf[ENEMY_NUM] = {0, 0, 0, 0, 0, 0, 0, 0};
   // armors_use有序存储
-  Armor * armors_use[ENEMY_NUM] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  };  // 每个敌方目标使用至多一块装甲板更新。空指针表示这一帧缺失对应目标。
+  // Armor * armors_use[ENEMY_NUM] = {
+  //   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  // };  // 每个敌方目标使用至多一块装甲板更新。空指针表示这一帧缺失对应目标。
 
+  // for (auto & armor : armors) {
+  //   if (armors_use[armor.name]) {                     // 对应目标已经有装甲板了
+  //     if (armor.confidence > bestconf[armor.name]) {  // 挑置信度最大的用
+  //       armors_use[armor.name] = &armor;
+  //       bestconf[armor.name] = armor.confidence;
+  //     }
+  //   } else {  // 对应目标还没有装甲板
+  //     armors_use[armor.name] = &armor;
+  //     bestconf[armor.name] = armor.confidence;
+  //   }
+  // }
+
+  // int count = 0;
+  // for (auto & armor_use : armors_use) {
+  //   if (armor_use != NULL) {  // PNP解算，识别到了才解算
+  //     solver_.solve(*armor_use);
+  //     solver_.optimize_yaw(*armor_use, yaw);
+  //   }
+  //   targets_[count].update(*armor_use, t);  // 状态更新与跟踪
+  //   ++count;
+  // }
+
+  std::list<Armor *> armors_use[ENEMY_NUM];
   for (auto & armor : armors) {
-    if (armors_use[armor.name]) {                     // 对应目标已经有装甲板了
-      if (armor.confidence > bestconf[armor.name]) {  // 挑置信度最大的用
-        armors_use[armor.name] = &armor;
-        bestconf[armor.name] = armor.confidence;
-      }
-    } else {  // 对应目标还没有装甲板
-      armors_use[armor.name] = &armor;
-      bestconf[armor.name] = armor.confidence;
-    }
+    armors_use[armor.name].emplace_back(&armor);
   }
 
   int count = 0;
-  Eigen::VectorXd ekf_x;
   for (auto & armor_use : armors_use) {
-    if (armor_use != NULL) {  // PNP解算，识别到了才解算
-      solver_.solve(*armor_use);
-      solver_.optimize_yaw(*armor_use, yaw);
+    if (!armor_use.empty()) {  // PNP解算，识别到了才解算
+      for (auto & armor : armor_use) {
+        solver_.solve(*armor);
+        solver_.optimize_yaw(*armor, yaw);
+      }
     }
-    targets_[count].update(*armor_use, t);  // 状态更新与跟踪
+    if (!armor_use.empty()) {  // PNP解算，识别到了才解算
+      for (auto & armor : armor_use) {
+        targets_[count].update(*armor, t);  // 状态更新与跟踪
+      }
+    } else {
+      Armor * ptr = NULL;
+      targets_[count].update(*ptr, t);  // 状态更新与跟踪
+    }
+
     ++count;
   }
+
   return true;
 }
 
