@@ -255,7 +255,9 @@ bool Tracker::update_targets(std::list<Armor> & armors, std::chrono::steady_cloc
   std::list<Armor *> armors_use[ENEMY_NUM];
   for (auto & armor : armors) {
     armors_use[armor.name].emplace_back(&armor);
+    // tools::logger()->debug("detect an armor of target {}", armor.name);
   }
+  // tools::logger()->debug("--------------------------------");
 
   int count = 0;
   for (auto & armor_use : armors_use) {

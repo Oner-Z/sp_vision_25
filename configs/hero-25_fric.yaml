@@ -3,13 +3,13 @@ enemy_color: "red"
 
 R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
-# 重投影误差: 0.1812px
-camera_matrix: [2501.4856821872168, 0, 727.74932023203144, 0, 2503.3309119075238, 579.0623337953482, 0, 0, 1]
-distort_coeffs: [-0.01796506540676639, 0.080647030613168608, 0.00078550894982127857, -0.0025719183126216077, 0]
+# 重投影误差: 0.1561px
+camera_matrix: [2374.7960561484601, 0, 725.22773943699656, 0, 2379.2011879327283, 566.20273332319096, 0, 0, 1]
+distort_coeffs: [-0.035428427684218014, 0.13677359489651, 0.0022629394385435555, -0.0015485430098798542, 0]
 
-# 相机同理想情况的偏角: yaw0.35 pitch-16.40 roll-1.53 degree
-R_camera2gimbal: [0.0014893032630333232, -0.28242622853493465, 0.95928786472639349, -0.99966984831914585, -0.025027275392141585, -0.0058163431829103647, 0.025651049439861219, -0.95896249192655025, -0.28237025824377293]
-t_camera2gimbal: [0.061328745054959791, -0.012604512027520406, 0.10393073804602929]
+# 相机同理想情况的偏角: yaw-0.30 pitch-7.68 roll-3.91 degree
+R_camera2gimbal: [0.014354490036950765, -0.13301430844211859, 0.99101016259443286, -0.99760637032066179, -0.068953180508604023, 0.0051950739534817178, 0.067642283458006908, -0.98871262389402736, -0.13368570918828179]
+t_camera2gimbal: [0.15017696013333232, 0.0027972175536544346, 0.092258927884909733]
 
 
 model: assets/tiny_resnet.onnx
@@ -23,13 +23,13 @@ min_armor_ratio: 1
 max_armor_ratio: 5
 max_side_ratio: 1.3
 max_rectangular_error: 25 # degree
-min_confidence: 0.8
+# min_confidence: 0.8
 
 min_detect_count: 5
 max_temp_lost_count: 10
 
-yaw_offset: 0.95 # degree -right
-pitch_offset: 0.90 # degree +up
+yaw_offset: 0.65 # degree -right
+pitch_offset: -0.9 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
@@ -37,7 +37,7 @@ shoot_delay: 0.095 #0.52
 mouse_to_fire: 0.06
 
 camera_name: "hikrobot"
-exposure_ms: 2.5
+exposure_ms: 3
 gain: 16.5
 vid_pid: "2bdf:0001"
 
@@ -45,7 +45,7 @@ vid_pid: "2bdf:0001"
 classify_model: assets/tiny_resnet.onnx
 model_path: assets/last.xml
 device: AUTO
-min_confidence: 0.8
+min_confidence: 0.95
 
 #####-----新增的ROI-----#####
 roi:

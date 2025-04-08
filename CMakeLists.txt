@@ -64,3 +64,6 @@ target_link_libraries(gimbal_response_test ${OpenCV_LIBS} fmt::fmt yaml-cpp tool
 
 # add_executable(temp src/temp.cpp)
 # target_link_libraries(temp ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost tools io)
+
+add_executable(handeye_test tests/handeye_test.cpp)
+target_link_libraries(handeye_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
