@@ -85,7 +85,7 @@ void Target::set_target(
   Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], w_, r_, 0, 0}};
 
   ekf_ = tools::ExtendedKalmanFilter(x0, P0_, x_add_);
-  tools::logger()->info("set to: {}", ekf_x()[7]);
+  // tools::logger()->info("set to: {}", ekf_x()[7]);
 }
 
 void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防止远距离不认为它在旋转
@@ -213,6 +213,7 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
         state_ = LOST;
         need_set_w_ = 0;
         detect_count_ = 0;
+        temp_lost_count_ = 0;
       }
       break;
     case TRACKING:
