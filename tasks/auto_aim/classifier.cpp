@@ -58,8 +58,7 @@ Classifier::Classifier(const std::string & config_path)
   auto model = yaml["classify_model"].as<std::string>();
   net_ = cv::dnn::readNetFromONNX(model);
   auto ovmodel = core_.read_model(model);
-  compiled_model_ = core_.compile_model(
-    ovmodel, "AUTO", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+  compiled_model_ = core_.compile_model(ovmodel, "AUTO", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 }
 
 void Classifier::classify(Armor & armor)
@@ -83,9 +82,35 @@ void Classifier::classify(Armor & armor)
     armor.name = ArmorName::not_armor;
     return;
   }
+  // constexpr int lightbar_h = 12;
+  // constexpr int small_armor_w = 32;
+  // constexpr int big_armor_w = 54;
+  // constexpr int warp_h = 28;
+  // // 四灯条顶点坐标（透视变换前）
+  // std::vector<cv::Point2f> from_points{armor.left.top, armor.right.top, armor.right.bottom, armor.left.bottom};
+  // std::cout << from_points << std::endl;
+
+  // // 四灯条顶点坐标（透视变换后）
+  // const int lightbar_top_y = (warp_h - lightbar_h) / 2 - 1;
+  // const int lightbar_bottom_y = lightbar_top_y + lightbar_h;
+  // const int warp_w = (armor.type == auto_aim::ArmorType::big) ? big_armor_w : small_armor_w;
+  // std::vector<cv::Point2f> to_points{
+  //   cv::Point2f(0, lightbar_top_y), cv::Point2f(warp_w - 1, lightbar_top_y), cv::Point2f(warp_w - 1, lightbar_bottom_y),
+  //   cv::Point2f(0, lightbar_bottom_y)};
+  // std::cout << to_points << std::endl;
+  // std::cout << "-----------------------------------" << std::endl;
+
+  // // 进行透视变换
+  // auto transform = cv::getPerspectiveTransform(from_points, to_points);
+  // cv::warpPerspective(gray, gray, transform, cv::Size(warp_w, warp_h));
+
+  // cv::imshow("gray Image", gray);
+  // cv::waitKey(1);  // 等待用户按键
   auto roi = cv::Rect(0, 0, w, h);
   cv::resize(gray, input(roi), {w, h});
 
+  // cv::imshow("Input Image", input);
+  // cv::waitKey(1);  // 等待用户按键
   auto blob = cv::dnn::blobFromImage(input, 1.0 / 255.0, cv::Size(), cv::Scalar());
 
   net_.setInput(blob);

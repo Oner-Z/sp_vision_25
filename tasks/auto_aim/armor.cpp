@@ -9,9 +9,7 @@ Lightbar::Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id) : id(id
 {
   std::vector<cv::Point2f> corners(4);
   rotated_rect.points(&corners[0]);
-  std::sort(corners.begin(), corners.end(), [](const cv::Point2f & a, const cv::Point2f & b) {
-    return a.y < b.y;
-  });
+  std::sort(corners.begin(), corners.end(), [](const cv::Point2f & a, const cv::Point2f & b) { return a.y < b.y; });
 
   center = rotated_rect.center;
   top = (corners[0] + corners[1]) / 2;
@@ -28,8 +26,7 @@ Lightbar::Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id) : id(id
   ratio = length / width;
 }
 
-Armor::Armor(const Lightbar & left, const Lightbar & right)
-: left(left), right(right), duplicated(false)
+Armor::Armor(const Lightbar & left, const Lightbar & right) : left(left), right(right), duplicated(false)
 {
   color = left.color;
   center = (left.center + right.center) / 2;
@@ -52,18 +49,13 @@ Armor::Armor(const Lightbar & left, const Lightbar & right)
   rectangular_error = std::max(left_rectangular_error, right_rectangular_error);
 }
 
-Armor::Armor(
-  int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset)
+Armor::Armor(int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset)
 : class_id(class_id), confidence(confidence), box(box), points(armor_keypoints)
 {
-  std::transform(armor_keypoints.begin(), armor_keypoints.end(), armor_keypoints.begin(),
-                [&offset](const cv::Point2f& point) {
-                  return point + offset;
-                });
-  std::transform(points.begin(), points.end(), points.begin(),
-                [&offset](const cv::Point2f& point) {
-                  return point + offset;
-                });
+  std::transform(armor_keypoints.begin(), armor_keypoints.end(), armor_keypoints.begin(), [&offset](const cv::Point2f & point) {
+    return point + offset;
+  });
+  std::transform(points.begin(), points.end(), points.begin(), [&offset](const cv::Point2f & point) { return point + offset; });
   center = (armor_keypoints[0] + armor_keypoints[1] + armor_keypoints[2] + armor_keypoints[3]) / 4;
   auto left_width = cv::norm(armor_keypoints[0] - armor_keypoints[3]);
   auto right_width = cv::norm(armor_keypoints[1] - armor_keypoints[2]);
@@ -76,18 +68,19 @@ Armor::Armor(
   auto left2right = right_center - left_center;
   auto roll = std::atan2(left2right.y, left2right.x);
   auto left_rectangular_error = std::abs(
-    std::atan2(
-      (armor_keypoints[3] - armor_keypoints[0]).y, (armor_keypoints[3] - armor_keypoints[0]).x) -
-    roll - CV_PI / 2);
+    std::atan2((armor_keypoints[3] - armor_keypoints[0]).y, (armor_keypoints[3] - armor_keypoints[0]).x) - roll - CV_PI / 2);
   auto right_rectangular_error = std::abs(
-    std::atan2(
-      (armor_keypoints[2] - armor_keypoints[1]).y, (armor_keypoints[2] - armor_keypoints[1]).x) -
-    roll - CV_PI / 2);
+    std::atan2((armor_keypoints[2] - armor_keypoints[1]).y, (armor_keypoints[2] - armor_keypoints[1]).x) - roll - CV_PI / 2);
   rectangular_error = std::max(left_rectangular_error, right_rectangular_error);
 
   ratio = max_length / max_width;
   color = class_id == 0 ? Color::blue : Color::red;
-  //忽略灯条
+
+  //不能忽略灯条
+  left.top = armor_keypoints[0];
+  left.bottom = armor_keypoints[3];
+  right.top = armor_keypoints[1];
+  right.bottom = armor_keypoints[2];
 }
 
 }  // namespace auto_aim

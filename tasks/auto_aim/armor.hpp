@@ -18,36 +18,13 @@ const std::vector<std::string> COLORS = {"red", "blue", "purple"};
 // };
 // const std::vector<std::string> COLORS = {"red", "blue"};
 
-enum ArmorType
-{
-  big,
-  small
-};
+enum ArmorType { big, small };
 const std::vector<std::string> ARMOR_TYPES = {"big", "small"};
 
-enum ArmorName
-{
-  one,
-  two,
-  three,
-  four,
-  five,
-  sentry,
-  outpost,
-  base,
-  not_armor
-};
-const std::vector<std::string> ARMOR_NAMES = {"one",    "two",     "three", "four",     "five",
-                                              "sentry", "outpost", "base",  "not_armor"};
+enum ArmorName { one, two, three, four, five, sentry, outpost, base, not_armor };
+const std::vector<std::string> ARMOR_NAMES = {"one", "two", "three", "four", "five", "sentry", "outpost", "base", "not_armor"};
 
-enum ArmorPriority
-{
-  first = 1,
-  second,
-  third,
-  forth,
-  fifth
-};
+enum ArmorPriority { first = 1, second, third, forth, fifth };
 
 struct Lightbar
 {
@@ -64,7 +41,7 @@ struct Lightbar
 struct Armor
 {
   Color color;
-  const Lightbar left, right;
+  Lightbar left, right;
   cv::Point2f center;       // 不是对角线交点，不能作为实际中心！
   cv::Point2f center_norm;  // 归一化坐标
   std::vector<cv::Point2f> points;
@@ -90,8 +67,7 @@ struct Armor
   double yaw_raw;  // rad
 
   Armor(const Lightbar & left, const Lightbar & right);
-  Armor(
-    int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
+  Armor(int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
 };
 
 }  // namespace auto_aim

@@ -247,7 +247,36 @@ cv::Mat YOLOV8::get_pattern(const cv::Mat & bgr_img, const Armor & armor) const
     return cv::Mat();  // 返回一个空的Mat对象
   }
 
-  return bgr_img(roi);
+  auto armor_img = bgr_img(roi);
+  constexpr int lightbar_h = 12;
+  constexpr int small_armor_w = 32;
+  constexpr int big_armor_w = 54;
+  constexpr int warp_h = 28;
+  // 四灯条顶点坐标（透视变换前）
+  std::vector<cv::Point2f> from_points{armor.left.top, armor.right.top, armor.right.bottom, armor.left.bottom};
+  cv::Point2f roi_tl_f(roi_tl.x, roi_tl.y);
+
+  for (auto & point : from_points) {
+    point -= roi_tl_f;  // 每个点减去 roi_tl 的坐标
+  }
+  // std::cout << from_points << std::endl;
+
+  // 四灯条顶点坐标（透视变换后）
+  const int lightbar_top_y = (warp_h - lightbar_h) / 2 - 1;
+  const int lightbar_bottom_y = lightbar_top_y + lightbar_h;
+  const int warp_w = (armor.type == auto_aim::ArmorType::big) ? big_armor_w : small_armor_w;
+  std::vector<cv::Point2f> to_points{
+    cv::Point2f(0, lightbar_top_y), cv::Point2f(warp_w - 1, lightbar_top_y), cv::Point2f(warp_w - 1, lightbar_bottom_y),
+    cv::Point2f(0, lightbar_bottom_y)};
+  // std::cout << to_points << std::endl;
+  // std::cout << "-----------------------------------" << std::endl;
+
+  // 进行透视变换
+  auto transform = cv::getPerspectiveTransform(from_points, to_points);
+  cv::warpPerspective(armor_img, armor_img, transform, cv::Size(warp_w, warp_h));
+  // cv::imshow("armor Image", armor_img);
+  // cv::waitKey(1);  // 等待用户按键
+  return armor_img;
 }
 
 void YOLOV8::save(const Armor & armor) const
