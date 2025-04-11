@@ -79,7 +79,6 @@ private:
         std::lock_guard<std::mutex> lock(mtx);
         if (latest) {
           input = latest;
-          // 不 reset latest，让线程可以继续使用同一份数据执行
         }
       }
       if (input) {
