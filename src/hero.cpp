@@ -28,7 +28,7 @@ class CommandExecutor
 {
 public:
   CommandExecutor(auto_outpost::Shooter & shooter_ref, io::CBoard & cboard_ref)
-  : shooter(shooter_ref), cboard(cboard_ref), stop(false)
+  : shooter_(shooter_ref), cboard_(cboard_ref), stop_(false)
   {
   }
 
@@ -37,10 +37,10 @@ public:
   void stop_thread()
   {
     {
-      std::lock_guard<std::mutex> lock(mtx);
-      stop = true;
+      std::lock_guard<std::mutex> lock(mtx_);
+      stop_ = true;
     }
-    cv.notify_all();
+    cv_.notify_all();
     if (thread_.joinable()) thread_.join();
   }
 
@@ -48,9 +48,9 @@ public:
     const std::list<auto_aim::Target> & targets, const std::chrono::steady_clock::time_point & t, double bullet_speed,
     const Eigen::Vector3d & ypr)
   {
-    std::lock_guard<std::mutex> lock(mtx);
-    latest = {targets, t, bullet_speed, ypr};
-    cv.notify_one();
+    std::lock_guard<std::mutex> lock(mtx_);
+    latest_ = {targets, t, bullet_speed, ypr};
+    cv_.notify_one();
   }
 
 private:
@@ -63,22 +63,22 @@ private:
     Eigen::Vector3d ypr;
   };
 
-  auto_outpost::Shooter & shooter;
-  io::CBoard & cboard;
-  std::optional<Input> latest;
-  std::mutex mtx;
-  std::condition_variable cv;
+  auto_outpost::Shooter & shooter_;
+  io::CBoard & cboard_;
+  std::optional<Input> latest_;
+  std::mutex mtx_;
+  std::condition_variable cv_;
   std::thread thread_;
-  bool stop;
+  bool stop_;
 
   void run()
   {
-    while (!stop) {
+    while (!stop_) {
       std::optional<Input> input;
       {
-        std::lock_guard<std::mutex> lock(mtx);
-        if (latest) {
-          input = latest;
+        std::lock_guard<std::mutex> lock(mtx_);
+        if (latest_) {
+          input = latest_;
         }
       }
       if (input) {
@@ -87,8 +87,8 @@ private:
         // double interval = std::chrono::duration<double>(now - last_time).count();
         // last_time = now;
         // std::cout << "[决策线程] 频率 = " << 1.0 / interval << " Hz" << std::endl;
-        auto command = shooter.shoot(input->targets, input->t, input->bullet_speed, true, input->ypr);
-        cboard.send(command);
+        auto command = shooter_.shoot(input->targets, input->t, input->bullet_speed, true, input->ypr);
+        cboard_.send(command);
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
