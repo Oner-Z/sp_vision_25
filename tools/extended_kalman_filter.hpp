@@ -11,6 +11,9 @@ class ExtendedKalmanFilter
 public:
   Eigen::VectorXd x;
   Eigen::MatrixXd P;
+  bool use_adaptive_R = false;
+  double smooth = 0.995;  // 平滑系数
+  Eigen::MatrixXd R_adaptive;
 
   ExtendedKalmanFilter() = default;
 
@@ -22,8 +25,7 @@ public:
   Eigen::VectorXd predict(const Eigen::MatrixXd & F, const Eigen::MatrixXd & Q);
 
   Eigen::VectorXd predict(
-    const Eigen::MatrixXd & F, const Eigen::MatrixXd & Q,
-    std::function<Eigen::VectorXd(const Eigen::VectorXd &)> f);
+    const Eigen::MatrixXd & F, const Eigen::MatrixXd & Q, std::function<Eigen::VectorXd(const Eigen::VectorXd &)> f);
 
   Eigen::VectorXd update(
     const Eigen::VectorXd & z, const Eigen::MatrixXd & H, const Eigen::MatrixXd & R,
