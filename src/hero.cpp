@@ -1,8 +1,12 @@
 #include <fmt/core.h>
 
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
+#include <optional>
+#include <thread>
 
 #include "io/camera.hpp"
 #include "io/cboard.hpp"
@@ -19,6 +23,78 @@
 #include "tools/plotter.hpp"
 #include "tools/recorder.hpp"
 using namespace std::chrono;
+
+class CommandExecutor
+{
+public:
+  CommandExecutor(auto_outpost::Shooter & shooter_ref, io::CBoard & cboard_ref)
+  : shooter(shooter_ref), cboard(cboard_ref), stop(false)
+  {
+  }
+
+  void start() { thread_ = std::thread(&CommandExecutor::run, this); }
+
+  void stop_thread()
+  {
+    {
+      std::lock_guard<std::mutex> lock(mtx);
+      stop = true;
+    }
+    cv.notify_all();
+    if (thread_.joinable()) thread_.join();
+  }
+
+  void push(
+    const std::list<auto_aim::Target> & targets, const std::chrono::steady_clock::time_point & t, double bullet_speed,
+    const Eigen::Vector3d & ypr)
+  {
+    std::lock_guard<std::mutex> lock(mtx);
+    latest = {targets, t, bullet_speed, ypr};
+    cv.notify_one();
+  }
+
+private:
+  struct Input
+  {
+    std::list<auto_aim::Target> targets;
+    std::chrono::steady_clock::time_point t;
+
+    double bullet_speed;
+    Eigen::Vector3d ypr;
+  };
+
+  auto_outpost::Shooter & shooter;
+  io::CBoard & cboard;
+  std::optional<Input> latest;
+  std::mutex mtx;
+  std::condition_variable cv;
+  std::thread thread_;
+  bool stop;
+
+  void run()
+  {
+    while (!stop) {
+      std::optional<Input> input;
+      {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (latest) {
+          input = latest;
+          // 不 reset latest，让线程可以继续使用同一份数据执行
+        }
+      }
+      if (input) {
+        // static auto last_time = std::chrono::steady_clock::now();
+        // auto now = std::chrono::steady_clock::now();
+        // double interval = std::chrono::duration<double>(now - last_time).count();
+        // last_time = now;
+        // std::cout << "[决策线程] 频率 = " << 1.0 / interval << " Hz" << std::endl;
+        auto command = shooter.shoot(input->targets, input->t, input->bullet_speed, true, input->ypr);
+        cboard.send(command);
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  }
+};
 
 const std::string keys =
   "{help h usage ? |      | 输出命令行参数说明}"
@@ -55,6 +131,10 @@ int main(int argc, char * argv[])
   auto_aim::Tracker tracker(config_path, solver);
   auto_outpost::Shooter shooter(config_path);
 
+  // 独立决策线程
+  CommandExecutor executor(shooter, cboard);
+  executor.start();
+
   cv::Mat img;
   Eigen::Quaterniond q;
   std::chrono::steady_clock::time_point t;
@@ -75,8 +155,11 @@ int main(int argc, char * argv[])
     auto armors = detector.detect(img);
     Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
     auto targets = tracker.track(armors, t, ypr[0], true, mode);
-    auto command = shooter.shoot(targets, t, cboard.bullet_speed, true, ypr);
-    cboard.send(command);
+
+    // auto command = shooter.shoot(targets, t, cboard.bullet_speed, true, ypr);
+    // cboard.send(command);
+
+    executor.push(targets, t, cboard.bullet_speed, ypr);
 
     if (!debug) continue;
 
@@ -91,7 +174,7 @@ int main(int argc, char * argv[])
         auto image_points = solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
         tools::draw_points(img, image_points, {0, 255, 0});
         tools::draw_text(img, fmt::format("No: {}", armor_id), image_points[0], {0, 255, 255});
-        armor_id ++;
+        armor_id++;
       }
 
       // aimer瞄准位置
@@ -115,7 +198,7 @@ int main(int argc, char * argv[])
       data["z"] = x[4];
       data["vz"] = x[5];
       data["a"] = x[6] * 57.3;
-      data["v"] = sqrt(x[1]*x[1]+x[3]*x[3]);
+      data["v"] = sqrt(x[1] * x[1] + x[3] * x[3]);
       data["w"] = x[7];
       data["r"] = x[8];
       data["l"] = x[9];
@@ -123,8 +206,8 @@ int main(int argc, char * argv[])
       data["last_id"] = target.last_id;
       data["bullet_speed"] = cboard.bullet_speed;
       data["d"] = sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
-      data["command_yaw"] = command.yaw * 57.3;
-      data["command_pitch"] = - command.pitch * 57.3;
+      // data["command_yaw"] = command.yaw * 57.3;
+      // data["command_pitch"] = -command.pitch * 57.3;
     }
     cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
@@ -141,5 +224,6 @@ int main(int argc, char * argv[])
     if (key == 'q') break;
   }
 
+  executor.stop_thread();
   return 0;
 }
