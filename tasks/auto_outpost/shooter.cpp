@@ -290,7 +290,6 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
   // 整车旋转中心的球坐标yaw
   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
 
-  int armor_id;
   int first_id = -1, second_id = -1;
   float min1 = std::numeric_limits<float>::max();
   float min2 = std::numeric_limits<float>::max();
@@ -312,18 +311,41 @@ AimPoint Shooter::choose_aim_point(const auto_aim::Target & target)
     }
   }
 
+  int dmin_first_id = -1, dmin_second_id = -1;
+  float dmin1 = std::numeric_limits<float>::max();
+  float dmin2 = std::numeric_limits<float>::max();
+
+  for (int aim_id = 0; aim_id < armor_num; aim_id++) {
+    float delta =
+      armor_xyza_list[aim_id][0] * armor_xyza_list[aim_id][0] + armor_xyza_list[aim_id][1] * armor_xyza_list[aim_id][1];
+
+    if (delta < dmin1) {
+      // 更新第一小的值，同时把原来的第一小的值变成第二小的值
+      dmin2 = dmin1;
+      dmin_second_id = dmin_first_id;
+
+      dmin1 = delta;
+      dmin_first_id = aim_id;
+    } else if (delta < dmin2) {
+      // 仅更新第二小的值
+      dmin2 = delta;
+      dmin_second_id = aim_id;
+    }
+  }
+
   Eigen::Vector3d xyz1 = armor_xyza_list[first_id].head(3);
   Eigen::Vector3d xyz2 = armor_xyza_list[second_id].head(3);
 
   double yaw1 = std::atan2(xyz1[1], xyz1[0]);
   double yaw2 = std::atan2(xyz2[1], xyz2[0]);
 
+  if (first_id != dmin_first_id && first_id != dmin_second_id) return {true, armor_xyza_list[second_id]};
+
+  if (second_id != dmin_first_id && second_id != dmin_second_id) return {true, armor_xyza_list[first_id]};
+
   if (std::abs(armor_xyza_list[first_id][3] - yaw1) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[second_id]};
 
   if (std::abs(armor_xyza_list[second_id][3] - yaw2) > max_shoot_angle_ / 57.3) return {true, armor_xyza_list[first_id]};
-
-  armor_id =
-    (std::abs(armor_xyza_list[first_id][3] - yaw1) < std::abs(armor_xyza_list[second_id][3] - yaw2)) ? first_id : second_id;
 
   // 锁定模式：防止在两个都呈45度的装甲板之间来回切换
   // 未处于锁定模式时，选择delta_angle绝对值较小（更“正对”机器人）的装甲板，进入锁定模式
