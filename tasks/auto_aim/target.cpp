@@ -99,13 +99,13 @@ void Target::set_w()  // 前哨站独有，用前五帧的结果给一个w，防
   double w_temp;
   Eigen::MatrixXd P0_temp;
 
-  if (std::abs(x[7]) > 0.4) {
+  if (std::abs(x[7]) > 0.1) {
     w_temp = ((x[7] > 0) ? 1 : -1) * 0.8 * M_PI;
-    Eigen::VectorXd new_P0_dig_outpost{{0.01, 0, 0.01, 0, 0.01, 0, 0.4, 0.01, 0.0001, 0, 0}};
+    Eigen::VectorXd new_P0_dig_outpost{{0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.4, 0.01, 0.0001, 0, 0}};
     P0_temp = new_P0_dig_outpost.asDiagonal();
   } else {
     w_temp = 0;
-    Eigen::VectorXd new_P0_dig_outpost{{0.01, 0, 0.01, 0, 0.01, 0, 0.4, 0.01, 0.0001, 0, 0}};
+    Eigen::VectorXd new_P0_dig_outpost{{0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.4, 0.01, 0.0001, 0, 0}};
     P0_temp = new_P0_dig_outpost.asDiagonal();
   }
   Eigen::VectorXd new_x0{{x[0], 0, x[2], 0, x[4], 0, x[6], w_temp, x[8], x[9], x[10]}};
