@@ -128,14 +128,14 @@ io::Command Shooter::shoot(
     auto armors_hit = target_rotate.armor_xyza_list();
     int armor_num = armors_hit.size();
     int sig = ekf_x[7] < 0 ? -1 : +1;
-    double error = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.01 : (std::fabs(ekf_x[7])>5 ? 0.06:0.04));
+    double error = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.005 : (std::fabs(ekf_x[7])>5 ? 0.04:0.02));
     auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
     auto armor_state = target.armor_state;
     nlohmann::json data;
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
         if (
-          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= error) &&
+          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw))<= error) &&
           ((sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) &&
           (std::fabs(armors_hit[aim_id][2] - xyz0[2]) <= 0.01)) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");
