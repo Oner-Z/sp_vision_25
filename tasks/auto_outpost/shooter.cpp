@@ -128,7 +128,7 @@ io::Command Shooter::shoot(
     auto armors_hit = target_rotate.armor_xyza_list();
     int armor_num = armors_hit.size();
     int sig = ekf_x[7] < 0 ? -1 : +1;
-    double error = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.04 : 0.06);
+    double error = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.01 : (std::fabs(ekf_x[7])>5 ? 0.06:0.04));
     auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
     auto armor_state = target.armor_state;
     nlohmann::json data;

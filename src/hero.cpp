@@ -49,7 +49,7 @@ public:
     const Eigen::Vector3d & ypr)
   {
     std::lock_guard<std::mutex> lock(mtx_);
-    latest_ = {targets, t, bullet_speed, ypr};
+    latest_ = {std::list<auto_aim::Target>(targets), t, bullet_speed, ypr};
     cv_.notify_one();
   }
 
@@ -89,6 +89,11 @@ private:
         // std::cout << "[决策线程] 频率 = " << 1.0 / interval << " Hz" << std::endl;
         auto command = shooter_.shoot(input->targets, input->t, input->bullet_speed, true, input->ypr);
         cboard_.send(command);
+        tools::Plotter plotter;
+        nlohmann::json data;
+        data["command_yaw"] = command.yaw * 57.3;
+        data["command_pitch"] = -command.pitch * 57.3;
+        plotter.plot(data);
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
