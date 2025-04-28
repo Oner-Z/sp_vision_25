@@ -4,6 +4,7 @@ project(sp_vision)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(OpenVINO_DIR "/opt/intel/openvino_2023.3.0/runtime/cmake/")
 
 find_package(OpenCV REQUIRED)
 find_package(fmt REQUIRED)
