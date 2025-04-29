@@ -7,3 +7,9 @@ vid_pid: "f622:d13a"
 # 重投影误差: 0.1944px
 camera_matrix: [1295.4665175006589, 0, 655.71498478800618, 0, 1297.2591156991834, 506.21320670125334, 0, 0, 1]
 distort_coeffs: [-0.48599095566724387, 0.23999516531343185, -0.00029018466701866776, -0.00083639963030895752, 0]
+
+control_canid: 0x102
+quaternion_canid: 0x100
+bullet_speed_canid: 0x101
+send_canid: 0xff
+can_interface: "can0"

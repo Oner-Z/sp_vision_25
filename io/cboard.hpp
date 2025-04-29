@@ -29,6 +29,7 @@ class CBoard
 {
 public:
   double bullet_speed;
+  bool control;
   Mode mode;
 
   CBoard(const std::string & config_path);
@@ -49,7 +50,7 @@ private:
   IMUData data_ahead_;
   IMUData data_behind_;
 
-  int quaternion_canid_, bullet_speed_canid_, send_canid_;
+  int quaternion_canid_, bullet_speed_canid_, send_canid_, control_canid_;
 
   void callback(const can_frame & frame);
 

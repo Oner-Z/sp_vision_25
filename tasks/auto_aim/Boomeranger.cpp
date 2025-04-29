@@ -1,13 +1,21 @@
 #include "Boomeranger.hpp"
 
 #include <yaml-cpp/yaml.h>
+
+#include <Eigen/Dense>  // 必须在opencv2/core/eigen.hpp上面
+#include <Eigen/Geometry>
+#include <opencv2/core/eigen.hpp>
 namespace auto_aim
 {
 Boomeranger::Boomeranger(const std::string config_path)
 {
   auto yaml = YAML::LoadFile(config_path);
-  camera_matrix_ = yaml["camera_matrix"].as<std::vector<double>>();
-  distort_coeffs_ = yaml["distort_coeffs"].as<std::vector<double>>();
+  auto camera_matrix_data = yaml["camera_matrix"].as<std::vector<double>>();
+  auto distort_coeffs_data = yaml["distort_coeffs"].as<std::vector<double>>();
+  Eigen::Matrix<double, 3, 3, Eigen::RowMajor> camera_matrix(camera_matrix_data.data());
+  Eigen::Matrix<double, 1, 5> distort_coeffs(distort_coeffs_data.data());
+  cv::eigen2cv(camera_matrix, camera_matrix_);
+  cv::eigen2cv(distort_coeffs, distort_coeffs_);
 }
 bool Boomeranger::isCircle(const std::vector<cv::Point> & contour)  // 判断这个轮廓是不是圆形
 {
@@ -146,7 +154,7 @@ void Boomeranger::solvePnP(
 {
   std::vector<cv::Point2f> img_points{
     lightspot.top, lightspot.right, lightspot.bottom, lightspot.left};
-  cv::solvePnP(lightspot_points, img_points, camera_matrix, distort_coeffs, rvec, tvec);
+  cv::solvePnP(lightspot_points, img_points, camera_matrix_, distort_coeffs_, rvec, tvec);
 }
 
 //

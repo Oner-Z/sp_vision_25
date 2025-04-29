@@ -82,6 +82,8 @@ void CBoard::callback(const can_frame & frame)
   else if (frame.can_id == bullet_speed_canid_) {
     bullet_speed = (int16_t)(frame.data[0] << 8 | frame.data[1]) / 1e2;
     mode = Mode(frame.data[2]);
+  } else if (frame.can_id == control_canid_) {
+    control = (bool)(frame.data[0] << 8 | frame.data[1]);
   }
 }
 
@@ -93,7 +95,7 @@ std::string CBoard::read_yaml(const std::string & config_path)
   quaternion_canid_ = yaml["quaternion_canid"].as<int>();
   bullet_speed_canid_ = yaml["bullet_speed_canid"].as<int>();
   send_canid_ = yaml["send_canid"].as<int>();
-
+  control_canid_ = yaml["control_canid"].as<int>();
   if (!yaml["can_interface"]) {
     throw std::runtime_error("Missing 'can_interface' in YAML configuration.");
   }
