@@ -1,4 +1,7 @@
 #include <fmt/core.h>
+#include <sched.h>
+#include <sys/resource.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <condition_variable>
@@ -23,6 +26,49 @@
 #include "tools/plotter.hpp"
 #include "tools/recorder.hpp"
 using namespace std::chrono;
+
+// 找P核
+// for cpu in /sys/devices/system/cpu/cpu[0-9]*; do
+//   f=$(cat $cpu/cpufreq/cpuinfo_max_freq 2>/dev/null || echo 0)
+//   echo "$(basename $cpu) $f"
+// done | sort -k2 -nr | head
+
+// 把进程绑定到指定的大核集合
+void bind_to_p_cores()
+{
+  cpu_set_t mask;
+  CPU_ZERO(&mask);
+
+  // 假设 CPU 0,1,2,3 是P核（根据你实际机器情况修改）
+  CPU_SET(0, &mask);
+  CPU_SET(1, &mask);
+  CPU_SET(2, &mask);
+  CPU_SET(3, &mask);
+  CPU_SET(4, &mask);
+  CPU_SET(5, &mask);
+  CPU_SET(6, &mask);
+  CPU_SET(7, &mask);
+
+  pid_t pid = getpid();
+  if (sched_setaffinity(pid, sizeof(cpu_set_t), &mask) == -1) {
+    std::cerr << "Failed to set CPU affinity: " << strerror(errno) << std::endl;
+  } else {
+    std::cout << "Successfully bound to P-cores!" << std::endl;
+  }
+}
+
+// 提高进程的优先级
+void elevate_priority()
+{
+  pid_t pid = getpid();
+
+  // -20是最高优先级
+  if (setpriority(PRIO_PROCESS, pid, -20) == -1) {
+    std::cerr << "Failed to set priority: " << strerror(errno) << std::endl;
+  } else {
+    std::cout << "Successfully elevated priority!" << std::endl;
+  }
+}
 
 class CommandExecutor
 {
@@ -110,6 +156,9 @@ const std::string keys =
 
 int main(int argc, char * argv[])
 {
+  bind_to_p_cores();
+  elevate_priority();
+
   tools::Exiter exiter;
   tools::Plotter plotter;
   tools::Recorder recorder;
@@ -146,8 +195,13 @@ int main(int argc, char * argv[])
   auto mode = io::Mode::idle;
   auto last_mode = io::Mode::idle;
 
+  auto last_fps_time = std::chrono::steady_clock::now();
+  int frame_counter = 0;
+  double fps = 0.0;
+
   for (int frame_count = 0; !exiter.exit(); frame_count++) {
     camera.read(img, t);
+
     q = cboard.imu_at(t - 1ms);
     recorder.record(img, q, t);
 
@@ -165,9 +219,20 @@ int main(int argc, char * argv[])
 
     executor.push(targets, t, cboard.bullet_speed, ypr);
 
-    if (!debug) continue;
+    if (!debug) {
+      frame_counter++;
+      auto now = std::chrono::steady_clock::now();
+      double elapsed = std::chrono::duration<double>(now - last_fps_time).count();
+      if (elapsed >= 1.0) {
+        fps = frame_counter / elapsed;
+        frame_counter = 0;
+        last_fps_time = now;
+      }
+      continue;
+    }
 
     nlohmann::json data;
+    tools::draw_text(img, fmt::format("FPS: {:.1f}", fps), {10, 60}, {255, 255, 0});
     tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
     int armor_id = 0;
     if (tracker.state()) {  // tracker.state() && targets.size()
@@ -192,7 +257,7 @@ int main(int argc, char * argv[])
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
-      // x vx y vy z a w r1 r2 h
+      // x vx y vy z vz a w r l h
       // a: angle
       // w: angular velocity
       data["x"] = x[0];
@@ -221,11 +286,21 @@ int main(int argc, char * argv[])
 
     data["gimbal_yaw"] = ypr[0] * 57.3;
     data["gimbal_pitch"] = -ypr[1] * 57.3;
+    data["fps"] = fps;
 
     plotter.plot(data);
 
     auto key = cv::waitKey(10);
     if (key == 'q') break;
+
+    frame_counter++;
+    auto now = std::chrono::steady_clock::now();
+    double elapsed = std::chrono::duration<double>(now - last_fps_time).count();
+    if (elapsed >= 1.0) {
+      fps = frame_counter / elapsed;
+      frame_counter = 0;
+      last_fps_time = now;
+    }
   }
 
   executor.stop_thread();
