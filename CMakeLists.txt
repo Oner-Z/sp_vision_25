@@ -25,7 +25,9 @@ add_subdirectory(tasks/omniperception)
 ####################src###################
 add_executable(auto_aim_debug src/auto_aim_debug.cpp)
 add_executable(auto_aim_thread_debug src/auto_aim_thread_debug.cpp)
+add_executable(dart src/dart.cpp)
 
+target_link_libraries(dart ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io)
 target_link_libraries(auto_aim_debug ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim omniperception tools io)
 target_link_libraries(auto_aim_thread_debug ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim omniperception tools io)
 
