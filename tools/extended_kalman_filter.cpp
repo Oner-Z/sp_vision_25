@@ -1,5 +1,7 @@
 #include "extended_kalman_filter.hpp"
 
+#include <iostream>
+
 #include "tools/plotter.hpp"
 
 namespace tools
@@ -38,6 +40,8 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
   std::function<Eigen::VectorXd(const Eigen::VectorXd &)> h,
   std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract)
 {
+  Eigen::VectorXd x_prior = x;
+
   Eigen::MatrixXd R_used = use_adaptive_R ? R_adaptive : R;
 
   tools::Plotter plotter;
@@ -67,6 +71,34 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
     R_adaptive = smooth * R_adaptive + (1.0 - smooth) * innovation_cov;
   }
 
+  // 新增检验
+  Eigen::MatrixXd S = H * P * H.transpose() + R_used;
+  double nis = residual.transpose() * S.inverse() * residual;
+  double nees = (x - x_prior).transpose() * P.inverse() * (x - x_prior);
+
+  // 卡方检验阈值（自由度=4，取置信水平95%）
+  constexpr double nis_threshold = 0.711;
+  constexpr double nees_threshold = 0.711;
+
+  data["nis_fail"] = 0;
+  data["nees_fail"] = 0;
+
+  if (nis > nis_threshold) nis_count_++, data["nis_fail"] = 1;
+  if (nees > nees_threshold) nees_count_++, data["nees_fail"] = 1;
+  total_count_++;
+  data["nis"] = nis;
+  last_nis = nis;
+  data["nees"] = nees;
+
+  recent_nis_failures.push_back(nis > nis_threshold ? 1 : 0);
+
+  if (recent_nis_failures.size() > window_size) {
+    recent_nis_failures.pop_front();
+  }
+
+  int recent_failures = std::accumulate(recent_nis_failures.begin(), recent_nis_failures.end(), 0);
+
+  data["recent_nis_failures"] = recent_failures / window_size;
   plotter.plot(data);
   return x;
 }

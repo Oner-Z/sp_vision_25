@@ -2,6 +2,7 @@
 #define TOOLS__EXTENDED_KALMAN_FILTER_HPP
 
 #include <Eigen/Dense>
+#include <deque>
 #include <functional>
 
 namespace tools
@@ -38,9 +39,17 @@ public:
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract =
       [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
 
+  std::deque<int> recent_nis_failures;
+  size_t window_size = 10;
+  double last_nis;
+
 private:
   Eigen::MatrixXd I;
   std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add;
+
+  int nees_count_ = 0;
+  int nis_count_ = 0;
+  int total_count_ = 0;
 };
 
 }  // namespace tools
