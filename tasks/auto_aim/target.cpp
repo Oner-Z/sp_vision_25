@@ -1,5 +1,8 @@
 #include "target.hpp"
 
+#include <iostream>
+#include <numeric>
+
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 
@@ -259,6 +262,12 @@ void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t
     tools::logger()->debug("[Target] Target diverged!");
     state_ = LOST;
   }
+
+  // 收敛效果检测：
+  if (std::accumulate(ekf_.recent_nis_failures.begin(), ekf_.recent_nis_failures.end(), 0) / ekf_.window_size >= 0.4) {
+    tools::logger()->debug("[Target] Bad Converge Found!");
+    state_ = LOST;  // todo 可能要换成更好的重启滤波器方法
+  }
 }
 
 void Target::update_ypda(const Armor & armor, int id)
@@ -293,6 +302,8 @@ void Target::update_ypda(const Armor & armor, int id)
 }
 
 Eigen::VectorXd Target::ekf_x() const { return ekf_.x; }
+
+tools::ExtendedKalmanFilter Target::ekf() const { return ekf_; }
 
 std::vector<Eigen::Vector4d> Target::armor_xyza_list() const
 {

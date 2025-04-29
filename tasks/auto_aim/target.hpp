@@ -3,6 +3,8 @@
 
 #include <Eigen/Dense>
 #include <chrono>
+#include <deque>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -33,6 +35,7 @@ public:
   void update(const Armor & armor, std::chrono::steady_clock::time_point t);
 
   Eigen::VectorXd ekf_x() const;
+  tools::ExtendedKalmanFilter ekf() const;
   std::vector<Eigen::Vector4d> armor_xyza_list() const;
 
   bool diverged() const;
