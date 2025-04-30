@@ -3,6 +3,7 @@
 
 #include <condition_variable>
 #include <functional>
+#include <iostream>
 #include <mutex>
 #include <queue>
 
@@ -37,25 +38,57 @@ public:
 
     not_empty_condition_.wait(lock, [this] { return !queue_.empty(); });
 
+    if (queue_.empty()) {
+      std::cerr << "Error: Attempt to pop from an empty queue." << std::endl;
+      return;
+    }
+
     value = queue_.front();
     queue_.pop();
   }
 
-  bool pop_no_wait(T & value)
+  T pop()
   {
     std::unique_lock<std::mutex> lock(mutex_);
 
-    if (queue_.empty()) return false;
-    value = queue_.front();
-    queue_.pop();
+    not_empty_condition_.wait(lock, [this] { return !queue_.empty(); });
 
-    return true;
+    T value = std::move(queue_.front());
+    queue_.pop();
+    return std::move(value);
+  }
+
+  void back(T & value)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (queue_.empty()) {
+      std::cerr << "Error: Attempt to access the back of an empty queue." << std::endl;
+      return;
+    }
+
+    value = queue_.back();
+  }
+
+  bool empty()
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return queue_.empty();
+  }
+
+  void clear()
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    while (!queue_.empty()) {
+      queue_.pop();
+    }
+    not_empty_condition_.notify_all();  // 如果其他线程正在等待队列不为空，这样可以唤醒它们
   }
 
 private:
   std::queue<T> queue_;
   size_t max_size_;
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::condition_variable not_empty_condition_;
   std::function<void(void)> full_handler_;
 };

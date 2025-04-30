@@ -18,7 +18,7 @@ namespace multithread
 class MultiThreadDetector
 {
 public:
-  MultiThreadDetector(const std::string & config_path);
+  MultiThreadDetector(const std::string & config_path, bool debug);
 
   void push(cv::Mat img, std::chrono::steady_clock::time_point t);
 
@@ -29,6 +29,7 @@ public:
 private:
   cv::Rect roi_;
   cv::Point2f offset_;
+  bool use_roi_;
   ov::Core core_;
   ov::CompiledModel compiled_model_;
   std::string device_;

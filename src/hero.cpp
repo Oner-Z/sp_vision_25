@@ -158,7 +158,7 @@ const std::string keys =
 int main(int argc, char * argv[])
 {
   bind_to_p_cores();
-  elevate_priority();
+  // elevate_priority();
 
   tools::Exiter exiter;
   tools::Plotter plotter;
@@ -175,16 +175,23 @@ int main(int argc, char * argv[])
   auto gamma = cli.get<double>("gamma");
   auto config_path = cli.get<std::string>(0);
 
+  tools::logger()->info("Initialization Start");
   io::CBoard cboard(can);
+  tools::logger()->info("Cboard Start Done");
   io::Camera camera(config_path);
+  tools::logger()->info("Camera Start Done");
 
-  auto_aim::Classifier classifier(config_path);
+  // auto_aim::Classifier classifier(config_path);
   // auto_aim::Detector detector(config_path, debug);
   // auto_aim::YOLOV8 detector(config_path, debug);
-  auto_aim::multithread::MultiThreadDetector detector(config_path);
+  auto_aim::multithread::MultiThreadDetector detector(config_path, debug);
+  tools::logger()->info("Detector Start Done");
   auto_aim::Solver solver(config_path);
+  tools::logger()->info("Solver Start Done");
   auto_aim::Tracker tracker(config_path, solver);
+  tools::logger()->info("Tracker Start Done");
   auto_outpost::Shooter shooter(config_path);
+  tools::logger()->info("Shooter Start Done");
 
   // 独立读图线程和独立识别线程
   auto detect_thread = std::thread([&]() {
@@ -196,13 +203,17 @@ int main(int argc, char * argv[])
       detector.push(img, t);
     }
   });
+  tools::logger()->info("Seperate GetImage and Detector Thread Done");
 
   // 独立决策线程
   CommandExecutor executor(shooter, cboard);
   executor.start();
+  tools::logger()->info("Seperate Command Thread Done");
 
-  cv::Mat img;
   Eigen::Quaterniond q;
+
+  std::list<auto_aim::Armor> armors;
+  cv::Mat img;
   std::chrono::steady_clock::time_point t;
 
   auto mode = io::Mode::idle;
@@ -212,17 +223,19 @@ int main(int argc, char * argv[])
   int frame_counter = 0;
   double fps = 0.0;
 
+  nlohmann::json data;
+
+  tools::logger()->info("AUTO AIM START");
   for (int frame_count = 0; !exiter.exit(); frame_count++) {
-    // todo 可能想要最快就是放弃recorder，这里就不读取图片。需要对比
-    if (debug) {
-      auto [img, armors, t] = detector.debug_pop();
-    } else {
-      auto [armors, t] = detector.pop();
-    }
-    // camera.read(img, t);
+    // if (debug) {
+    //   auto [img, armors, t] = detector.debug_pop();
+    // } else {
+    //   auto [armors, t] = detector.pop();
+    // }
+    auto [img, armors, t] = detector.debug_pop();  // 这是个构造
 
     q = cboard.imu_at(t - 1ms);
-    recorder.record(img, q, t);
+    if (!img.empty()) recorder.record(img, q, t);
 
     mode = cboard.mode;  // TODO
     if (last_mode != mode) tools::logger()->info("Switch to {}", io::MODES[mode]);
@@ -237,6 +250,8 @@ int main(int argc, char * argv[])
     // cboard.send(command);
 
     executor.push(targets, t, cboard.bullet_speed, ypr);
+    data["fps"] = fps;
+    plotter.plot(data);
 
     if (!debug) {
       frame_counter++;
@@ -250,7 +265,6 @@ int main(int argc, char * argv[])
       continue;
     }
 
-    nlohmann::json data;
     tools::draw_text(img, fmt::format("FPS: {:.1f}", fps), {10, 60}, {255, 255, 0});
     tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
     int armor_id = 0;
@@ -297,6 +311,7 @@ int main(int argc, char * argv[])
       // data["command_yaw"] = command.yaw * 57.3;
       // data["command_pitch"] = -command.pitch * 57.3;
     }
+
     cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("reprojection", img);
 
@@ -305,9 +320,6 @@ int main(int argc, char * argv[])
 
     data["gimbal_yaw"] = ypr[0] * 57.3;
     data["gimbal_pitch"] = -ypr[1] * 57.3;
-    data["fps"] = fps;
-
-    plotter.plot(data);
 
     auto key = cv::waitKey(10);
     if (key == 'q') break;
@@ -320,6 +332,7 @@ int main(int argc, char * argv[])
       frame_counter = 0;
       last_fps_time = now;
     }
+    plotter.plot(data);
   }
 
   executor.stop_thread();

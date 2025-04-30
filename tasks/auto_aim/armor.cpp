@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <opencv2/opencv.hpp>
 
 namespace auto_aim

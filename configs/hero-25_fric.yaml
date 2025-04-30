@@ -14,7 +14,7 @@ R_camera2gimbal: [-0.011370369584798819, -0.10226202798740516, 0.994692511446330
 t_camera2gimbal: [0.19149359689076095, -0.017613759549484811, 0.10561370751111775]
 
 
-model: assets/tiny_resnet.onnx
+# model: assets/tiny_resnet.onnx
 
 threshold: 150
 max_angle_error: 45 # degree
@@ -45,11 +45,15 @@ vid_pid: "2bdf:0001"
 
 #####-----神经网络参数-----#####
 classify_model: assets/tiny_resnet.onnx
-model_path: assets/last.xml
+yolo11_model_path: assets/yolo11.xml
+yolov8_model_path: assets/yolov8.xml
 device: AUTO
 min_confidence: 0.8
+yolo_name: yolov5
+yolov5_model_path: assets/yolov5.xml
 
-#####-----新增的ROI-----#####
+#####-----ROI-----#####
+use_roi: true
 roi:
   x: 240
   y: 0

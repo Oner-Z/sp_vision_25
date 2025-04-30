@@ -182,7 +182,6 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       if (armor != NULL) {
         state_ = DETECTING;
         detect_count_ = 1;
-        // tools::logger()->debug("114514");
         set_target(armor, t);
       }
       break;

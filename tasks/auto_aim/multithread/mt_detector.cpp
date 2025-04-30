@@ -2,17 +2,21 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <iostream>
+
 namespace auto_aim
 {
 namespace multithread
 {
 
-MultiThreadDetector::MultiThreadDetector(const std::string & config_path) : yolo_(config_path, false)
+MultiThreadDetector::MultiThreadDetector(const std::string & config_path, bool debug) : yolo_(config_path, debug)
 {
   auto yaml = YAML::LoadFile(config_path);
   auto yolo_name = yaml["yolo_name"].as<std::string>();
   auto model_path = yaml[yolo_name + "_model_path"].as<std::string>();
   device_ = yaml["device"].as<std::string>();
+  use_roi_ = yaml["use_roi"].as<bool>();
+  std::cout << "use roi: " << use_roi_ << std::endl;
   int x = 0, y = 0, width = 0, height = 0;
   x = yaml["roi"]["x"].as<int>();
   y = yaml["roi"]["y"].as<int>();
@@ -20,14 +24,6 @@ MultiThreadDetector::MultiThreadDetector(const std::string & config_path) : yolo
   height = yaml["roi"]["height"].as<int>();
   std::cout << "ROI: x=" << x << ", y=" << y << ", width=" << width << ", height=" << height << std::endl;
   roi_ = cv::Rect(x, y, width, height);
-  offset_ = cv::Point2f(x, y);
-
-  if (roi_.width == -1) {  // -1 表示该维度不裁切
-    roi_.width = raw_img.cols;
-  }
-  if (roi_.height == -1) {  // -1 表示该维度不裁切
-    roi_.height = raw_img.rows;
-  }
 
   auto model = core_.read_model(model_path);
   ov::preprocess::PrePostProcessor ppp(model);
@@ -55,7 +51,12 @@ MultiThreadDetector::MultiThreadDetector(const std::string & config_path) : yolo
 
 void MultiThreadDetector::push(cv::Mat raw_img, std::chrono::steady_clock::time_point t)
 {
-  auto img = raw_img(roi_);
+  cv::Mat img;
+  if (use_roi_) {
+    img = raw_img(roi_);
+  } else {
+    img = raw_img;
+  }
 
   auto x_scale = static_cast<double>(640) / img.rows;
   auto y_scale = static_cast<double>(640) / img.cols;
@@ -79,7 +80,13 @@ void MultiThreadDetector::push(cv::Mat raw_img, std::chrono::steady_clock::time_
 
 std::tuple<std::list<Armor>, std::chrono::steady_clock::time_point> MultiThreadDetector::pop()
 {
-  auto [img, t, infer_request] = queue_.pop();
+  auto [raw_img, t, infer_request] = queue_.pop();
+  cv::Mat img;
+  if (use_roi_) {
+    img = raw_img(roi_);
+  } else {
+    img = raw_img;
+  }
   infer_request.wait();
 
   // postprocess
@@ -89,14 +96,20 @@ std::tuple<std::list<Armor>, std::chrono::steady_clock::time_point> MultiThreadD
   auto x_scale = static_cast<double>(640) / img.rows;
   auto y_scale = static_cast<double>(640) / img.cols;
   auto scale = std::min(x_scale, y_scale);
-  auto armors = yolo_.postprocess(scale, output, img, 0);  //暂不支持ROI
+  auto armors = yolo_.postprocess(scale, output, raw_img, 0);
 
   return {std::move(armors), t};
 }
 
 std::tuple<cv::Mat, std::list<Armor>, std::chrono::steady_clock::time_point> MultiThreadDetector::debug_pop()
 {
-  auto [img, t, infer_request] = queue_.pop();
+  auto [raw_img, t, infer_request] = queue_.pop();
+  cv::Mat img;
+  if (use_roi_) {
+    img = raw_img(roi_);
+  } else {
+    img = raw_img;
+  }
   infer_request.wait();
 
   // postprocess
@@ -106,9 +119,9 @@ std::tuple<cv::Mat, std::list<Armor>, std::chrono::steady_clock::time_point> Mul
   auto x_scale = static_cast<double>(640) / img.rows;
   auto y_scale = static_cast<double>(640) / img.cols;
   auto scale = std::min(x_scale, y_scale);
-  auto armors = yolo_.postprocess(scale, output, img, 0);  //暂不支持ROI
+  auto armors = yolo_.postprocess(scale, output, raw_img, 0);
 
-  return {img, std::move(armors), t};
+  return {raw_img, std::move(armors), t};
 }
 
 }  // namespace multithread
