@@ -15,6 +15,7 @@
 #include "io/cboard.hpp"
 #include "tasks/auto_aim/classifier.hpp"
 #include "tasks/auto_aim/detector.hpp"
+#include "tasks/auto_aim/multithread/mt_detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
 #include "tasks/auto_aim/yolov8.hpp"
@@ -179,10 +180,22 @@ int main(int argc, char * argv[])
 
   auto_aim::Classifier classifier(config_path);
   // auto_aim::Detector detector(config_path, debug);
-  auto_aim::YOLOV8 detector(config_path, debug);
+  // auto_aim::YOLOV8 detector(config_path, debug);
+  auto_aim::multithread::MultiThreadDetector detector(config_path);
   auto_aim::Solver solver(config_path);
   auto_aim::Tracker tracker(config_path, solver);
   auto_outpost::Shooter shooter(config_path);
+
+  // 独立读图线程和独立识别线程
+  auto detect_thread = std::thread([&]() {
+    cv::Mat img;
+    std::chrono::steady_clock::time_point t;
+
+    while (!exiter.exit()) {
+      camera.read(img, t);
+      detector.push(img, t);
+    }
+  });
 
   // 独立决策线程
   CommandExecutor executor(shooter, cboard);
@@ -200,7 +213,13 @@ int main(int argc, char * argv[])
   double fps = 0.0;
 
   for (int frame_count = 0; !exiter.exit(); frame_count++) {
-    camera.read(img, t);
+    // todo 可能想要最快就是放弃recorder，这里就不读取图片。需要对比
+    if (debug) {
+      auto [img, armors, t] = detector.debug_pop();
+    } else {
+      auto [armors, t] = detector.pop();
+    }
+    // camera.read(img, t);
 
     q = cboard.imu_at(t - 1ms);
     recorder.record(img, q, t);
@@ -210,7 +229,7 @@ int main(int argc, char * argv[])
     last_mode = mode;
 
     solver.set_R_gimbal2world(q);
-    auto armors = detector.detect(img);
+    // auto armors = detector.detect(img);
     Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
     auto targets = tracker.track(armors, t, ypr[0], true, mode);
 
