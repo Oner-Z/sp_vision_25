@@ -34,6 +34,7 @@ private:
   ov::Core core_;
   ov::CompiledModel compiled_model_;
 
+  bool use_roi_;
   cv::Rect roi_;
   cv::Point2f offset_;
 
