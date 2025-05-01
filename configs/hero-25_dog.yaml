@@ -45,6 +45,7 @@ vid_pid: "2bdf:0001"
 
 #####-----神经网络参数-----#####
 classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
 yolo11_model_path: assets/yolo11.xml
 yolov8_model_path: assets/yolov8.xml
 device: GPU
@@ -53,7 +54,7 @@ yolo_name: yolov5
 yolov5_model_path: assets/yolov5.xml
 
 #####-----ROI-----#####
-use_roi: false
+use_roi: true
 roi:
   x: 0
   y: 0

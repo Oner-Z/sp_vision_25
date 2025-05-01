@@ -63,7 +63,7 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
     tools::logger()->warn("Empty img!, camera drop!");
     return std::list<Armor>();
   }
-  cv::Mat & bgr_img;
+  cv::Mat bgr_img;
   if (use_roi_) {
     if (roi_.width == -1) {  // -1 表示该维度不裁切
       roi_.width = raw_img.cols;
@@ -158,6 +158,12 @@ std::list<Armor> YOLOV8::parse(double scale, cv::Mat & output, const cv::Mat & b
   }
 
   for (auto it = armors.begin(); it != armors.end();) {
+    // std::vector<cv::Point> int_points(it->points.begin(), it->points.end());
+    // std::vector<std::vector<cv::Point>> contours = {int_points};
+    // cv::drawContours(bgr_img, contours, -1, {0, 255, 0}, 3);
+    // cv::imshow("temp", bgr_img);
+    // cv::waitKey(10);
+
     it->pattern = get_pattern(bgr_img, *it);
     classifier_.classify(*it);
 
@@ -183,9 +189,9 @@ std::list<Armor> YOLOV8::parse(double scale, cv::Mat & output, const cv::Mat & b
 
 bool YOLOV8::check_name(const Armor & armor) const
 {
-  auto name_ok = armor.name != ArmorName::not_armor;
+  auto name_ok = (armor.name != ArmorName::not_armor);
   // auto name_ok = (armor.name == ArmorName::one) || (armor.name == ArmorName::three) || (armor.name == ArmorName::sentry);
-  auto confidence_ok = armor.confidence > min_confidence_;
+  auto confidence_ok = (armor.confidence > min_confidence_);
 
   // 保存不确定的图案，用于分类器的迭代
   if (name_ok && !confidence_ok) save(armor);
@@ -281,11 +287,11 @@ cv::Mat YOLOV8::get_pattern(const cv::Mat & bgr_img, const Armor & armor) const
   // std::cout << to_points << std::endl;
   // std::cout << "-----------------------------------" << std::endl;
 
-  // 进行透视变换
+  // 进行透视变换 todo: 是错的！！！！！
   auto transform = cv::getPerspectiveTransform(from_points, to_points);
-  cv::warpPerspective(armor_img, armor_img, transform, cv::Size(warp_w, warp_h));
+  // cv::warpPerspective(armor_img, armor_img, transform, cv::Size(warp_w, warp_h));
   // cv::imshow("armor Image", armor_img);
-  // cv::waitKey(1);  // 等待用户按键
+  // cv::waitKey(5);  // 等待用户按键
   return armor_img;
 }
 
