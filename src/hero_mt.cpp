@@ -183,8 +183,8 @@ int main(int argc, char * argv[])
 
   // auto_aim::Classifier classifier(config_path);
   // auto_aim::Detector detector(config_path, debug);
-  auto_aim::YOLOV8 detector(config_path, debug);
-  // auto_aim::multithread::MultiThreadDetector detector(config_path, debug);
+  // auto_aim::YOLOV8 detector(config_path, debug);
+  auto_aim::multithread::MultiThreadDetector detector(config_path, debug);
   tools::logger()->info("Detector Start Done");
   auto_aim::Solver solver(config_path);
   tools::logger()->info("Solver Start Done");
@@ -194,16 +194,16 @@ int main(int argc, char * argv[])
   tools::logger()->info("Shooter Start Done");
 
   // 独立读图线程和独立识别线程
-  // auto detect_thread = std::thread([&]() {
-  //   cv::Mat img;
-  //   std::chrono::steady_clock::time_point t;
+  auto detect_thread = std::thread([&]() {
+    cv::Mat img;
+    std::chrono::steady_clock::time_point t;
 
-  //   while (!exiter.exit()) {
-  //     camera.read(img, t);
-  //     detector.push(img, t);
-  //   }
-  // });
-  // tools::logger()->info("Seperate GetImage and Detector Thread Done");
+    while (!exiter.exit()) {
+      camera.read(img, t);
+      detector.push(img, t);
+    }
+  });
+  tools::logger()->info("Seperate GetImage and Detector Thread Done");
 
   // 独立决策线程
   CommandExecutor executor(shooter, cboard);
@@ -212,7 +212,7 @@ int main(int argc, char * argv[])
 
   Eigen::Quaterniond q;
 
-  // std::list<auto_aim::Armor> armors;
+  std::list<auto_aim::Armor> armors;
   cv::Mat img;
   std::chrono::steady_clock::time_point t;
 
@@ -232,8 +232,7 @@ int main(int argc, char * argv[])
     // } else {
     //   auto [armors, t] = detector.pop();
     // }
-    // auto [img, armors, t] = detector.debug_pop();  // 这是个构造
-    camera.read(img, t);
+    auto [img, armors, t] = detector.debug_pop();  // 这是个构造
 
     q = cboard.imu_at(t - 1ms);
     if (!img.empty()) recorder.record(img, q, t);
@@ -243,9 +242,7 @@ int main(int argc, char * argv[])
     last_mode = mode;
 
     solver.set_R_gimbal2world(q);
-    // tools::logger()->debug("114514");
-    auto armors = detector.detect(img);
-    // tools::logger()->debug("1919810");
+    // auto armors = detector.detect(img);
     Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
     auto targets = tracker.track(armors, t, ypr[0], true, mode);
 
