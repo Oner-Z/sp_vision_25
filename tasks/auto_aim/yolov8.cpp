@@ -289,7 +289,7 @@ cv::Mat YOLOV8::get_pattern(const cv::Mat & bgr_img, const Armor & armor) const
 
   // 进行透视变换 todo: 是错的！！！！！
   auto transform = cv::getPerspectiveTransform(from_points, to_points);
-  // cv::warpPerspective(armor_img, armor_img, transform, cv::Size(warp_w, warp_h));
+  cv::warpPerspective(armor_img, armor_img, transform, cv::Size(warp_w, warp_h));
   // cv::imshow("armor Image", armor_img);
   // cv::waitKey(5);  // 等待用户按键
   return armor_img;

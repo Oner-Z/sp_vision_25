@@ -35,11 +35,11 @@ pitch_offset: 0.9 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
-shoot_delay: 0.25 #0.52
+shoot_delay: 0.08 #0.52
 mouse_to_fire: 0.145
 
 camera_name: "hikrobot"
-exposure_ms: 3.5
+exposure_ms: 2.5
 gain: 16.5
 vid_pid: "2bdf:0001"
 
