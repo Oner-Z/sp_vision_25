@@ -40,7 +40,7 @@ public:
       [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
 
   std::deque<int> recent_nis_failures;
-  size_t window_size = 10;
+  size_t window_size = 100;
   double last_nis;
 
 private:

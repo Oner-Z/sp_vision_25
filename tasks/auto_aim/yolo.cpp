@@ -2,6 +2,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <iostream>
+
 #include "yolos/yolo11.hpp"
 #include "yolos/yolov5.hpp"
 #include "yolos/yolov8.hpp"

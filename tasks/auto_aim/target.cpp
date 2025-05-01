@@ -182,7 +182,6 @@ int Target::transition(const Armor * armor, std::chrono::steady_clock::time_poin
       if (armor != NULL) {
         state_ = DETECTING;
         detect_count_ = 1;
-        // tools::logger()->debug("114514");
         set_target(armor, t);
       }
       break;
@@ -264,7 +263,7 @@ void Target::update(const Armor & armor, std::chrono::steady_clock::time_point t
   }
 
   // 收敛效果检测：
-  if (std::accumulate(ekf_.recent_nis_failures.begin(), ekf_.recent_nis_failures.end(), 0) / ekf_.window_size >= 0.4) {
+  if (std::accumulate(ekf_.recent_nis_failures.begin(), ekf_.recent_nis_failures.end(), 0) / ekf_.window_size >= 0.08) {
     tools::logger()->debug("[Target] Bad Converge Found!");
     state_ = LOST;  // todo 可能要换成更好的重启滤波器方法
   }
