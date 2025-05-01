@@ -29,7 +29,7 @@ while true; do
     sleep 1
 
     # 启动程序（后台运行）
-    ./build/hero ./configs/hero-25_fric.yaml 2>&1 &
+    ./build/hero ./configs/hero-25_dog.yaml 2>&1 &
 
   else
     # 进程运行正常时重置崩溃计数器
