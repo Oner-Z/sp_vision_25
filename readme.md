@@ -28,7 +28,8 @@
         libyaml-cpp-dev \
         libusb-1.0-0-dev \
         nlohmann-json3-dev \
-        screen
+        screen \
+        libceres-dev
     ```
     install openvino
     ```

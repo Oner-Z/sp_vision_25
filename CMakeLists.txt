@@ -13,6 +13,7 @@ find_package(spdlog REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(OpenVINO REQUIRED)
+find_package(Ceres REQUIRED)
 
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -48,7 +49,7 @@ target_link_libraries(auto_buff_test ${OpenCV_LIBS} openvino::runtime fmt::fmt y
 # target_link_libraries(fix_video ${OpenCV_LIBS} fmt::fmt tools)
 
 add_executable(auto_buff_debug src/auto_buff_debug.cpp)
-target_link_libraries(auto_buff_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools io)
+target_link_libraries(auto_buff_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools io ${CERES_LIBRARIES})
 
 add_executable(test examples/test.cpp)
 target_link_libraries(test ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools)
