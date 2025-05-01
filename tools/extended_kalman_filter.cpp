@@ -1,6 +1,7 @@
 #include "extended_kalman_filter.hpp"
 
 #include <iostream>
+#include <numeric>
 
 #include "tools/plotter.hpp"
 
@@ -97,8 +98,8 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
   }
 
   int recent_failures = std::accumulate(recent_nis_failures.begin(), recent_nis_failures.end(), 0);
-
-  data["recent_nis_failures"] = recent_failures / window_size;
+  double recent_rate = static_cast<double>(recent_failures) / recent_nis_failures.size();
+  data["recent_nis_failures"] = recent_rate;
   plotter.plot(data);
   return x;
 }
