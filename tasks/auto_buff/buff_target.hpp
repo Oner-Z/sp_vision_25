@@ -99,6 +99,7 @@ class BigTarget : public Target
 {
 public:
   BigTarget(); 
+  BigTarget(bool debug) : debug_(debug) {};
 
   // 不拷贝
   BigTarget(const BigTarget& other);                  // 拷贝构造
@@ -107,7 +108,12 @@ public:
   void get_target(
     const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
 
+  void get_target_by_fitter(
+    const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp);
+
   void predict(double dt) override;
+
+  void predict_by_fitter(double dt);
 
 private:
   void init(double nowtime, const PowerRune & p) override;
@@ -130,6 +136,10 @@ private:
   const int MIN_FIT_DATA_SIZE = 20;  // 最小拟合数据量
   const int MAX_FIT_DATA_SIZE = 1200;  // 最大拟合数据量
 
+  double last_angle_ = 0;
+  int total_shift_ = 0;
+
+  bool debug_ = false;
 };
 
 /**

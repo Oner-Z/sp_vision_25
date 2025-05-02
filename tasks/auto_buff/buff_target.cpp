@@ -4,7 +4,7 @@ namespace auto_buff
 {
 std::atomic<bool> STOP_THREAD(false);
 std::atomic<bool> VALID_PARAMS(false);
-extern std::mutex MUTEX;
+std::mutex MUTEX;
 
 ///voter
 
@@ -423,6 +423,50 @@ void BigTarget::get_target(
   }
 }
 
+void BigTarget::get_target_by_fitter(const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp)
+{
+  // 如果没有识别，退出函数
+  static int lost_cn = 0;
+  if (!p.has_value()) {
+    unsolvable_ = true;
+    lost_cn++;
+    return;
+  }
+
+  static std::chrono::steady_clock::time_point start_timestamp = timestamp;
+  auto time_gap = tools::delta_time(timestamp, start_timestamp);
+
+  // init
+  if (first_in_) {
+    unsolvable_ = true;
+    first_in_ = false;
+  }
+
+  // 处理识别时间间隔过大
+  if (lost_cn > 6) {
+    unsolvable_ = true;
+    tools::logger()->debug("[Target] 丢失buff");
+    lost_cn = 0;
+    first_in_ = true;
+    return;
+  }
+
+  auto power_rune = p.value();
+  // 获取拟合数据
+  double now_angle = power_rune.ypr_in_world[2] * 57.3;
+  voter.vote(last_angle_, now_angle);  // 计算旋转方向
+  double delta_angle = now_angle - last_angle_;
+  last_angle_ = now_angle;
+  int shift =  std::round(delta_angle / 72);
+  total_shift_ += shift;
+  double delta_angle_rel = now_angle - total_shift_ * 72;
+  double time = tools::delta_time(timestamp, start_timestamp);
+  
+  std::unique_lock lock(mutex_);
+  fit_data_.emplace_back(time, std::abs(delta_angle_rel));
+
+}
+
 void BigTarget::predict(double dt)
 {
   // 预测下一个状态
@@ -478,6 +522,11 @@ void BigTarget::predict(double dt)
   };
   // clang-format on
   ekf_.predict(A_, Q_, f);
+}
+
+void BigTarget::predict_by_fitter(double dt)
+{
+  
 }
 
 void BigTarget::init(double nowtime, const PowerRune & p)
@@ -743,29 +792,29 @@ bool BigTarget::fitOnce() {
 void BigTarget::fit() {
   decltype(fit_data_) fitData;
   while (STOP_THREAD.load() == false) {
-      {
-          std::shared_lock lock(mutex_);
-          fitData = fit_data_;
-      }
-      // 数据量过少时，直接返回
-      if (fit_data_.size() < (size_t)MIN_FIT_DATA_SIZE) {
-          continue;
-      }
-      bool result = fitOnce();
-      VALID_PARAMS.store(result);
-#if CONSOLE_OUTPUT >= 1
+    {
+      std::shared_lock lock(mutex_);
+      fitData = fit_data_;
+    }
+    // 数据量过少时，直接返回
+    if (fit_data_.size() < (size_t)MIN_FIT_DATA_SIZE) {
+      continue;
+    }
+    bool result = fitOnce();
+    VALID_PARAMS.store(result);
+    if(debug_) {
       MUTEX.lock();
       if (result == true) {
-          std::cout << "params: ";
-          std::for_each(m_params.begin(), m_params.end(), [](auto &&it) { std::cout << it << " "; });
-          std::cout << std::endl;
+        std::cout << "params: ";
+        std::for_each(params_.begin(), params_.end(), [](auto &&it) { std::cout << it << " "; });
+        std::cout << std::endl;
       }
       MUTEX.unlock();
-#endif
-      if (fit_data_.size() > (size_t)MAX_FIT_DATA_SIZE) {
-          fit_data_.erase(fit_data_.begin(), fit_data_.begin() + fit_data_.size() / 2);
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(int(1e4 / FPS)));
+    }
+    if (fit_data_.size() > (size_t)MAX_FIT_DATA_SIZE) {
+      fit_data_.erase(fit_data_.begin(), fit_data_.begin() + fit_data_.size() / 2);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(1e4 / FPS)));
   }
 }
 
