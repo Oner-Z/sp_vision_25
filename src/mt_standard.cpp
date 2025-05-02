@@ -60,6 +60,7 @@ int main(int argc, char * argv[])
   auto last_mode = io::Mode::idle;
 
   while (!exiter.exit()) {
+    /// 自瞄核心逻辑
     auto [armors, t] = detector.pop();
     Eigen::Quaterniond q = cboard.imu_at(t - 1ms);
     mode = cboard.mode;
