@@ -71,6 +71,16 @@ int main(int argc, char * argv[])
 
     auto command = aimer.aim(target_copy, t, cboard.bullet_speed, true);
 
+    // 临时性安全措施
+    Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+    double gimbal_yaw = ypr[0];
+    double gimbal_pitch = -ypr[1];
+    if (std::abs(command.yaw-gimbal_yaw)*57.3>80 || std::abs(command.pitch-gimbal_pitch)*57.3>40) {
+      command.pitch = gimbal_pitch;
+      command.yaw = gimbal_yaw;
+      tools::logger()->warn("command angle too big!");
+    }
+
     cboard.send(command);
 
     // -------------- 调试输出 --------------
