@@ -21,8 +21,8 @@
 #include "tools/recorder.hpp"
 
 const std::string keys =
-"{help h usage ? |                        | 输出命令行参数说明}"
-"{@config-path   | configs/sentry.yaml | 位置参数，yaml配置文件路径 }";
+  "{help h usage ? |                        | 输出命令行参数说明}"
+  "{@config-path   | configs/sentry.yaml | 位置参数，yaml配置文件路径 }";
 
 using namespace std::chrono;
 
@@ -64,7 +64,7 @@ int main(int argc, char * argv[])
 
   while (!exiter.exit()) {
     /// 自瞄核心逻辑
-    auto [img,armors, t] = detector.debug_pop();
+    auto [img, armors, t] = detector.debug_pop();
     Eigen::Quaterniond q = cboard.imu_at(t - 1ms);
     mode = cboard.mode;
 
@@ -138,6 +138,7 @@ int main(int argc, char * argv[])
       data["r"] = x[8];
       data["l"] = x[9];
       data["h"] = x[10];
+      data["filtered_w"] = target.omega().has_value() ? target.omega().value() : 0;
       data["last_id"] = target.last_id;
     }
 
