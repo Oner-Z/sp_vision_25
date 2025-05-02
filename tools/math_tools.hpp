@@ -119,6 +119,24 @@ inline double angle2Radian(double angle) noexcept { return angle * CV_PI / 180; 
  */
 inline double radian2Angle(double radian) noexcept { return radian * 180 / CV_PI; }
 
+/**
+ * @brief 判断某个值是否在一个范围内。
+ * @tparam T
+ * @param[in] val           判断的值
+ * @param[in] lower         下限
+ * @param[in] upper         上限
+ * @return true
+ * @return false
+ */
+template <typename T>
+constexpr inline bool inRange(T val, T lower, T upper) {
+    if (lower > upper) {
+        std::swap(lower, upper);
+    }
+    return val >= lower && val <= upper;
+}
+
+
 }  // namespace tools
 
 #endif  // TOOLS__MATH_TOOLS_HPP
