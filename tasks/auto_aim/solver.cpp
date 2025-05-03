@@ -163,7 +163,8 @@ void Solver::solve(Armor & armor) const
                      armor.name == ArmorName::five);
   if (is_balance) return;
 
-  optimize_yaw(armor);
+  auto lsqr = optimize_by_least_squares(armor);
+  if (!lsqr) optimize_yaw(armor);
 }
 
 std::vector<cv::Point2f> Solver::reproject_armor(
@@ -257,15 +258,21 @@ bool Solver::optimize_by_least_squares(Armor & armor) const
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::DENSE_QR;
   options.minimizer_progress_to_stdout = false;
+  options.num_threads = 4;                     // 设置线程数
+  options.max_solver_time_in_seconds = 0.002;  //最大求解时间2ms
 
+  // 执行求解
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
 
-  // 更新 armor 结构
-  armor.ypr_in_world[0] = yaw;
-  armor.xyz_in_world = Eigen::Vector3d(pos[0], pos[1], pos[2]);
+  // 判断收敛
+  if (summary.termination_type == ceres::CONVERGENCE) {
+    armor.ypr_in_world[0] = yaw;
+    armor.xyz_in_world = Eigen::Vector3d(pos[0], pos[1], pos[2]);
+    return true;
+  }
 
-  return summary.IsSolutionUsable();
+  return false;
 }
 
 double Solver::SJTU_cost(
