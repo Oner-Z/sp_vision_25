@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.16)
 set(OpenVINO_DIR "/opt/intel/openvino_2023.3.0/runtime/cmake")
 
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+find_package(Ceres REQUIRED)
+
+include_directories(${CERES_INCLUDE_DIRS})
 
 add_library(auto_aim OBJECT 
     armor.cpp
@@ -22,4 +25,4 @@ add_library(auto_aim OBJECT
     multithread/mt_detector.cpp
 )
 
-target_link_libraries(auto_aim io openvino::runtime)
+target_link_libraries(auto_aim io openvino::runtime ${CERES_LIBRARIES})

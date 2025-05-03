@@ -1,5 +1,7 @@
 #include "solver.hpp"
 
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
 #include <yaml-cpp/yaml.h>
 
 #include <vector>
@@ -23,6 +25,82 @@ const std::vector<cv::Point3f> SMALL_ARMOR_POINTS{
   {0, -SMALL_ARMOR_WIDTH / 2, LIGHTBAR_LENGTH / 2},
   {0, -SMALL_ARMOR_WIDTH / 2, -LIGHTBAR_LENGTH / 2},
   {0, SMALL_ARMOR_WIDTH / 2, -LIGHTBAR_LENGTH / 2}};
+
+struct ArmorReprojectionCost
+{
+  ArmorReprojectionCost(
+    const Eigen::Vector3d & world_point, const cv::Point2d & observed_pixel,
+    const Eigen::Matrix3d & R_gimbal2world, const Eigen::Matrix3d & R_camera2gimbal,
+    const Eigen::Vector3d & t_camera2gimbal, const cv::Mat & camera_matrix, double pitch_rad)
+  : point_in_armor_(world_point),
+    pixel_(observed_pixel),
+    R_g2w_(R_gimbal2world),
+    R_c2g_(R_camera2gimbal),
+    t_c2g_(t_camera2gimbal),
+    K_(camera_matrix),
+    pitch_(pitch_rad)
+  {
+  }
+
+  template <typename T>
+  bool operator()(const T * const yaw_ptr, const T * const pos_ptr, T * residuals) const
+  {
+    T yaw = yaw_ptr[0];
+
+    T cos_yaw = ceres::cos(yaw);
+    T sin_yaw = ceres::sin(yaw);
+    T cos_pitch = ceres::cos(T(pitch_));
+    T sin_pitch = ceres::sin(T(pitch_));
+
+    // 构造 R_armor2world
+    Eigen::Matrix<T, 3, 3> R_aw;
+    R_aw << cos_yaw * cos_pitch, -sin_yaw, cos_yaw * sin_pitch, sin_yaw * cos_pitch, cos_yaw,
+      sin_yaw * sin_pitch, -sin_pitch, T(0), cos_pitch;
+
+    // 构造 R_armor2camera 和 t_armor2camera
+    Eigen::Matrix<T, 3, 3> R_g2w = R_g2w_.cast<T>();
+    Eigen::Matrix<T, 3, 3> R_c2g = R_c2g_.cast<T>();
+    Eigen::Matrix<T, 3, 3> R_ac = R_c2g.transpose() * R_g2w.transpose() * R_aw;
+    Eigen::Matrix<T, 3, 1> t_aw(pos_ptr[0], pos_ptr[1], pos_ptr[2]);
+    Eigen::Matrix<T, 3, 1> t_cg = t_c2g_.cast<T>();
+    Eigen::Matrix<T, 3, 1> t_ac = R_c2g.transpose() * (R_g2w.transpose() * t_aw - t_cg);
+
+    // 投影点
+    Eigen::Matrix<T, 3, 1> p_cam = R_ac * point_in_armor_.cast<T>() + t_ac;
+
+    T x = p_cam(0) / p_cam(2);
+    T y = p_cam(1) / p_cam(2);
+
+    T fx = T(K_.at<double>(0, 0));
+    T fy = T(K_.at<double>(1, 1));
+    T cx = T(K_.at<double>(0, 2));
+    T cy = T(K_.at<double>(1, 2));
+
+    T u = fx * x + cx;
+    T v = fy * y + cy;
+
+    residuals[0] = u - T(pixel_.x);
+    residuals[1] = v - T(pixel_.y);
+    return true;
+  }
+
+  static ceres::CostFunction * Create(
+    const Eigen::Vector3d & world_point, const cv::Point2d & pixel, const Eigen::Matrix3d & R_g2w,
+    const Eigen::Matrix3d & R_c2g, const Eigen::Vector3d & t_c2g, const cv::Mat & K, double pitch)
+  {
+    return (new ceres::AutoDiffCostFunction<ArmorReprojectionCost, 2, 1, 3>(
+      new ArmorReprojectionCost(world_point, pixel, R_g2w, R_c2g, t_c2g, K, pitch)));
+  }
+
+private:
+  const Eigen::Vector3d point_in_armor_;
+  const cv::Point2d pixel_;
+  const Eigen::Matrix3d R_g2w_;
+  const Eigen::Matrix3d R_c2g_;
+  const Eigen::Vector3d t_c2g_;
+  const cv::Mat & K_;
+  const double pitch_;
+};
 
 Solver::Solver(const std::string & config_path) : R_gimbal2world_(Eigen::Matrix3d::Identity())
 {
@@ -149,6 +227,45 @@ void Solver::optimize_yaw(Armor & armor) const
 
   armor.yaw_raw = armor.ypr_in_world[0];
   armor.ypr_in_world[0] = best_yaw;
+}
+
+bool Solver::optimize_by_least_squares(Armor & armor) const
+{
+  // 初始值
+  double yaw = armor.ypr_in_world[0];
+  double pos[3] = {armor.xyz_in_world[0], armor.xyz_in_world[1], armor.xyz_in_world[2]};
+
+  // pitch angle
+  double pitch = (armor.name == ArmorName::outpost) ? -15.0 * CV_PI / 180.0 : 15.0 * CV_PI / 180.0;
+
+  // 构建 Ceres 问题
+  ceres::Problem problem;
+
+  const auto & object_points =
+    (armor.type == ArmorType::big) ? BIG_ARMOR_POINTS : SMALL_ARMOR_POINTS;
+
+  for (int i = 0; i < 4; ++i) {
+    ceres::CostFunction * cost_function = ArmorReprojectionCost::Create(
+      Eigen::Vector3d(object_points[i].x, object_points[i].y, 0),
+      armor.points[i],  // 实际观测的图像坐标
+      R_gimbal2world_, R_camera2gimbal_, t_camera2gimbal_, camera_matrix_, pitch);
+
+    problem.AddResidualBlock(cost_function, nullptr, &yaw, pos);
+  }
+
+  // 选项与求解
+  ceres::Solver::Options options;
+  options.linear_solver_type = ceres::DENSE_QR;
+  options.minimizer_progress_to_stdout = false;
+
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+
+  // 更新 armor 结构
+  armor.ypr_in_world[0] = yaw;
+  armor.xyz_in_world = Eigen::Vector3d(pos[0], pos[1], pos[2]);
+
+  return summary.IsSolutionUsable();
 }
 
 double Solver::SJTU_cost(
