@@ -1,7 +1,9 @@
+# enemy_color: "red"
+enemy_color: "blue"
 
 camera_name: "hikrobot"
-exposure_ms: 1
-gain: 16
+exposure_ms: 2
+gain: 16.9
 vid_pid: "2bdf:0001"
 
 # 重投影误差: 0.2064px
@@ -23,9 +25,6 @@ quaternion_canid: 0x100
 bullet_speed_canid: 0x101
 send_canid: 0xff
 can_interface: "can0"
-
-# enemy_color: "red"
-enemy_color: "blue"
 
 classify_model: "assets/tiny_resnet.onnx"
 
