@@ -101,7 +101,27 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
 void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
 {
   // 读取图像并调整亮度和对比度
-  bgr_img.convertTo(bgr_img, -1, contrast_, brightness_);
+  // bgr_img.convertTo(bgr_img, -1, contrast_, brightness_);
+
+  // 新的降低亮度，不影响色彩
+  // 转换为 HSV 色彩空间
+  cv::Mat hsv_img;
+  cvtColor(bgr_img, hsv_img, cv::COLOR_BGR2HSV);
+
+  // suppressGlare(bgr_img, 200, 21);
+
+  // 拆分通道
+  std::vector<cv::Mat> hsv_channels;
+  split(hsv_img, hsv_channels);
+
+  // 调整 V 通道亮度（缩放因子 < 1，降低曝光）
+  float brightness_factor = 0.8f;
+  hsv_channels[2].convertTo(hsv_channels[2], -1, brightness_factor, 0); // V通道乘以0.6
+
+  // 合并回 HSV 并转换为 BGR
+  cv::Mat hsv_dark;
+  merge(hsv_channels, hsv_dark);
+  cvtColor(hsv_dark, bgr_img, cv::COLOR_HSV2BGR);
 
   // 提取颜色通道
   std::vector<cv::Mat> channels;
@@ -399,7 +419,7 @@ bool Buff_Detector::detect_fanblades_body(
       size.width < head_radius * 1.5 || size.width > head_radius * 3.0 ||
       size.height < head_radius * 0.3 || size.height > head_radius * 0.9) {
       tools::logger()->debug(
-        "[Buff_Detector] 宽高比不符合要求! width: {}, height: {}, head_radius{}", size.width,
+        "[Buff_Detector] 宽高比不符合要求! width: {}, height: {}, head_radius: {}", size.width,
         size.height, head_radius);  // width: 117.57067, height: 32.267525  46
       continue;
     }
