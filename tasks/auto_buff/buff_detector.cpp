@@ -136,7 +136,7 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
   if (enemy_color_ == "red")
     gray_image = red - blue * 0.7;
   else
-    gray_image = blue - red * 0.5;
+    gray_image = blue - red * 0.0;
   // imshow("Gray Image", gray_image);
 
   // 二值化
@@ -344,15 +344,26 @@ bool Buff_Detector::detect_fanblades_head(
     double aspect_ratio = (double)bounding_box.width / bounding_box.height;
     if (aspect_ratio < 0.5 || aspect_ratio > 2) continue;
 
+    // 检查矩形的宽高是否在合理范围内，以避免将整个符作为一个闭合轮廓识别
+    // todo: 更动态的约束条件
+    if (bounding_box.width > 100 || bounding_box.height > 100) continue;
+
     // 模板匹配
     cv::Mat roi = handled_img(bounding_box);
     cv::resize(roi, roi, standard_fanblade_size, 0, 0, cv::INTER_AREA);
     cv::matchTemplate(roi, standard_fanblade, result, cv::TM_CCOEFF_NORMED);
     double min_val, max_val;
     cv::minMaxLoc(result, &min_val, &max_val);
+    cv::cvtColor(roi, roi, cv::COLOR_GRAY2BGR); // 只是为了绘制彩色文字
     if (max_val > 0.15) {
       head_rects.push_back(bounding_box);
+      tools::draw_text(roi, fmt::format("[success match]", bounding_box.width, bounding_box.height), {0, 20}, cv::Scalar(0, 255, 0), 0.7, 1);
+    } else {
+      tools::draw_text(roi, fmt::format("[failed match]", bounding_box.width, bounding_box.height), {0, 20}, cv::Scalar(0, 0, 255), 0.7, 1);
     }
+
+    tools::draw_text(roi, fmt::format("width: {}, height: {}", bounding_box.width, bounding_box.height), {0, 40}, cv::Scalar(255, 0, 0), 0.7, 1);
+    // cv::imshow("roi_fanblade", roi);
 
     // 绘制所有检测的矩形
     cv::rectangle(output, bounding_box, DETECTOR_COLOR_DEBUG, 1);
