@@ -1,7 +1,6 @@
 # enemy_color: "red"
 enemy_color: "blue"
 
-
 camera_name: "hikrobot"
 exposure_ms: 2
 gain: 16.9
@@ -20,8 +19,6 @@ distort_coeffs: [-0.078807913877987926, 0.15574954821119635, 0.00073002566867448
 R_camera2gimbal: [-0.046688242480313003, -0.080470535390043937, 0.99566294545299772, -0.99822331730532432, 0.040697652227314141, -0.043519075026227511, -0.037019141022629175, -0.99592579745542498, -0.082227666637953334]
 t_camera2gimbal: [0.14816386746905794, 0.096371592867113956, 0.025967577445711799]
 
-
-
 #####-----cboard参数-----#####
 quaternion_canid: 0x100
 bullet_speed_canid: 0x101
@@ -33,15 +30,15 @@ model: "assets/buff_25/best_int8_openvino_model/best.xml"     # IOU:
 detect:
   contrast: 1
   brightness: 
-    blue: -80
-    red: -100
+    blue: -120
+    red: -120
   brightness_threshold:
     blue: 120
-    red: 40
+    red: 60
   morphology_size:
     blue: 3
     red: 3
-  dilate_size: 2
+  dilate_size: 1
   # canny_low_threshold: 100
   # canny_high_threshold: 180
   # approx_epsilon: 1.0
@@ -67,7 +64,7 @@ min_confidence: 0.8
 min_detect_count: 5
 max_temp_lost_count: 10
 
-yaw_offset: -0.5 # degree -2.5
-pitch_offset: 1.4 # degree 2
+yaw_offset: 2.5 # degree -2.5
+pitch_offset: 3 # degree 2
 comming_angle: 50 # degree
 leaving_angle: 30 # degree

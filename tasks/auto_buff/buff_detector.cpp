@@ -122,7 +122,6 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
   // 二值化
   cv::Mat threshold_image;
   cv::threshold(gray_image, threshold_image, brightness_threshold_, 255, cv::THRESH_BINARY);
-  // cv::imshow("Threshold Image", threshold_image);
 
   // 闭运算
   cv::Mat element =
@@ -131,6 +130,7 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
 
   // 膨胀操作 (让轮廓更完整)
   cv::dilate(threshold_image, threshold_image, element, cv::Point(-1, -1), dilate_size_);
+  cv::imshow("Threshold Image", threshold_image);
 
   handled_img = threshold_image;
 
@@ -233,7 +233,7 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
   std::vector<cv::Point2f> kpt;
 
   if(std::fabs(head_center.y - body_center.y) < 5){
-    tools::logger()->debug("[Buff_Detector] 无法确认点位置!");
+    tools::logger()->debug("[Buff_Detector] 无法确认点位置! head_center.y: {} body_center.y: {}", head_center.y, body_center.y);
     return F;
   }
 
@@ -323,11 +323,17 @@ bool Buff_Detector::detect_fanblades_head(
       continue;
 
     double aspect_ratio = (double)bounding_box.width / bounding_box.height;
-    if (aspect_ratio < 0.5 || aspect_ratio > 2) continue;
+    if (aspect_ratio < 0.5 || aspect_ratio > 2) {
+      tools::logger()->debug("head ratio");
+      continue;
+    }
 
     // 检查矩形的宽高是否在合理范围内，以避免将整个符作为一个闭合轮廓识别
     // todo: 更动态的约束条件
-    if (bounding_box.width > 100 || bounding_box.height > 100) continue;
+    if (bounding_box.width > 110 || bounding_box.height > 110) {
+      tools::logger()->debug("head bbox");
+      continue;
+    }
 
     // 模板匹配
     cv::Mat roi = handled_img(bounding_box);
@@ -341,6 +347,7 @@ bool Buff_Detector::detect_fanblades_head(
       tools::draw_text(roi, fmt::format("[success match]", bounding_box.width, bounding_box.height), {0, 20}, cv::Scalar(0, 255, 0), 0.7, 1);
     } else {
       tools::draw_text(roi, fmt::format("[failed match]", bounding_box.width, bounding_box.height), {0, 20}, cv::Scalar(0, 0, 255), 0.7, 1);
+      tools::logger()->debug("match fail");
     }
 
     tools::draw_text(roi, fmt::format("width: {}, height: {}", bounding_box.width, bounding_box.height), {0, 40}, cv::Scalar(255, 0, 0), 0.7, 1);

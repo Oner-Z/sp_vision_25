@@ -55,7 +55,7 @@ int main(int argc, char * argv[])
   while (!exiter.exit()) {
     camera.read(img, t);
     q = cboard.imu_at(t);
-    recorder.record(img, q, t);
+    // recorder.record(img, q, t);
 
     // -------------- 打符核心逻辑 --------------
 
@@ -70,16 +70,6 @@ int main(int argc, char * argv[])
     auto target_copy = target;
 
     auto command = aimer.aim(target_copy, t, cboard.bullet_speed, true);
-
-    // 临时性安全措施
-    Eigen::Vector3d gimbal_ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
-    double gimbal_yaw = gimbal_ypr[0];
-    double gimbal_pitch = -gimbal_ypr[1];
-    if (std::abs(command.yaw-gimbal_yaw)*57.3>80 || std::abs(command.pitch-gimbal_pitch)*57.3>40) {
-      command.pitch = gimbal_pitch;
-      command.yaw = gimbal_yaw;
-      tools::logger()->warn("command angle too big!");
-    }
 
     cboard.send(command);
 
