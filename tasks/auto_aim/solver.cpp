@@ -164,7 +164,10 @@ void Solver::solve(Armor & armor) const
   if (is_balance) return;
 
   auto lsqr = optimize_by_least_squares(armor);
-  if (!lsqr) optimize_yaw(armor);
+  if (!lsqr) {
+    tools::logger()->info("failed to optimize by least squares within 2ms");
+    optimize_yaw(armor);
+  }
 }
 
 std::vector<cv::Point2f> Solver::reproject_armor(
@@ -258,7 +261,7 @@ bool Solver::optimize_by_least_squares(Armor & armor) const
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::DENSE_QR;
   options.minimizer_progress_to_stdout = false;
-  options.num_threads = 4;                     // 设置线程数
+  // options.num_threads = 4;                     // 设置线程数
   options.max_solver_time_in_seconds = 0.002;  //最大求解时间2ms
 
   // 执行求解
