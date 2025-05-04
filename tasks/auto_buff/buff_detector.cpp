@@ -101,27 +101,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
 void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
 {
   // 读取图像并调整亮度和对比度
-  // bgr_img.convertTo(bgr_img, -1, contrast_, brightness_);
-
-  // 新的降低亮度，不影响色彩
-  // 转换为 HSV 色彩空间
-  cv::Mat hsv_img;
-  cvtColor(bgr_img, hsv_img, cv::COLOR_BGR2HSV);
-
-  // suppressGlare(bgr_img, 200, 21);
-
-  // 拆分通道
-  std::vector<cv::Mat> hsv_channels;
-  split(hsv_img, hsv_channels);
-
-  // 调整 V 通道亮度（缩放因子 < 1，降低曝光）
-  float brightness_factor = 0.8f;
-  hsv_channels[2].convertTo(hsv_channels[2], -1, brightness_factor, 0); // V通道乘以0.6
-
-  // 合并回 HSV 并转换为 BGR
-  cv::Mat hsv_dark;
-  merge(hsv_channels, hsv_dark);
-  cvtColor(hsv_dark, bgr_img, cv::COLOR_HSV2BGR);
+  bgr_img.convertTo(bgr_img, -1, contrast_, brightness_);
 
   // 提取颜色通道
   std::vector<cv::Mat> channels;
@@ -142,6 +122,7 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
   // 二值化
   cv::Mat threshold_image;
   cv::threshold(gray_image, threshold_image, brightness_threshold_, 255, cv::THRESH_BINARY);
+  // cv::imshow("Threshold Image", threshold_image);
 
   // 闭运算
   cv::Mat element =
@@ -402,6 +383,7 @@ bool Buff_Detector::detect_fanblades_body(
     get_contours(handled_img, fanblades_body_contours_min_area_, fanblades_body_contours_max_area_);
   for (const auto & contours : contours_list) {
     cv::RotatedRect bounding_box = cv::minAreaRect(contours);
+    cv::Rect bbox = cv::boundingRect(contours);
 
     body_center = bounding_box.center;
     cv::Size2f size = bounding_box.size;
@@ -417,6 +399,10 @@ bool Buff_Detector::detect_fanblades_body(
       cv::line(output, body_box[i], body_box[(i + 1) % 4], DETECTOR_COLOR_DEBUG, 1);
     }
 
+    cv::Mat roi = handled_img(bbox);
+    cv::resize(roi, roi, standard_fanblade_size, 0, 0, cv::INTER_AREA);
+    tools::draw_text(roi, fmt::format("width: {}, height: {}", bbox.width, bbox.height), {0, 40}, cv::Scalar(255, 0, 0), 0.7, 1);
+    // cv::imshow("roi_fanblade_body", roi);
     // 检查矩形是否超出图像范围 跳过不符合宽高比的矩形
     float half_width = size.width / 2.0, half_height = size.height / 2.0;
     if (
