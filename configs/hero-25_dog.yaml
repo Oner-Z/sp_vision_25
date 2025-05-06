@@ -3,15 +3,15 @@ enemy_color: "blue"
 
 R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
-# 重投影误差: 0.2016px
-camera_matrix: [3281.1194891950627, 0, 787.72720411958494, 0, 3296.2006367946055, 618.34108021512577, 0, 0, 1]
-distort_coeffs: [-0.031611286752727612, 0.3744100186381652, -0.0015923756294617532, 0.0045630893276015572, 0]
+# 重投影误差: 0.1163px
+camera_matrix: [3637.7109807339057, 0, 429.90560659872358, 0, 3641.0929221714173, 849.87888593269815, 0, 0, 1]
+distort_coeffs: [-0.016278704388422841, 0.20656726151744312, 0.0059288961301973385, -0.0078053782037311578, 0]
 
-# 相机同理想情况的偏角: yaw2.81 pitch-1.40 roll4.65 degree
-# 标定板到世界坐标系原点的水平距离: 1.87 m
-# 标定板同竖直摆放时的偏角: yaw106.25 pitch14.90 roll5.17 degree
-R_camera2gimbal: [-0.050894480983402463, -0.020295713066050915, 0.99849778960024271, -0.99541054016021724, 0.082160055754202793, -0.049067115020254071, -0.081040781976574161, -0.9964124694470694, -0.024384060101192002]
-t_camera2gimbal: [0.50880074162854561, 0.040571784393383034, 0.0071977492356469514]
+# 相机同理想情况的偏角: yaw-0.91 pitch-6.88 roll2.59 degree
+# 标定板到世界坐标系原点的水平距离: 2.20 m
+# 标定板同竖直摆放时的偏角: yaw-158.19 pitch-0.85 roll2.34 degree
+R_camera2gimbal: [0.010439086435712197, -0.12027721585828019, 0.99268545714126821, -0.99894071314127642, 0.043238685096716502, 0.015743815925788884, -0.044816036227959592, -0.99179826953694949, -0.11969843541302649]
+t_camera2gimbal: [0.11732176763587918, 0.087854092067650172, 0.039610646093836376]
 
 
 # model: assets/tiny_resnet.onnx
@@ -30,18 +30,19 @@ max_rectangular_error: 25 # degree
 min_detect_count: 20
 max_temp_lost_count: 10
 
-yaw_offset: 3.0 # degree -right
-pitch_offset: 0.9 # degree +up
+yaw_offset: 1.8 # degree -right
+pitch_offset: -2.5 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
-shoot_delay: 0.08 #0.52
+shoot_delay: 0.125 # 从自瞄发出命令，到摩擦轮掉速度的时间
 mouse_to_fire: 0.145
 
 camera_name: "hikrobot"
-exposure_ms: 2.5
+exposure_ms: 0.8
 gain: 16.5
 vid_pid: "2bdf:0001"
+rotate: true
 
 #####-----神经网络参数-----#####
 classify_model: assets/tiny_resnet.onnx
@@ -54,7 +55,7 @@ yolo_name: yolov5
 yolov5_model_path: assets/yolov5.xml
 
 #####-----ROI-----#####
-use_roi: true
+use_roi: false
 roi:
   x: 0
   y: 0

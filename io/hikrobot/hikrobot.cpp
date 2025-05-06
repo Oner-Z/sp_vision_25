@@ -2,15 +2,18 @@
 
 #include <libusb-1.0/libusb.h>
 
+#include <opencv2/opencv.hpp>
+
 #include "tools/logger.hpp"
 
 using namespace std::chrono_literals;
 
 namespace io
 {
-HikRobot::HikRobot(double exposure_ms, double gain, const std::string & vid_pid)
+HikRobot::HikRobot(double exposure_ms, double gain, const std::string & vid_pid, bool rotate)
 : exposure_us_(exposure_ms * 1e3), gain_(gain), queue_(1), daemon_quit_(false), vid_(-1), pid_(-1)
 {
+  rotate_ = rotate;
   set_vid_pid(vid_pid);
   if (libusb_init(NULL)) tools::logger()->warn("Unable to init libusb!");
 
@@ -47,7 +50,14 @@ void HikRobot::read(cv::Mat & img, std::chrono::steady_clock::time_point & times
   CameraData data;
   queue_.pop(data);
 
-  img = data.img;
+  if (rotate_) {
+    rotate(data.img, img, cv::ROTATE_90_CLOCKWISE);
+    // std::cout << "origin : " << data.img.cols << "×" << data.img.rows << std::endl;
+    // std::cout << "rotated: " << img.cols << "×" << img.rows << std::endl;
+  } else {
+    img = data.img;
+  }
+
   timestamp = data.timestamp;
 }
 
