@@ -30,8 +30,8 @@ max_rectangular_error: 25 # degree
 min_detect_count: 20
 max_temp_lost_count: 10
 
-yaw_offset: 0.85 # degree -right
-pitch_offset: -1.0 # degree +up
+yaw_offset: 0.30 # degree -right
+pitch_offset: -0.3 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
@@ -39,7 +39,7 @@ shoot_delay: 0.083 #0.52
 mouse_to_fire: 0.06
 
 camera_name: "hikrobot"
-exposure_ms: 3.5
+exposure_ms: 2.0
 gain: 16.5
 vid_pid: "2bdf:0001"
 
