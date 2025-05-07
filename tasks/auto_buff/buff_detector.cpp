@@ -324,14 +324,14 @@ bool Buff_Detector::detect_fanblades_head(
 
     double aspect_ratio = (double)bounding_box.width / bounding_box.height;
     if (aspect_ratio < 0.5 || aspect_ratio > 2) {
-      tools::logger()->debug("head ratio");
+      tools::logger()->debug("head ratio out range");
       continue;
     }
 
     // 检查矩形的宽高是否在合理范围内，以避免将整个符作为一个闭合轮廓识别
     // todo: 更动态的约束条件
     if (bounding_box.width > 110 || bounding_box.height > 110) {
-      tools::logger()->debug("head bbox");
+      tools::logger()->debug("head bbox out range");
       continue;
     }
 
@@ -351,7 +351,7 @@ bool Buff_Detector::detect_fanblades_head(
     }
 
     tools::draw_text(roi, fmt::format("width: {}, height: {}", bounding_box.width, bounding_box.height), {0, 40}, cv::Scalar(255, 0, 0), 0.7, 1);
-    // cv::imshow("roi_fanblade", roi);
+    cv::imshow("roi_fanblade", roi);
 
     // 绘制所有检测的矩形
     cv::rectangle(output, bounding_box, DETECTOR_COLOR_DEBUG, 1);

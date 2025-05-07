@@ -35,7 +35,7 @@ io::Command Aimer::aim(
     reset_status_();
     return {false, false, 0, 0};
   }
-  if (bullet_speed < 10) bullet_speed = 27;
+  if (bullet_speed < 10) bullet_speed = 24;
 
   // wait -> send_angle
   if (status_ == WAIT && tools::delta_time(now, label_timestamp) > AIM_TIME + WAIT_TIME) {

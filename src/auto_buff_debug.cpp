@@ -77,6 +77,8 @@ int main(int argc, char * argv[])
 
     nlohmann::json data;
 
+    data["bullet_speed"] = cboard.bullet_speed;
+  
     // buff原始观测数据
     if (power_runes.has_value()) {
       const auto & p = power_runes.value();
