@@ -65,3 +65,18 @@ roi:
 max_fire_error_yaw: 0.2 
 max_fire_error_pitch: 0.1
 max_shoot_angle: 40
+
+#####-----吊射所需数据-----#####
+target_x: 0.0
+target_y: 0.0
+target_z: 0.0
+
+bullet_speed: 15.6  # m/s
+rho: 1.285          # kg/m**3 空气密度
+C: 0.485            #         空气阻力系数  
+BigBulletRadius: 0.02165
+m: 0.041
+g: 9.794
+PI: 3.1415926
+# 目标点图中坐标
+base_position: [-0.686302, -8.199907, 0.184034]

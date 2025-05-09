@@ -22,6 +22,7 @@ add_subdirectory(tools)
 add_subdirectory(io)
 add_subdirectory(tasks/auto_aim)
 add_subdirectory(tasks/auto_outpost)
+add_subdirectory(tasks/auto_base)
 
 add_executable(camera_test examples/camera_test.cpp)
 add_executable(cboard_test examples/cboard_test.cpp)
@@ -67,3 +68,13 @@ target_link_libraries(gimbal_response_test ${OpenCV_LIBS} fmt::fmt yaml-cpp tool
 
 add_executable(handeye_test tests/handeye_test.cpp)
 target_link_libraries(handeye_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim tools io)
+
+add_executable(ros2_test tests/ros2_test.cpp)
+target_link_libraries(ros2_test ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_base tools io)
+
+add_executable(hero_combine src/hero_combine.cpp)
+target_link_libraries(hero_combine ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost auto_base tools io)
+
+add_executable(hero_combine_debug src/hero_combine_debug.cpp)
+target_link_libraries(hero_combine_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_aim auto_outpost auto_base tools io)
+

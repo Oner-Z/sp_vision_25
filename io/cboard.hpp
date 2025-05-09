@@ -15,9 +15,9 @@
 
 namespace io
 {
-enum Mode { idle, auto_aim, small_buff, big_buff, left_outpost, right_outpost };
-const std::vector<std::string> MODES = {"idle",     "auto_aim",     "small_buff",
-                                        "big_buff", "left_outpost", "right_outpost"};
+enum Mode { auto_aim, hanging_shooting,idle,small_buff, big_buff, left_outpost, right_outpost };
+const std::vector<std::string> MODES = {"auto_aim", "hanging_shooting", "idle"        , "small_buff",
+                                        "big_buff", "left_outpost"    , "right_outpost"};
 
 class CBoard
 {
