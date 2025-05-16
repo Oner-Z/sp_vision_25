@@ -9,7 +9,7 @@
 
 namespace omniperception
 {
-Decider::Decider(const std::string & config_path) : detector_(config_path)
+Decider::Decider(const std::string & config_path) : detector_(config_path), count_(0)
 {
   auto yaml = YAML::LoadFile(config_path);
   img_width_ = yaml["image_width"].as<double>();
@@ -30,25 +30,26 @@ io::Command Decider::decide(
   Eigen::Vector2d delta_angle;
   io::USBCamera * cams[] = {&usbcam1, &usbcam2, &usbcam3};
 
-  for (int i = 0; i < 3; ++i) {
-    cv::Mat usb_img;
-    std::chrono::steady_clock::time_point timestamp;
-    cams[i]->read(usb_img, timestamp);
-    auto armors = yolo.detect(usb_img);
-    auto empty = armor_filter(armors);
+  cv::Mat usb_img;
+  std::chrono::steady_clock::time_point timestamp;
+  cams[count_]->read(usb_img, timestamp);
+  auto armors = yolo.detect(usb_img);
+  auto empty = armor_filter(armors);
 
-    if (!empty) {
-      delta_angle = this->delta_angle(armors, cams[i]->device_name);
-      tools::logger()->debug(
-        "delta yaw:{:.2f},target pitch:{:.2f},armor number:{},armor name:{}", delta_angle[0],
-        delta_angle[1], armors.size(), auto_aim::ARMOR_NAMES[armors.front().name]);
+  if (!empty) {
+    delta_angle = this->delta_angle(armors, cams[count_]->device_name);
+    tools::logger()->debug(
+      "[{} camera] delta yaw:{:.2f},target pitch:{:.2f},armor number:{},armor name:{}",
+      cams[count_]->device_name, delta_angle[0], delta_angle[1], armors.size(),
+      auto_aim::ARMOR_NAMES[armors.front().name]);
+    count_ = (count_ + 1) % 3;
 
-      return io::Command{
-        true, false, tools::limit_rad(gimbal_pos[0] + delta_angle[0] / 57.3),
-        tools::limit_rad(delta_angle[1] / 57.3)};
-    }
+    return io::Command{
+      true, false, tools::limit_rad(gimbal_pos[0] + delta_angle[0] / 57.3),
+      tools::limit_rad(delta_angle[1] / 57.3)};
   }
 
+  count_ = (count_ + 1) % 3;
   // 如果没有找到目标，返回默认命令
   return io::Command{false, false, 0, 0};
 }
@@ -73,19 +74,19 @@ Eigen::Vector2d Decider::delta_angle(
 {
   Eigen::Vector2d delta_angle;
   if (camera == "left") {
-    delta_angle[0] = 35 + (fov_h_ / 2) - armors.front().center_norm.x * fov_h_;
-    delta_angle[1] = -(armors.front().center_norm.y * fov_v_ - fov_v_ / 2);
+    delta_angle[0] = 62 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
+    delta_angle[1] = -(armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2);
     return delta_angle;
   }
 
   else if (camera == "right") {
-    delta_angle[0] = -35 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
+    delta_angle[0] = -62 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
     delta_angle[1] = -(armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2);
     return delta_angle;
   }
 
   else {
-    delta_angle[0] = -105 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
+    delta_angle[0] = -150 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
     delta_angle[1] = -(armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2);
     return delta_angle;
   }
@@ -98,13 +99,9 @@ bool Decider::armor_filter(std::list<auto_aim::Armor> & armors)
   armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
 
   // 25赛季没有5号装甲板
-  // armors.remove_if([&](const auto_aim::Armor & a) { return a.name == auto_aim::ArmorName::five; });
-
-  // RMUL只保留1、3、sentry装甲板
-  armors.remove_if([&](const auto_aim::Armor & a) {
-    return a.name != auto_aim::ArmorName::one && a.name != auto_aim::ArmorName::three &&
-           a.name != auto_aim::ArmorName::sentry;
-  });
+  armors.remove_if([&](const auto_aim::Armor & a) { return a.name == auto_aim::ArmorName::five; });
+  // 不打工程
+  armors.remove_if([&](const auto_aim::Armor & a) { return a.name == auto_aim::ArmorName::two; });
 
   // 过滤掉刚复活无敌的装甲板
   armors.remove_if([&](const auto_aim::Armor & a) {

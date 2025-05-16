@@ -112,9 +112,9 @@ void USBCamera::open()
 
   if (sharpness_ == 2) {
     device_name = "left";
-    cap_.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
-    cap_.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
-    cap_.set(cv::CAP_PROP_EXPOSURE, usb_exposure_);
+    cap_.set(cv::CAP_PROP_FRAME_WIDTH, new_image_width_);
+    cap_.set(cv::CAP_PROP_FRAME_HEIGHT, new_image_height_);
+    cap_.set(cv::CAP_PROP_EXPOSURE, new_usb_exposure_);
   } else if (sharpness_ == 3) {
     device_name = "right";
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, new_image_width_);
@@ -129,7 +129,7 @@ void USBCamera::open()
 
   tools::logger()->info("{} USBCamera opened", device_name);
   // tools::logger()->info("USBCamera exposure time:{}", cap_.get(cv::CAP_PROP_EXPOSURE));
-  // tools::logger()->info("USBCamera fps:{}", cap_.get(cv::CAP_PROP_FPS));
+  tools::logger()->info("USBCamera fps:{}", cap_.get(cv::CAP_PROP_FPS));
   // tools::logger()->info("USBCamera gamma:{}", cap_.get(cv::CAP_PROP_GAMMA));
 
   // 取图线程

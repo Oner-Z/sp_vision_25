@@ -65,7 +65,7 @@ int main(int argc, char * argv[])
   while (!exiter.exit()) {
     camera.read(img, timestamp);
     Eigen::Quaterniond q = cboard.imu_at(timestamp - 1ms);
-    recorder.record(img, q, timestamp);
+    // recorder.record(img, q, timestamp);
 
     /// 自瞄核心逻辑
     solver.set_R_gimbal2world(q);
@@ -88,7 +88,7 @@ int main(int argc, char * argv[])
     if (tracker.state() == "lost")
       command = decider.decide(yolov8, gimbal_pos, usbcam1, usbcam2, usbcam3);
     else
-      command = aimer.aim(targets, timestamp, cboard.bullet_speed);
+      command = aimer.aim(targets, timestamp, cboard.bullet_speed, cboard.shoot_mode);
 
     /// 发射逻辑
     command.shoot = shooter.shoot(command, aimer, targets, gimbal_pos);

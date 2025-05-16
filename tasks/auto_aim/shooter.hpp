@@ -19,8 +19,10 @@ public:
 
 private:
   io::Command last_command_;
+  double judge_distance_;
   double first_tolerance_;
   double second_tolerance_;
+  bool auto_fire_;
 };
 }  // namespace auto_aim
 

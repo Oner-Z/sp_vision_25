@@ -76,11 +76,11 @@ void Target::predict(std::chrono::steady_clock::time_point t)
   // https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/07-Kalman-Filter-Math.ipynb
   double v1, v2;
   if (name == ArmorName::outpost) {
-    v1 = 0.01;  // 前哨站加速度方差
-    v2 = 0.01;  // 前哨站角加速度方差
+    v1 = 1;    // 前哨站加速度方差
+    v2 = 0.1;  // 前哨站角加速度方差
   } else {
     v1 = 100;  // 加速度方差
-    v2 = 100;  // 角加速度方差
+    v2 = 400;  // 角加速度方差
   }
   auto a = dt * dt * dt * dt / 4;
   auto b = dt * dt * dt / 2;
@@ -109,7 +109,8 @@ void Target::predict(std::chrono::steady_clock::time_point t)
     return x_prior;
   };
 
-  if (this->convergened() && this->name == ArmorName::outpost)
+  // 前哨站转速特判
+  if (this->convergened() && this->name == ArmorName::outpost && std::abs(this->ekf_.x[7]) > 2)
     this->ekf_.x[7] = this->ekf_.x[7] > 0 ? 2.51 : -2.51;
 
   ekf_.predict(F, Q, f);
@@ -152,7 +153,6 @@ void Target::update(const Armor & armor)
 
   if (id != last_id) {
     is_switch_ = true;
-    // tools::logger()->debug("Jumped! {}->{}", last_id, id);
   } else {
     is_switch_ = false;
   }
@@ -160,7 +160,6 @@ void Target::update(const Armor & armor)
   if (is_switch_) switch_count_++;
 
   last_id = id;
-  // tools::logger()->info("armor id is {}", id);
   update_count_++;
 
   update_ypda(armor, id);
@@ -206,6 +205,8 @@ void Target::update_ypda(const Armor & armor, int id)
 }
 
 Eigen::VectorXd Target::ekf_x() const { return ekf_.x; }
+
+const tools::ExtendedKalmanFilter & Target::ekf() const { return ekf_; }
 
 std::vector<Eigen::Vector4d> Target::armor_xyza_list() const
 {

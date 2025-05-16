@@ -41,11 +41,7 @@ std::list<Target> Tracker::track(
   }
   // 过滤掉非我方装甲板
   armors.remove_if([&](const auto_aim::Armor & a) { return a.color != enemy_color_; });
-  // RMUL只保留one、three、sentry
-  armors.remove_if([&](const auto_aim::Armor & a) {
-    return a.name != auto_aim::ArmorName::one && a.name != auto_aim::ArmorName::three &&
-           a.name != auto_aim::ArmorName::sentry;
-  });
+
   // 优先选择靠近图像中心的装甲板
   armors.sort([](const Armor & a, const Armor & b) {
     cv::Point2f img_center(1440 / 2, 1080 / 2);  // TODO
@@ -53,6 +49,10 @@ std::list<Target> Tracker::track(
     auto distance_2 = cv::norm(b.center - img_center);
     return distance_1 < distance_2;
   });
+
+  // 按优先级排序，优先级最高在首位(优先级越高数字越小，1的优先级最高)
+  armors.sort(
+    [](const auto_aim::Armor & a, const auto_aim::Armor & b) { return a.priority < b.priority; });
 
   bool found;
   if (state_ == "lost") {
@@ -68,6 +68,16 @@ std::list<Target> Tracker::track(
   // 发散检测
   if (state_ != "lost" && target_.diverged()) {
     tools::logger()->debug("[Tracker] Target diverged!");
+    state_ = "lost";
+    return {};
+  }
+
+  // 收敛效果检测：
+  if (
+    std::accumulate(
+      target_.ekf().recent_nis_failures.begin(), target_.ekf().recent_nis_failures.end(), 0) >=
+    (0.4 * target_.ekf().window_size)) {
+    tools::logger()->debug("[Target] Bad Converge Found!");
     state_ = "lost";
     return {};
   }

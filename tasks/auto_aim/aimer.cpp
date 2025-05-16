@@ -12,12 +12,18 @@
 namespace auto_aim
 {
 Aimer::Aimer(const std::string & config_path)
+: left_yaw_offset_(std::nullopt), right_yaw_offset_(std::nullopt)
 {
   auto yaml = YAML::LoadFile(config_path);
   yaw_offset_ = yaml["yaw_offset"].as<double>() / 57.3;        // degree to rad
   pitch_offset_ = yaml["pitch_offset"].as<double>() / 57.3;    // degree to rad
   comming_angle_ = yaml["comming_angle"].as<double>() / 57.3;  // degree to rad
   leaving_angle_ = yaml["leaving_angle"].as<double>() / 57.3;  // degree to rad
+  if (yaml["left_yaw_offset"].IsDefined() && yaml["right_yaw_offset"].IsDefined()) {
+    left_yaw_offset_ = yaml["left_yaw_offset"].as<double>() / 57.3;    // degree to rad
+    right_yaw_offset_ = yaml["right_yaw_offset"].as<double>() / 57.3;  // degree to rad
+    tools::logger()->info("[Aimer] successfully loading shootmode");
+  }
 }
 
 io::Command Aimer::aim(
@@ -27,7 +33,7 @@ io::Command Aimer::aim(
   if (targets.empty()) return {false, false, 0, 0};
   auto target = targets.front();
 
-  if (bullet_speed < 14) bullet_speed = 24;
+  if (bullet_speed < 14) bullet_speed = 22;
 
   // 考虑detecor和tracker所消耗的时间，此外假设aimer的用时可忽略不计
   auto future = timestamp;
@@ -109,14 +115,28 @@ io::Command Aimer::aim(
   return {true, false, yaw, pitch};
 }
 
+io::Command Aimer::aim(
+  std::list<Target> targets, std::chrono::steady_clock::time_point timestamp, double bullet_speed,
+  io::ShootMode shoot_mode, bool to_now)
+{
+  auto yaw_offset = shoot_mode == io::left_shoot    ? left_yaw_offset_.value()
+                    : shoot_mode == io::right_shoot ? right_yaw_offset_.value()
+                                                    : yaw_offset_;
+
+  auto command = aim(targets, timestamp, bullet_speed, to_now);
+  command.yaw = command.yaw - yaw_offset_ + yaw_offset;
+
+  return command;
+}
+
 AimPoint Aimer::choose_aim_point(const Target & target)
 {
   Eigen::VectorXd ekf_x = target.ekf_x();
   std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
   auto armor_num = armor_xyza_list.size();
-
+  auto distance = armor_xyza_list[0].head(3).norm();
   // 如果装甲板未发生过跳变，则只有当前装甲板的位置已知
-  if (!target.jumped) return {true, armor_xyza_list[0]};
+  if (!target.jumped || distance > 5) return {true, armor_xyza_list[0]};
 
   // 整车旋转中心的球坐标yaw
   auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
@@ -129,7 +149,9 @@ AimPoint Aimer::choose_aim_point(const Target & target)
   }
 
   // 不考虑小陀螺
-  if (std::abs(ekf_x[7]) <= 2 && target.name != ArmorName::outpost) {
+  if (
+    target.omega().has_value() && std::abs(target.omega().value()) <= 2 &&
+    target.name != ArmorName::outpost) {
     // 选择在可射击范围内的装甲板
     std::vector<int> id_list;
     for (int i = 0; i < armor_num; i++) {
@@ -163,13 +185,13 @@ AimPoint Aimer::choose_aim_point(const Target & target)
   if (
     target.omega().has_value() && std::abs(target.omega().value()) > 8 &&
     std::abs(target.omega().value()) < 14) {
-    coming_angle = comming_angle_ - 10;
-    leaving_angle = leaving_angle_ - 5;
+    coming_angle = comming_angle_ - 10 / 57.3;
+    leaving_angle = leaving_angle_ - 5 / 57.3;
   }
 
   else if (target.omega().has_value() && std::abs(target.omega().value()) >= 14) {
-    coming_angle = comming_angle_ - 20;
-    leaving_angle = leaving_angle_ - 10;
+    coming_angle = comming_angle_ - 20 / 57.3;
+    leaving_angle = leaving_angle_ - 10 / 57.3;
   }
 
   else {
