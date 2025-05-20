@@ -38,8 +38,7 @@ private:
   double pitch_offset_;
   STATUS status_ = SEND_ANGLE;
   const double AIM_TIME = 0.15;
-  const double COMMAND_FIRE_GAP = 0.05;
-  const double WAIT_TIME = 0.5;  // 2.5s内击中
+  const double WAIT_TIME = 0.25;
 
   bool get_send_angle(
     Target & target, const double & detect_now_gap, const double bullet_speed, const bool to_now,

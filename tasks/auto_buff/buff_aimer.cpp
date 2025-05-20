@@ -37,31 +37,37 @@ io::Command Aimer::aim(
   }
   if (bullet_speed < 10) bullet_speed = 24;
 
-  // wait -> send_angle
-  if (status_ == WAIT && tools::delta_time(now, label_timestamp) > AIM_TIME + WAIT_TIME) {
+  io::Command command = {false, false, 0, 0};
+
+  auto detect_now_gap = tools::delta_time(now, timestamp);
+  if (get_send_angle(target, detect_now_gap, bullet_speed, to_now, yaw, pitch)) {
+    command.control = true;
+    command.yaw = yaw;
+    command.pitch = pitch;
+  } else {
+    label_timestamp = now;
+    reset_status_();
+    return command;
+  }
+
+  // send_angle -> send_fire
+  if (status_ == SEND_ANGLE && tools::delta_time(now, label_timestamp) > AIM_TIME) {
     label_timestamp = now;
     update_status_();
   }
-  // send_angle -> send_fire
-  else if (status_ == SEND_ANGLE) {
-    update_status_();
-    auto detect_now_gap = tools::delta_time(now, timestamp);
-    if (get_send_angle(target, detect_now_gap, bullet_speed, to_now, yaw, pitch))
-      return {true, false, yaw, pitch};  //angle
-    else {
-      label_timestamp = now;
-      reset_status_();
-      return {false, false, 0, 0};
-    }
-  }
   // send_fire -> wait
-  else if (
-    status_ == SEND_FIRE && tools::delta_time(now, label_timestamp) > AIM_TIME - COMMAND_FIRE_GAP) {
+  if (status_ == SEND_FIRE) {
+    label_timestamp = now;
+    command.shoot = true;
     update_status_();
-    return {true, true, yaw, pitch};  //fire
+  }
+  // wait -> send_fire
+  if (
+    status_ == WAIT && tools::delta_time(now, label_timestamp) > WAIT_TIME) {
+    update_status_();
   }
 
-  return {false, false, 0, 0};
+  return command;
 }
 
 bool Aimer::get_send_angle(
