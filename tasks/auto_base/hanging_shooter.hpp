@@ -22,6 +22,8 @@ private:
   double C_;                // 空气阻力系数
   double rho_;              // 空气密度
   double PI_;
+  double hero_on_center_;   
+  double hero_on_bottom_;
   // 目标在地图坐标系下位置
   std::vector<double>base_position_;
   io::LocationInfo location_; 

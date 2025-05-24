@@ -12,7 +12,8 @@ HangingShooter::HangingShooter(const std::string & config_path)
   BigBulletRadius_ = yaml["BigBulletRadius"].as<double>();
   PI_ = yaml["PI"].as<double>();
   base_position_ = yaml["base_position"].as<std::vector<double>>();
-
+  hero_on_bottom_ = yaml["hero_on_bottom"].as<double>();
+  hero_on_center_ = yaml["hero_on_center"].as<double>();
   location_ = {0.0,0.0,0.0};
 }
 
@@ -88,7 +89,11 @@ double HangingShooter::calculate_pitch(double current_x,double current_y,double 
   double distance = sqrt(
     (current_x -base_position_[0]) * (current_x - base_position_[0]) +
     (current_y -base_position_[1]) * (current_y -base_position_[1]));
-  double height = base_position_[2] - current_z;
+  double height;
+  if(distance > 14)
+  height = hero_on_bottom_;
+  else
+  height = hero_on_center_;
   tools::logger()->info("[cal_data] distance: {} height: {}",distance,height);
   std::vector<double> errors;  // 存储每个角度与实际打击位置的误差值
   // 开始迭代，存储每个角度对应的误差值
@@ -110,11 +115,10 @@ double HangingShooter::calculate_pitch(double current_x,double current_y,double 
 io::Command HangingShooter::aim(Eigen::Quaterniond q,io::LocationInfo info,const double bullet_speed)
 {
   Eigen::Vector3d ypr = tools::eulers(q,2, 1, 0);
+  tools::logger()->info("bullet_speed: {}",bullet_speed);
   double pitch;
   if(info.value)
     location_ = info;
-  if(location_.z<0.06)
-  location_.z=0.06;
   if(bullet_speed<15.0)
     pitch = HangingShooter::calculate_pitch(location_.x,location_.y,location_.z,15.6);
   else

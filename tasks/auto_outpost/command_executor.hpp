@@ -2,15 +2,16 @@
 #define AUTO_OUTPOST__HERO_COMMAND_EXECUTOR_HPP
 
 #include <chrono>
-#include <string>
-#include <vector>
 #include <optional>
+#include <string>
 #include <thread>
+#include <vector>
+
 #include "io/cboard.hpp"
-#include "tasks/auto_aim/target.hpp"
-#include "tools/thread_safe_queue.hpp"
-#include "tools/plotter.hpp"
 #include "shooter.hpp"
+#include "tasks/auto_aim/target.hpp"
+#include "tools/plotter.hpp"
+#include "tools/thread_safe_queue.hpp"
 namespace auto_outpost
 {
 
@@ -45,6 +46,7 @@ private:
   std::condition_variable cv_;
   std::thread thread_;
   bool stop_;
+  std::chrono::steady_clock::time_point last_t_;
 
   void run();
 };

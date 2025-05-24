@@ -91,7 +91,7 @@ io::Command Shooter::shoot(
   auto target_predicted = target;
   auto t_img = timestamp;
   auto t_fire = timestamp;
-  if (bullet_speed < 12.0 || bullet_speed > 16.5) bullet_speed = 15.3;
+  if (bullet_speed < 15.6 || bullet_speed > 16.2) bullet_speed = 15.8;
   auto ekf_x = target_predicted.ekf_x();
 
   if (std::abs(ekf_x[7]) > 1) {  // w 大于1就认为在旋转

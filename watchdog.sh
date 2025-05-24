@@ -32,7 +32,9 @@ while true; do
     source /opt/ros/humble/setup.bash
     export LD_LIBRARY_PATH=/opt/ros/humble/lib:$LD_LIBRARY_PATH
     ./build/hero_combine ./configs/hero-25_dog.yaml 2>&1 &
-
+    cd ../../sp_common_nav_25/bash/
+    sleep 3s
+    ./loc.sh
   else
     # 进程运行正常时重置崩溃计数器
     RETRY_COUNT=0
