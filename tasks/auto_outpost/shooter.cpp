@@ -91,7 +91,7 @@ io::Command Shooter::shoot(
   auto target_predicted = target;
   auto t_img = timestamp;
   auto t_fire = timestamp;
-  if (bullet_speed < 12.0 || bullet_speed > 16.5) bullet_speed = 15.3;
+  if (bullet_speed < 12.0 || bullet_speed > 16.9) bullet_speed = 15.3;
   auto ekf_x = target_predicted.ekf_x();
 
   if (std::abs(ekf_x[7]) > 1) {  // w 大于1就认为在旋转
@@ -132,11 +132,14 @@ io::Command Shooter::shoot(
     double error = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.01 : (std::fabs(ekf_x[7]) > 5 ? 0.04 : 0.02));
     auto center_yaw = std::atan2(ekf_x[2], ekf_x[0]);
     auto armor_state = target.armor_state;
+    double max_fire_error_yaw = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.03 : 0.1);
+    double max_fire_error_pitch = (target_rotate.name == auto_aim::ArmorName::outpost ? 0.03 : 0.1);
     nlohmann::json data;
     for (int aim_id = 0; aim_id < armor_num; aim_id++) {
       if (GET_STATE(armor_state, aim_id) == ALLOW) {
         if (
-          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw))<= error) &&
+          (std::abs(ypr[0] - yaw) < max_fire_error_yaw) && (std::abs(ypr[1] - direction_ * pitch) < max_fire_error_pitch) &&
+          (aim_id != last_hit_id_) && ((sig * (-armors_hit[aim_id][3] + center_yaw)) <= error) &&
           ((sig * (-armors_hit[aim_id][3] + center_yaw)) >= 0) &&
           (std::fabs(armors_hit[aim_id][2] - xyz0[2]) <= 0.01)) {  // 在击打窗口内
           tools::logger()->info("########## fire ##########");

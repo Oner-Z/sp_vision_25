@@ -3,15 +3,15 @@ enemy_color: "blue"
 
 R_gimbal2imubody: [0, 1, 0, -1, 0, 0, 0, 0, 1]
 
-# 重投影误差: 0.1847px
-camera_matrix: [2361.7776681249516, 0, 786.2911201595864, 0, 2363.8426834684383, 521.01386844039087, 0, 0, 1]
-distort_coeffs: [-0.032547174474272376, 0.1009377604412582, -0.0021446907305249147, 0.0050183312730732108, 0]
+# 重投影误差: 0.1576px
+camera_matrix: [2441.6690177460059, 0, 772.46535486227981, 0, 2442.3490610816116, 544.04751731640772, 0, 0, 1]
+distort_coeffs: [-0.037255083620226198, 0.11112974147297873, -0.0011211864776042313, 0.0040052998588710094, 0]
 
-# 相机同理想情况的偏角: yaw0.37 pitch-5.89 roll2.75 degree
-# 标定板到世界坐标系原点的水平距离: 1.26 m
-# 标定板同竖直摆放时的偏角: yaw-179.14 pitch0.39 roll2.08 degree
-R_camera2gimbal: [-0.011370369584798819, -0.10226202798740516, 0.99469251144633053, -0.99879767643173945, 0.048600149493707771, -0.0064208273413687228, -0.047685597931277926, -0.99356957637655774, -0.10269167760263775]
-t_camera2gimbal: [0.19149359689076095, -0.017613759549484811, 0.10561370751111775]
+# 相机同理想情况的偏角: yaw-0.23 pitch-10.36 roll2.46 degree
+# 标定板到世界坐标系原点的水平距离: 1.17 m
+# 标定板同竖直摆放时的偏角: yaw-24.48 pitch1.45 roll2.52 degree
+R_camera2gimbal: [-0.0037652878240577304, -0.17975906264721331, 0.98370346243357165, -0.99910203211462434, 0.042190426831323687, 0.0038855254752446942, -0.042201327372845251, -0.98280549819381147, -0.1797565038822907]
+t_camera2gimbal: [0.053962985830143563, -0.01985406381948595, 0.10112272939750104]
 
 
 # model: assets/tiny_resnet.onnx
@@ -30,12 +30,12 @@ max_rectangular_error: 25 # degree
 min_detect_count: 20
 max_temp_lost_count: 10
 
-yaw_offset: 0.30 # degree -right
-pitch_offset: -0.3 # degree +up
+yaw_offset: 0.40 # degree -right
+pitch_offset: 0.04 # degree +up
 direction: -1
 comming_angle: 60 # degree
 leaving_angle: 10 # degree
-shoot_delay: 0.083 #0.52
+shoot_delay: 0.115 #0.52
 mouse_to_fire: 0.06
 
 camera_name: "hikrobot"
@@ -45,6 +45,7 @@ vid_pid: "2bdf:0001"
 
 #####-----神经网络参数-----#####
 classify_model: assets/tiny_resnet.onnx
+model_path: assets/last.xml
 yolo11_model_path: assets/yolo11.xml
 yolov8_model_path: assets/yolov8.xml
 device: AUTO
@@ -77,4 +78,6 @@ m: 0.041
 g: 9.794
 PI: 3.1415926
 # 目标点图中坐标
-base_position: [-0.686302, -8.199907, 0.184034]
+base_position: [-11.17, -15.04, 1.514593]
+hero_on_center: 0.27     
+hero_on_bottom: 0.58      

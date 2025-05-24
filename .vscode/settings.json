@@ -71,6 +71,7 @@
         "cinttypes": "cpp",
         "variant": "cpp",
         "core": "cpp",
-        "specialfunctions": "cpp"
+        "specialfunctions": "cpp",
+        "*.inc": "cpp"
     }
 }

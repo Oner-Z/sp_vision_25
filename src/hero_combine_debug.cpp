@@ -19,9 +19,9 @@
 #include "tasks/auto_aim/multithread/mt_detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
-#include "tasks/auto_outpost/command_executor.hpp"
 #include "tasks/auto_aim/yolov8.hpp"
 #include "tasks/auto_base/hanging_shooter.hpp"
+#include "tasks/auto_outpost/command_executor.hpp"
 #include "tasks/auto_outpost/shooter.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
@@ -112,7 +112,7 @@ int main(int argc, char * argv[])
   double fps = 0.0;
 
   nlohmann::json data;
-  
+
   tools::logger()->info("AUTO AIM START");
   for (int frame_count = 0; !exiter.exit(); frame_count++) {
     // if (debug) {
@@ -122,58 +122,58 @@ int main(int argc, char * argv[])
     // }
     // auto [img, armors, t] = detector.debug_pop();  // 这是个构造
     camera.read(img, t);
-   
+
     q = cboard.imu_at(t - 1ms);
     if (!img.empty()) recorder.record(img, q, t);
 
-    mode = cboard.mode;  // TODO 
+    mode = cboard.mode;  // TODO
+    data["io_mode"] = mode;
+    plotter.plot(data);
     if (last_mode != mode) tools::logger()->info("Switch to {}", io::MODES[mode]);
     last_mode = mode;
-    if(io::MODES[mode] == "hanging_shooting")
-    {
-        io::Command command = hangingshooter.aim(q,ros2.subscribe(),cboard.bullet_speed);
-        cboard.send(command);
-    }
-    else
-    {
-        solver.set_R_gimbal2world(q);
-        // tools::logger()->debug("114514");
-        auto armors = detector.detect(img);
-        // tools::logger()->debug("1919810");
-        Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
-        auto targets = tracker.track(armors, t, ypr[0], true, mode);
+    if (io::MODES[mode] == "hanging_shooting") {
+      io::Command command = hangingshooter.aim(q, ros2.subscribe(), cboard.bullet_speed);
+      cboard.send(command);
+    } else {
+      solver.set_R_gimbal2world(q);
+      // tools::logger()->debug("114514");
+      auto armors = detector.detect(img);
+      // tools::logger()->debug("1919810");
+      Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+      auto targets = tracker.track(armors, t, ypr[0], true, mode);
 
-        // auto command = shooter.shoot(targets, t, cboard.bullet_speed, true, ypr);
-        // cboard.send(command);
+      // auto command = shooter.shoot(targets, t, cboard.bullet_speed, true, ypr);
+      // cboard.send(command);
 
-        executor.push(targets, t, cboard.bullet_speed, ypr);
-        data["fps"] = fps;
-        plotter.plot(data);
+      executor.push(targets, t, cboard.bullet_speed, ypr);
+      data["fps"] = fps;
+      // data["io_mode"] = mode;
+      plotter.plot(data);
 
-        if (!debug) {
+      if (!debug) {
         frame_counter++;
         auto now = std::chrono::steady_clock::now();
         double elapsed = std::chrono::duration<double>(now - last_fps_time).count();
         if (elapsed >= 1.0) {
-            fps = frame_counter / elapsed;
-            frame_counter = 0;
-            last_fps_time = now;
+          fps = frame_counter / elapsed;
+          frame_counter = 0;
+          last_fps_time = now;
         }
         continue;
-        }
+      }
 
-        tools::draw_text(img, fmt::format("FPS: {:.1f}", fps), {10, 60}, {255, 255, 0});
-        tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
-        int armor_id = 0;
-        if (tracker.state()) {  // tracker.state() && targets.size()
+      tools::draw_text(img, fmt::format("FPS: {:.1f}", fps), {10, 60}, {255, 255, 0});
+      tools::draw_text(img, fmt::format("[{}] [{}]", frame_count, tracker.state_str()), {10, 30}, {255, 255, 255});
+      int armor_id = 0;
+      if (tracker.state()) {  // tracker.state() && targets.size()
         // 当前帧target更新后
         auto target = tracker.get_target();
         std::vector<Eigen::Vector4d> armor_xyza_list = target.armor_xyza_list();
         for (const Eigen::Vector4d & xyza : armor_xyza_list) {
-            auto image_points = solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
-            tools::draw_points(img, image_points, {0, 255, 0});
-            tools::draw_text(img, fmt::format("No: {}", armor_id), image_points[0], {0, 255, 255});
-            armor_id++;
+          auto image_points = solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
+          tools::draw_points(img, image_points, {0, 255, 0});
+          tools::draw_text(img, fmt::format("No: {}", armor_id), image_points[0], {0, 255, 255});
+          armor_id++;
         }
 
         // aimer瞄准位置
@@ -181,9 +181,9 @@ int main(int argc, char * argv[])
         Eigen::Vector4d aim_xyza = aim_point.xyza;
         auto image_points = solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
         if (aim_point.valid)
-            tools::draw_points(img, image_points, {0, 0, 255});
+          tools::draw_points(img, image_points, {0, 0, 255});
         else
-            tools::draw_points(img, image_points, {255, 0, 0});
+          tools::draw_points(img, image_points, {255, 0, 0});
 
         // 观测器内部数据
         Eigen::VectorXd x = target.ekf_x();
@@ -207,29 +207,29 @@ int main(int argc, char * argv[])
         data["d"] = sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
         // data["command_yaw"] = command.yaw * 57.3;
         // data["command_pitch"] = -command.pitch * 57.3;
-        }
+      }
 
-        cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
-        cv::imshow("reprojection", img);
+      cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+      cv::imshow("reprojection", img);
 
-        // 云台响应情况
-        // Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+      // 云台响应情况
+      // Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
 
-        data["gimbal_yaw"] = ypr[0] * 57.3;
-        data["gimbal_pitch"] = -ypr[1] * 57.3;
+      data["gimbal_yaw"] = ypr[0] * 57.3;
+      data["gimbal_pitch"] = -ypr[1] * 57.3;
 
-        auto key = cv::waitKey(10);
-        if (key == 'q') break;
+      auto key = cv::waitKey(10);
+      if (key == 'q') break;
 
-        frame_counter++;
-        auto now = std::chrono::steady_clock::now();
-        double elapsed = std::chrono::duration<double>(now - last_fps_time).count();
-        if (elapsed >= 1.0) {
+      frame_counter++;
+      auto now = std::chrono::steady_clock::now();
+      double elapsed = std::chrono::duration<double>(now - last_fps_time).count();
+      if (elapsed >= 1.0) {
         fps = frame_counter / elapsed;
         frame_counter = 0;
         last_fps_time = now;
-        }
-        plotter.plot(data);
+      }
+      plotter.plot(data);
     }
   }
 

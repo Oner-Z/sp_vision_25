@@ -25,6 +25,7 @@ YOLOV8::YOLOV8(const std::string & config_path, bool debug) : classifier_(config
   std::cout << device_ << std::endl;
   min_confidence_ = yaml["min_confidence"].as<double>();
   std::cout << min_confidence_ << std::endl;
+  use_roi_ = yaml["use_roi"].as<bool>();
   int x = 0, y = 0, width = 0, height = 0;
   x = yaml["roi"]["x"].as<int>();
   y = yaml["roi"]["y"].as<int>();
@@ -62,13 +63,18 @@ std::list<Armor> YOLOV8::detect(const cv::Mat & raw_img, int frame_count)
     tools::logger()->warn("Empty img!, camera drop!");
     return std::list<Armor>();
   }
-  if (roi_.width == -1) {  // -1 表示该维度不裁切
-    roi_.width = raw_img.cols;
+  cv::Mat bgr_img;
+  if (use_roi_) {
+    if (roi_.width == -1) {  // -1 表示该维度不裁切
+      roi_.width = raw_img.cols;
+    }
+    if (roi_.height == -1) {  // -1 表示该维度不裁切
+      roi_.height = raw_img.rows;
+    }
+    bgr_img = raw_img(roi_);
+  } else {
+    bgr_img = raw_img;
   }
-  if (roi_.height == -1) {  // -1 表示该维度不裁切
-    roi_.height = raw_img.rows;
-  }
-  auto bgr_img = raw_img(roi_);
 
   auto x_scale = static_cast<double>(416) / bgr_img.rows;
   auto y_scale = static_cast<double>(416) / bgr_img.cols;
@@ -144,7 +150,11 @@ std::list<Armor> YOLOV8::parse(double scale, cv::Mat & output, const cv::Mat & b
   std::list<Armor> armors;
   for (const auto & i : indices) {
     sort_keypoints(armors_key_points[i]);
-    armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i], offset_);
+    if (use_roi_) {
+      armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i], offset_);
+    } else {
+      armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i]);
+    }
   }
 
   for (auto it = armors.begin(); it != armors.end();) {

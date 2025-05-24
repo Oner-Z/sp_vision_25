@@ -19,9 +19,9 @@
 #include "tasks/auto_aim/multithread/mt_detector.hpp"
 #include "tasks/auto_aim/solver.hpp"
 #include "tasks/auto_aim/tracker.hpp"
-#include "tasks/auto_outpost/command_executor.hpp"
 #include "tasks/auto_aim/yolov8.hpp"
 #include "tasks/auto_base/hanging_shooter.hpp"
+#include "tasks/auto_outpost/command_executor.hpp"
 #include "tasks/auto_outpost/shooter.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
@@ -96,29 +96,26 @@ int main(int argc, char * argv[])
   double fps = 0.0;
 
   nlohmann::json data;
-  
+
   tools::logger()->info("AUTO AIM START");
   for (int frame_count = 0; !exiter.exit(); frame_count++) {
     camera.read(img, t);
-   
+
     q = cboard.imu_at(t - 1ms);
     if (!img.empty()) recorder.record(img, q, t);
 
-    mode = cboard.mode;  // TODO 
+    mode = cboard.mode;  // TODO
     if (last_mode != mode) tools::logger()->info("Switch to {}", io::MODES[mode]);
     last_mode = mode;
-    if(io::MODES[mode] == "hanging_shooting")
-    {
-        io::Command command = hangingshooter.aim(q,ros2.subscribe(),cboard.bullet_speed);
-        cboard.send(command);
-    }
-    else
-    {
-        solver.set_R_gimbal2world(q);
-        auto armors = detector.detect(img);
-        Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
-        auto targets = tracker.track(armors, t, ypr[0], true, mode);
-        executor.push(targets, t, cboard.bullet_speed, ypr);
+    if (io::MODES[mode] == "hanging_shooting") {
+      io::Command command = hangingshooter.aim(q, ros2.subscribe(), cboard.bullet_speed);
+      cboard.send(command);
+    } else {
+      solver.set_R_gimbal2world(q);
+      auto armors = detector.detect(img);
+      Eigen::Vector3d ypr = tools::eulers(solver.R_gimbal2world(), 2, 1, 0);
+      auto targets = tracker.track(armors, t, ypr[0], true, mode);
+      executor.push(targets, t, cboard.bullet_speed, ypr);
     }
   }
 

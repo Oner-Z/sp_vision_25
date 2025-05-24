@@ -76,6 +76,14 @@ Armor::Armor(int class_id, float confidence, const cv::Rect & box, std::vector<c
   ratio = max_length / max_width;
   // color = class_id == 0 ? Color::blue : Color::red;
 
+  color = class_id == 0 ? Color::blue : Color::red;
+
+  //不能忽略灯条
+  left.top = armor_keypoints[0];
+  left.bottom = armor_keypoints[3];
+  right.top = armor_keypoints[1];
+  right.bottom = armor_keypoints[2];
+
   if (class_id >= 0 && class_id < armor_properties.size()) {
     auto [color, name, type] = armor_properties[class_id];
     this->color = color;
@@ -115,6 +123,14 @@ Armor::Armor(int class_id, float confidence, const cv::Rect & box, std::vector<c
 
   ratio = max_length / max_width;
   // color = class_id == 0 ? Color::blue : Color::red;
+
+  color = class_id == 0 ? Color::blue : Color::red;
+
+  //不能忽略灯条
+  left.top = armor_keypoints[0];
+  left.bottom = armor_keypoints[3];
+  right.top = armor_keypoints[1];
+  right.bottom = armor_keypoints[2];
 
   if (class_id >= 0 && class_id < armor_properties.size()) {
     auto [color, name, type] = armor_properties[class_id];

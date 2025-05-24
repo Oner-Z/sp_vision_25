@@ -16,22 +16,17 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 while true; do
-  # 检查 standard 进程是否存在
+  # 检查 hero 进程是否存在
   if ! pidof hero_combine > /dev/null; then
     echo "hero_combine 未运行，正在重启..."
-
+    source /opt/ros/humble/setup.bash
+    export LD_LIBRARY_PATH=/opt/ros/humble/lib:$LD_LIBRARY_PATH
+    ./build/hero_combine ./configs/hero-25_dog.yaml 2>&1 &
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ "$RETRY_COUNT" -gt "$MAX_RETRY" ]; then
       echo "错误: 进程崩溃重启已达上限 ($MAX_RETRY 次)"
       cleanup
     fi
-
-    sleep 1
-
-    # 启动程序（后台运行）
-    source /opt/ros/humble/setup.bash
-    export LD_LIBRARY_PATH=/opt/ros/humble/lib:$LD_LIBRARY_PATH
-    ./build/hero_combine ./configs/hero-25_fric.yaml 2>&1 &
 
   else
     # 进程运行正常时重置崩溃计数器

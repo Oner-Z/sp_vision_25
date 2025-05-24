@@ -25,7 +25,9 @@ private:
   // 目标在地图坐标系下位置
   std::vector<double>base_position_;
   io::LocationInfo location_; 
-  double calculate_pitch(double x,double y,double z,double bullet_speed);  // 考虑空气阻力的弹道解算
+  double hero_on_center_;
+  double hero_on_bottom_;
+  double calculate_pitch(double distance,double bullet_speed);  // 考虑空气阻力的弹道解算
   void RungeKutta_4(std::vector<double> & x_vals, std::vector<double> & y_vals, double angle, double bullet_speed,
     double height, double dt = 0.01,
     double max_time = 10);  // 使用4阶龙格库塔推导弹道方程
