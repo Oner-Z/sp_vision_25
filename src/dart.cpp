@@ -8,8 +8,9 @@
 #include "io/cboard.hpp"
 #include "tools/dart_recorder.hpp"
 #include "tools/exiter.hpp"
+#include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
-
+#include "tools/math_tools.hpp"
 using namespace std::chrono;
 
 const std::string keys =
@@ -33,18 +34,48 @@ int main(int argc, char * argv[])
 
   cv::Mat img;
   std::chrono::steady_clock::time_point t;
-
-  auto mode = io::Mode::idle;
-  auto last_mode = io::Mode::idle;
-
+  std::chrono::steady_clock::time_point t_start;
+  std::chrono::steady_clock::time_point t_end;
+  int count = 0;
+  bool open = false;
+  bool start_recording = false;
   while (!exiter.exit()) {
     camera.read(img, t);
-    if (cboard.control) {
-      recorder.record(img, t);
+    if (cboard.control && !open) {
+      open = true;
+      t_start = std::chrono::steady_clock::now();
+      count++;
     }
-    // if (mode == io::Mode::idle) aimer.clear_last();
+    t_end = std::chrono::steady_clock::now();
+    if (open) {
+      if (t_end - t_start < std::chrono::seconds(17)) {
+        cv::Mat img_draw = img.clone();
+        tools::draw_text(
+          img_draw, fmt::format("{}", count), cv::Point(10, 10), cv::Scalar(0, 0, 255), 1, 2);
+        int height = frame.rows;
+        int width = frame.cols;
 
-    recorder.record(img, t);
+        // 定义线条颜色（BGR格式，这里用白色）
+        cv::Scalar lineColor(255, 255, 255);
+
+        for (int i = 1; i < 7; i++) {
+          int y = height / 3 + height / 3 / 6 * i;
+        }
+        for (int i = 1; i < 3; i++) {
+          int y = height * i / 3;
+
+          cv::line(frame, cv::Point(0, y), cv::Point(width, y), lineColor, 1);
+        }
+
+        // 绘制竖线（将图像分成3份）
+        for (int i = 1; i < 3; i++) {
+          int x = width * i / 3;
+          cv::line(frame, cv::Point(x, 0), cv::Point(x, height), lineColor, 1);
+        }
+        recorder.record(img_draw, t);
+      }
+    } else
+      open = false;
   }
   return 0;
 }
