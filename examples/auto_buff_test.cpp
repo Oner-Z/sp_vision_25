@@ -86,18 +86,19 @@ int main(int argc, char * argv[])
   // 初始化跟踪器、解算器、追踪器和瞄准器
   auto_buff::Buff_Detector detector(config_path);
   auto_buff::Solver solver(config_path);
-  auto_buff::SmallTarget target;
-  // auto_buff::BigTarget target;
+  // auto_buff::SmallTarget target;
+  auto_buff::BigTarget target;
   auto_buff::Aimer aimer(config_path);
 
   cv::Mat img;
   auto t0 = std::chrono::steady_clock::now();
 
   // 设置视频起始帧
-  video.set(cv::CAP_PROP_POS_FRAMES, start_index);
+  // video.set(cv::CAP_PROP_POS_FRAMES, start_index);
   for (int i = 0; i < start_index; i++) {
     double t, w, x, y, z;
     text >> t >> w >> x >> y >> z;
+    if (!video.grab()) break;
   }
 
   std::vector<double> ious;

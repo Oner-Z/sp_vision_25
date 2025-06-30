@@ -42,8 +42,8 @@ target_link_libraries(auto_buff_test ${OpenCV_LIBS} openvino::runtime fmt::fmt y
 # target_link_libraries(calibrate_robotworld_handeye ${OpenCV_LIBS} fmt::fmt yaml-cpp tools)
 # target_link_libraries(usbcamera_test ${OpenCV_LIBS} fmt::fmt io tools)
 
-# add_executable(split examples/split_vedio.cpp)
-# target_link_libraries(split ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io)
+add_executable(split examples/split_vedio.cpp)
+target_link_libraries(split ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io)
 
 # add_executable(fix_video examples/fix_video.cpp)
 # target_link_libraries(fix_video ${OpenCV_LIBS} fmt::fmt tools)
@@ -51,5 +51,5 @@ target_link_libraries(auto_buff_test ${OpenCV_LIBS} openvino::runtime fmt::fmt y
 add_executable(auto_buff_debug src/auto_buff_debug.cpp)
 target_link_libraries(auto_buff_debug ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools io ${CERES_LIBRARIES})
 
-add_executable(test examples/test.cpp)
-target_link_libraries(test ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools)
+add_executable(test_buff_detector examples/test_buff_detector.cpp)
+target_link_libraries(test_buff_detector ${OpenCV_LIBS} openvino::runtime fmt::fmt yaml-cpp auto_buff tools)

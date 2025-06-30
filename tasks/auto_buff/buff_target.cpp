@@ -2,10 +2,6 @@
 
 namespace auto_buff
 {
-std::atomic<bool> STOP_THREAD(false);
-std::atomic<bool> VALID_PARAMS(false);
-std::mutex MUTEX;
-
 ///voter
 
 Voter::Voter() : clockwise_(0) {}
@@ -23,7 +19,7 @@ int Voter::clockwise() { return clockwise_ > 0 ? 1 : -1; }
 
 /// Target
 
-Target::Target() : first_in_(true), unsolvable_(true){};
+Target::Target() : first_in_(true), unsolvable_(true) {};
 
 Eigen::Vector3d Target::point_buff2world(const Eigen::Vector3d & point_in_buff) const
 {
@@ -357,19 +353,28 @@ Eigen::MatrixXd SmallTarget::h_jacobian() const
 }
 
 /// BigTarget
+std::atomic<bool> STOP_THREAD(false);
+std::atomic<bool> VALID_PARAMS(false);
+std::mutex MUTEX;
 
-BigTarget::BigTarget() : Target() {
+BigTarget::BigTarget() : Target()
+{
   // fit_thread_ = std::thread(&BigTarget::fit, this);
 }
 
-BigTarget::BigTarget(const BigTarget& other)
-  : Target(other),
-    params_(other.params_),
-    convexity_(other.convexity_),
-    fit_data_(other.fit_data_) {
-} 
+BigTarget::BigTarget(const BigTarget & other)
+: Target(other), params_(other.params_), convexity_(other.convexity_), fit_data_(other.fit_data_)
+{
+}
 
-BigTarget& BigTarget::operator=(const BigTarget& other) {
+// BigTarget::~BigTarget()
+// {
+//   STOP_THREAD.store(true);
+//   fit_thread_.join();
+// }
+
+BigTarget & BigTarget::operator=(const BigTarget & other)
+{
   if (this != &other) {
     Target::operator=(other);
     params_ = other.params_;
@@ -423,7 +428,8 @@ void BigTarget::get_target(
   }
 }
 
-void BigTarget::get_target_by_fitter(const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp)
+void BigTarget::get_target_by_fitter(
+  const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp)
 {
   // 如果没有识别，退出函数
   static int lost_cn = 0;
@@ -457,14 +463,13 @@ void BigTarget::get_target_by_fitter(const std::optional<PowerRune> & p, std::ch
   voter.vote(last_angle_, now_angle);  // 计算旋转方向
   double delta_angle = now_angle - last_angle_;
   last_angle_ = now_angle;
-  int shift =  std::round(delta_angle / 72);
+  int shift = std::round(delta_angle / 72);
   total_shift_ += shift;
   double delta_angle_rel = now_angle - total_shift_ * 72;
   double time = tools::delta_time(timestamp, start_timestamp);
-  
+
   std::unique_lock lock(mutex_);
   fit_data_.emplace_back(time, std::abs(delta_angle_rel));
-
 }
 
 void BigTarget::predict(double dt)
@@ -524,10 +529,7 @@ void BigTarget::predict(double dt)
   ekf_.predict(A_, Q_, f);
 }
 
-void BigTarget::predict_by_fitter(double dt)
-{
-  
-}
+void BigTarget::predict_by_fitter(double dt) {}
 
 void BigTarget::init(double nowtime, const PowerRune & p)
 {
@@ -776,10 +778,11 @@ Eigen::MatrixXd BigTarget::h_jacobian() const
 /**
  * @brief 拟合一次
  */
-bool BigTarget::fitOnce() {
+bool BigTarget::fitOnce()
+{
   // 如果数据量过少，则确定凹凸性
   if (fit_data_.size() < (size_t)2 * MIN_FIT_DATA_SIZE) {
-      convexity_ = getConvexity(fit_data_);
+    convexity_ = getConvexity(fit_data_);
   }
   // 利用 ransac 算法计算参数
   params_ = ransacFitting(fit_data_, convexity_);
@@ -789,7 +792,8 @@ bool BigTarget::fitOnce() {
 /**
 * @brief 拟合线程的主函数
 */
-void BigTarget::fit() {
+void BigTarget::fit()
+{
   decltype(fit_data_) fitData;
   while (STOP_THREAD.load() == false) {
     {
@@ -802,11 +806,11 @@ void BigTarget::fit() {
     }
     bool result = fitOnce();
     VALID_PARAMS.store(result);
-    if(debug_) {
+    if (debug_) {
       MUTEX.lock();
       if (result == true) {
         std::cout << "params: ";
-        std::for_each(params_.begin(), params_.end(), [](auto &&it) { std::cout << it << " "; });
+        std::for_each(params_.begin(), params_.end(), [](auto && it) { std::cout << it << " "; });
         std::cout << std::endl;
       }
       MUTEX.unlock();
@@ -818,23 +822,24 @@ void BigTarget::fit() {
   }
 }
 
-
 /**
  * @brief 凹凸性计算
  * @param[in] data          角度数据
  * @return Convexity
  */
-Convexity getConvexity(const std::vector<std::pair<double, double>> &data) {
+Convexity getConvexity(const std::vector<std::pair<double, double>> & data)
+{
   auto first{data.begin()}, last{data.end() - 1};
   double slope{(last->second - first->second) / (last->first - first->first)};
-  double offset{(first->second * last->first - last->second * first->first) / (last->first - first->first)};
+  double offset{
+    (first->second * last->first - last->second * first->first) / (last->first - first->first)};
   int concave{0}, convex{0};
-  for (const auto &i : data) {
-      if (slope * i.first + offset > i.second) {
-          concave++;
-      } else {
-          convex++;
-      }
+  for (const auto & i : data) {
+    if (slope * i.first + offset > i.second) {
+      concave++;
+    } else {
+      convex++;
+    }
   }
   const int standard{static_cast<int>(data.size() * 0.75)};
   return concave > standard  ? Convexity::CONCAVE
@@ -848,7 +853,9 @@ Convexity getConvexity(const std::vector<std::pair<double, double>> &data) {
 * @param[in] convexity     凹凸性
 * @return std::array<double, 5>
 */
-std::array<double, 5> ransacFitting(const std::vector<std::pair<double, double>> &data, Convexity convexity) {
+std::array<double, 5> ransacFitting(
+  const std::vector<std::pair<double, double>> & data, Convexity convexity)
+{
   // inliers 为符合要求的点，outliers 为不符合要求的点
   std::vector<std::pair<double, double>> inliers, outliers;
   // 初始时，inliers 为全部点
@@ -856,45 +863,51 @@ std::array<double, 5> ransacFitting(const std::vector<std::pair<double, double>>
   // 迭代次数
   int iterTimes{data.size() < 400 ? 200 : 20};
   // 初始参数
-  std::array<double, 5> params{0.470, 1.942, 0, 1.178, 0};
+  // [angle/row] 角度 -a / w * cos(wt + fi) + (2.09 - a) * t + c
+  // [spd]       角速度 a*sin(wt + fi) + 2.09 - a
+  // [a]         0.78-1.045 0.9125
+  // [w]         1.884-2.000 1.942
+  // [fi]
+  // -params[0] * std::cos(params[1] * (time + params[2])) + params[3] * time + params[4]
+  std::array<double, 5> params{0.470, 1.942, 0, 1.178, 0};  // a / w, w, x, b (2.09 - a), angle0
   for (int i = 0; i < iterTimes; ++i) {
-      decltype(inliers) sample;
-      // 如果数据点较多，则将数据打乱，取其中一部分
-      if (inliers.size() > 400) {
-          std::shuffle(
-              inliers.begin(), inliers.end() - 100,
-              std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
-          sample.assign(inliers.end() - 200, inliers.end());
-      } else {
-          sample.assign(inliers.begin(), inliers.end());
+    decltype(inliers) sample;
+    // 如果数据点较多，则将数据打乱，取其中一部分
+    if (inliers.size() > 400) {
+      std::shuffle(
+        inliers.begin(), inliers.end() - 100,
+        std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
+      sample.assign(inliers.end() - 200, inliers.end());
+    } else {
+      sample.assign(inliers.begin(), inliers.end());
+    }
+    // 进行拟合
+    params = leastSquareEstimate(sample, params, convexity);
+    // 对 inliers 每一个计算误差
+    std::vector<double> errors;
+    for (const auto & inlier : inliers) {
+      errors.push_back(std::abs(inlier.second - getAngleBig(inlier.first, params)));
+    }
+    // 如果数据量较大，则对点进行筛选
+    if (data.size() > 800) {
+      std::sort(errors.begin(), errors.end());
+      const int index{static_cast<int>(errors.size() * 0.95)};
+      const double threshold{errors[index]};
+      // 剔除 inliers 中不符合要求的点
+      for (size_t i = 0; i < inliers.size() - 100; ++i) {
+        if (std::abs(inliers[i].second - getAngleBig(inliers[i].first, params)) > threshold) {
+          outliers.push_back(inliers[i]);
+          inliers.erase(inliers.begin() + i);
+        }
       }
-      // 进行拟合
-      params = leastSquareEstimate(sample, params, convexity);
-      // 对 inliers 每一个计算误差
-      std::vector<double> errors;
-      for (const auto &inlier : inliers) {
-          errors.push_back(std::abs(inlier.second - getAngleBig(inlier.first, params)));
+      // 将 outliers 中符合要求的点加进来
+      for (size_t i = 0; i < outliers.size(); ++i) {
+        if (std::abs(outliers[i].second - getAngleBig(outliers[i].first, params)) < threshold) {
+          inliers.emplace(inliers.begin(), outliers[i]);
+          outliers.erase(outliers.begin() + i);
+        }
       }
-      // 如果数据量较大，则对点进行筛选
-      if (data.size() > 800) {
-          std::sort(errors.begin(), errors.end());
-          const int index{static_cast<int>(errors.size() * 0.95)};
-          const double threshold{errors[index]};
-          // 剔除 inliers 中不符合要求的点
-          for (size_t i = 0; i < inliers.size() - 100; ++i) {
-              if (std::abs(inliers[i].second - getAngleBig(inliers[i].first, params)) > threshold) {
-                  outliers.push_back(inliers[i]);
-                  inliers.erase(inliers.begin() + i);
-              }
-          }
-          // 将 outliers 中符合要求的点加进来
-          for (size_t i = 0; i < outliers.size(); ++i) {
-              if (std::abs(outliers[i].second - getAngleBig(outliers[i].first, params)) < threshold) {
-                  inliers.emplace(inliers.begin(), outliers[i]);
-                  outliers.erase(outliers.begin() + i);
-              }
-          }
-      }
+    }
   }
   // 返回之前对所有 inliers 再拟合一次
   return params;
@@ -907,41 +920,43 @@ std::array<double, 5> ransacFitting(const std::vector<std::pair<double, double>>
 * @param[in] convexity     凹凸性
 * @return std::array<double, 5>
 */
-std::array<double, 5> leastSquareEstimate(const std::vector<std::pair<double, double>> &points,
-                                        const std::array<double, 5> &params, Convexity convexity) {
+std::array<double, 5> leastSquareEstimate(
+  const std::vector<std::pair<double, double>> & points, const std::array<double, 5> & params,
+  Convexity convexity)
+{
   std::array<double, 5> ret = params;
   ceres::Problem problem;
   for (size_t i = 0; i < points.size(); i++) {
-      ceres::CostFunction *costFunction = new CostFunctor2(points[i].first, points[i].second);
-      ceres::LossFunction *lossFunction = new ceres::SoftLOneLoss(0.1);
-      problem.AddResidualBlock(costFunction, lossFunction, ret.begin());
+    ceres::CostFunction * costFunction = new CostFunctor2(points[i].first, points[i].second);
+    ceres::LossFunction * lossFunction = new ceres::SoftLOneLoss(0.1);
+    problem.AddResidualBlock(costFunction, lossFunction, ret.begin());
   }
   std::array<double, 3> omega;
   if (points.size() < 100) {
-      // 在数据量较小时，可以利用凹凸性定参数边界
-      if (convexity == Convexity::CONCAVE) {
-          problem.SetParameterUpperBound(ret.begin(), 2, -2.8);
-          problem.SetParameterLowerBound(ret.begin(), 2, -4);
-      } else if (convexity == Convexity::CONVEX) {
-          problem.SetParameterUpperBound(ret.begin(), 2, -1.1);
-          problem.SetParameterLowerBound(ret.begin(), 2, -2.3);
-      }
-      omega = {10., 1., 1.};
+    // 在数据量较小时，可以利用凹凸性定参数边界
+    if (convexity == Convexity::CONCAVE) {
+      problem.SetParameterUpperBound(ret.begin(), 2, -2.8);
+      problem.SetParameterLowerBound(ret.begin(), 2, -4);
+    } else if (convexity == Convexity::CONVEX) {
+      problem.SetParameterUpperBound(ret.begin(), 2, -1.1);
+      problem.SetParameterLowerBound(ret.begin(), 2, -2.3);
+    }
+    omega = {10., 1., 1.};
   } else {
-      // 而数据量较多后，则不再需要凹凸性辅助拟合
-      omega = {60., 50., 50.};
+    // 而数据量较多后，则不再需要凹凸性辅助拟合
+    omega = {60., 50., 50.};
   }
-  ceres::CostFunction *costFunction1 = new CostFunctor1(ret[0], 0);
-  ceres::LossFunction *lossFunction1 =
-      new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[0], ceres::TAKE_OWNERSHIP);
+  ceres::CostFunction * costFunction1 = new CostFunctor1(ret[0], 0);
+  ceres::LossFunction * lossFunction1 =
+    new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[0], ceres::TAKE_OWNERSHIP);
   problem.AddResidualBlock(costFunction1, lossFunction1, ret.begin());
-  ceres::CostFunction *costFunction2 = new CostFunctor1(ret[1], 1);
-  ceres::LossFunction *lossFunction2 =
-      new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[1], ceres::TAKE_OWNERSHIP);
+  ceres::CostFunction * costFunction2 = new CostFunctor1(ret[1], 1);
+  ceres::LossFunction * lossFunction2 =
+    new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[1], ceres::TAKE_OWNERSHIP);
   problem.AddResidualBlock(costFunction2, lossFunction2, ret.begin());
-  ceres::CostFunction *costFunction3 = new CostFunctor1(ret[3], 3);
-  ceres::LossFunction *lossFunction3 =
-      new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[2], ceres::TAKE_OWNERSHIP);
+  ceres::CostFunction * costFunction3 = new CostFunctor1(ret[3], 3);
+  ceres::LossFunction * lossFunction3 =
+    new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[2], ceres::TAKE_OWNERSHIP);
   problem.AddResidualBlock(costFunction3, lossFunction3, ret.begin());
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::DENSE_QR;

@@ -29,9 +29,14 @@ public:
 private:
   enum STATUS
   {
-    SEND_ANGLE,
-    SEND_FIRE,
-    WAIT,
+    // [初始化或目标不可解] → reset_status_() → SEND_ANGLE
+    // SEND_ANGLE  ──（瞄准时间 AIM_TIME）──▶ SEND_FIRE
+    //     ↑                                        │
+    //     │                                        │
+    //     └──────────（WAIT_TIME）◀───────── WAIT ──┘
+    SEND_ANGLE, // 发送角度指令
+    SEND_FIRE,// 发送射击指令
+    WAIT,// 等待下一次发送角度指令
   };
   SmallTarget target_;
   double yaw_offset_;

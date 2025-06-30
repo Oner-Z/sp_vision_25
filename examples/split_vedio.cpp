@@ -16,7 +16,7 @@ const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明 }"
   "{start-index s  |                        | 视频起始帧下标    }"
   "{end-index e    |                        | 视频结束帧下标    }"
-  "{output-path p  | records/Big/2024-05-14_11-6-26     | avi和txt文件的路径}"
+  "{output-path p  | records/output         | avi和txt文件的路径}"
   "{@input-path    |                        | avi和txt文件的路径}";
 
 int main(int argc, char * argv[])
@@ -43,10 +43,11 @@ int main(int argc, char * argv[])
   std::ifstream text(text_path);
 
   // 设置视频起始帧
-  video.set(cv::CAP_PROP_POS_FRAMES, start_index);
+  // video.set(cv::CAP_PROP_POS_FRAMES, start_index);
   for (int i = 0; i < start_index; i++) {
     double t, w, x, y, z;
     text >> t >> w >> x >> y >> z;
+    if (!video.grab()) break;
   }
   // 获取原始视频的参数
   int frameWidth = video.get(cv::CAP_PROP_FRAME_WIDTH);

@@ -37,7 +37,7 @@ io::Command Aimer::aim(
   }
   if (bullet_speed < 10) bullet_speed = 24;
 
-  io::Command command = {false, false, 0, 0};
+  io::Command command = {false, false, 0, 0};  // control shot yaw pitch
 
   auto detect_now_gap = tools::delta_time(now, timestamp);
   if (get_send_angle(target, detect_now_gap, bullet_speed, to_now, yaw, pitch)) {
@@ -62,8 +62,7 @@ io::Command Aimer::aim(
     update_status_();
   }
   // wait -> send_fire
-  if (
-    status_ == WAIT && tools::delta_time(now, label_timestamp) > WAIT_TIME) {
+  if (status_ == WAIT && tools::delta_time(now, label_timestamp) > WAIT_TIME) {
     update_status_();
   }
 
@@ -74,6 +73,15 @@ bool Aimer::get_send_angle(
   auto_buff::Target & target, const double & detect_now_gap, const double bullet_speed,
   const bool to_now, double & yaw, double & pitch)
 {
+  /*
+  target：目标对象，内部维护了 EKF 状态、历史坐标等
+  detect_now_gap：从拍照到当前的延迟时间
+  bullet_speed：子弹初速
+  to_now：视频还是相机,是否根据当前时间预测目标位置
+  yaw, pitch：输出的偏航角和俯仰角
+
+  返回 bool：能否计算出可行的射击角度。
+  */
   // 考虑detecor所消耗的时间，此外假设aimer的用时可忽略不计
   // 如果 to_now 为 true，则根据当前时间和时间戳预测目标位置,deltatime = 现在时间减去当时照片时间，加上0.1
   target.predict(to_now ? (detect_now_gap + AIM_TIME) : 0.1 + AIM_TIME);

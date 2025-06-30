@@ -36,7 +36,7 @@ Buff_Detector::Buff_Detector(const std::string & config_path) : status_(LOSE), l
 {
   auto yaml = YAML::LoadFile(config_path);
 
-  enemy_color_ = yaml["enemy_color"].as<std::string>() == "red" ? "blue" : "red";
+  enemy_color_ = yaml["enemy_color"].as<std::string>() == "red" ? "red" : "blue";
   auto fsDetect = yaml["detect"];
   contrast_ = fsDetect["contrast"].as<int>();
   brightness_ = fsDetect["brightness"][enemy_color_].as<int>();
@@ -116,8 +116,8 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
   if (enemy_color_ == "red")
     gray_image = red - blue * 0.7;
   else
-    gray_image = blue - red * 0.0;
-  // imshow("Gray Image", gray_image);
+    gray_image = blue - red * 0.5;
+  imshow("Gray Image", gray_image);
 
   // 二值化
   cv::Mat threshold_image;
@@ -398,7 +398,7 @@ cv::Point2f Buff_Detector::detect_r_center(FanBlade & fanblade, const cv::Mat & 
   /// 算出大概位置
 
   cv::Point2f r_center_t = {0, 0};
-  r_center_t += (body_center - head_center) * 2.1 + head_center;
+  r_center_t += (body_center - head_center) * 2.0 + head_center;
 
   cv::Mat dilated_img = handled_img.clone();
   cv::Mat mask = cv::Mat::zeros(handled_img.size(), CV_8U);  // mask
