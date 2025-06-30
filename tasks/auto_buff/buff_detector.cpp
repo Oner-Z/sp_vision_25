@@ -36,7 +36,7 @@ Buff_Detector::Buff_Detector(const std::string & config_path) : status_(LOSE), l
 {
   auto yaml = YAML::LoadFile(config_path);
 
-  enemy_color_ = yaml["enemy_color"].as<std::string>()=="red"?"blue":"red";
+  enemy_color_ = yaml["enemy_color"].as<std::string>() == "red" ? "blue" : "red";
   auto fsDetect = yaml["detect"];
   contrast_ = fsDetect["contrast"].as<int>();
   brightness_ = fsDetect["brightness"][enemy_color_].as<int>();
@@ -71,7 +71,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
   auto fanblade = detect_fanblades(handled_img);
   if (fanblade.has_value() == false) {
     handle_lose();
-    // cv::imshow("Detector", output);
+    cv::imshow("Detector", output);
     return std::nullopt;
   }
 
@@ -93,7 +93,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
   std::optional<PowerRune> P;
   P.emplace(powerrune);
   last_powerrune_ = P;
-  // cv::imshow("Detector", output);
+  cv::imshow("Detector", output);
 
   return P;
 }
@@ -133,50 +133,6 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
   cv::imshow("Threshold Image", threshold_image);
 
   handled_img = threshold_image;
-
-  // // Step 5: 边缘检测
-  // cv::Mat edges;
-  // cv::Canny(threshold_image, edges, canny_low_threshold_, canny_high_threshold_);
-  // cv::imshow("Edges", edges);
-  // // Step 7: 查找轮廓
-  // std::vector<std::vector<cv::Point>> contours;
-  // cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-  // // Step 8: 轮廓近似
-  // for (size_t i = 0; i < contours.size(); i++) {
-  //   cv::approxPolyDP(contours[i], contours[i], 1.0, true);
-  // }
-  // // 创建彩色图像（原图大小，3通道）
-  // cv::Mat contour_img = cv::Mat::zeros(edges.size(), CV_8UC3);
-  // cv::cvtColor(edges, contour_img, cv::COLOR_GRAY2BGR);  // 转换成 3 通道用于绘制彩色轮廓
-  // // 随机颜色绘制轮廓并标注面积
-  // for (size_t i = 0; i < contours.size(); i++) {
-  //   double area = cv::contourArea(contours[i]);
-  //   // 生成随机颜色
-  //   cv::Scalar color = cv::Scalar(rand() % 256, rand() % 256, rand() % 256);
-  //   // 绘制轮廓
-  //   cv::drawContours(contour_img, contours, static_cast<int>(i), color, 2);
-  //   // 仅在轮廓至少有1个点时添加文本
-  //   if (!contours[i].empty()) {
-  //     cv::putText(
-  //       contour_img,
-  //       std::to_string(static_cast<int>(area)),  // 显示整数面积
-  //       contours[i][0],                          // 在轮廓第一个点的位置绘制文字
-  //       cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
-  //   }
-  // }
-  // // 显示最终的轮廓图像
-  // cv::imshow("Contours", contour_img);
-  // // Step 9: 绘制并填充轮廓
-  // handled_img = cv::Mat::zeros(edges.size(), CV_8UC1);
-  // for (size_t i = 0; i < contours.size(); i++) {
-  //   double area = cv::contourArea(contours[i]);
-  //   if (
-  //     (area > target_contours_min_area_ && area < target_contours_max_area_) ||
-  //     (area > R_contours_min_area_ && area < R_contours_max_area_)) {
-  //     cv::drawContours(handled_img, contours, static_cast<int>(i), cv::Scalar(255), cv::FILLED);
-  //   }
-  // }
-  // cv::imshow("Filled Contours", handled_img);
 }
 
 void Buff_Detector::handle_lose()
@@ -232,11 +188,12 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   std::vector<cv::Point2f> kpt;
 
-  if(std::fabs(head_center.y - body_center.y) < 5){
-    tools::logger()->debug("[Buff_Detector] 无法确认点位置! head_center.y: {} body_center.y: {}", head_center.y, body_center.y);
+  if (std::fabs(head_center.y - body_center.y) < 5) {
+    tools::logger()->debug(
+      "[Buff_Detector] 无法确认点位置! head_center.y: {} body_center.y: {}", head_center.y,
+      body_center.y);
     return F;
   }
-
 
   if (head_center.y < body_center.y) {
     // fanblades_angle -= 180;
@@ -341,16 +298,22 @@ bool Buff_Detector::detect_fanblades_head(
     cv::matchTemplate(roi, standard_fanblade, result, cv::TM_CCOEFF_NORMED);
     double min_val, max_val;
     cv::minMaxLoc(result, &min_val, &max_val);
-    cv::cvtColor(roi, roi, cv::COLOR_GRAY2BGR); // 只是为了绘制彩色文字
+    cv::cvtColor(roi, roi, cv::COLOR_GRAY2BGR);  // 只是为了绘制彩色文字
     if (max_val > 0.15) {
       head_rects.push_back(bounding_box);
-      tools::draw_text(roi, fmt::format("[success match]", bounding_box.width, bounding_box.height), {0, 20}, cv::Scalar(0, 255, 0), 0.7, 1);
+      tools::draw_text(
+        roi, fmt::format("[success match]", bounding_box.width, bounding_box.height), {0, 20},
+        cv::Scalar(0, 255, 0), 0.7, 1);
     } else {
-      tools::draw_text(roi, fmt::format("[failed match]", bounding_box.width, bounding_box.height), {0, 20}, cv::Scalar(0, 0, 255), 0.7, 1);
+      tools::draw_text(
+        roi, fmt::format("[failed match]", bounding_box.width, bounding_box.height), {0, 20},
+        cv::Scalar(0, 0, 255), 0.7, 1);
       tools::logger()->debug("match fail");
     }
 
-    tools::draw_text(roi, fmt::format("width: {}, height: {}", bounding_box.width, bounding_box.height), {0, 40}, cv::Scalar(255, 0, 0), 0.7, 1);
+    tools::draw_text(
+      roi, fmt::format("width: {}, height: {}", bounding_box.width, bounding_box.height), {0, 40},
+      cv::Scalar(255, 0, 0), 0.7, 1);
     cv::imshow("roi_fanblade", roi);
 
     // 绘制所有检测的矩形
@@ -361,25 +324,6 @@ bool Buff_Detector::detect_fanblades_head(
   }
 
   return head_rects.size() > 0;
-  // double best_rotation_angle = 0;  // 最佳匹配的旋转角度
-  // cv::Mat roi = handled_img(best_match_rect);
-  // cv::resize(roi, roi, standard_fanblade_size, 0, 0, cv::INTER_AREA);
-  // // cv::normalize(roi, roi, 0, 255, cv::NORM_MINMAX, CV_8U);
-  // // cv::imwrite("result.jpg", roi);
-  // for (double angle = 0; angle <= 90; angle += 5) {  // 旋转范围：0° ~ 90°，步长1°
-  //   cv::Mat rotated_template;
-  //   cv::Mat rotation_matrix = cv::getRotationMatrix2D(
-  //     cv::Point2f(standard_fanblade.cols / 2, standard_fanblade.rows / 2), angle, 1.0);
-  //   cv::warpAffine(standard_fanblade, rotated_template, rotation_matrix, standard_fanblade.size());
-  //   cv::matchTemplate(roi, rotated_template, result, cv::TM_CCOEFF_NORMED);
-  //   double min_val, max_val;
-  //   cv::minMaxLoc(result, &min_val, &max_val);
-  //   // 更新最佳匹配
-  //   if (max_val > best_match_score) {
-  //     best_match_score = max_val;
-  //     best_rotation_angle = angle;
-  //   }
-  // }
 }
 
 bool Buff_Detector::detect_fanblades_body(
@@ -408,7 +352,9 @@ bool Buff_Detector::detect_fanblades_body(
 
     cv::Mat roi = handled_img(bbox);
     cv::resize(roi, roi, standard_fanblade_size, 0, 0, cv::INTER_AREA);
-    tools::draw_text(roi, fmt::format("width: {}, height: {}", bbox.width, bbox.height), {0, 40}, cv::Scalar(255, 0, 0), 0.7, 1);
+    tools::draw_text(
+      roi, fmt::format("width: {}, height: {}", bbox.width, bbox.height), {0, 40},
+      cv::Scalar(255, 0, 0), 0.7, 1);
     // cv::imshow("roi_fanblade_body", roi);
     // 检查矩形是否超出图像范围 跳过不符合宽高比的矩形
     float half_width = size.width / 2.0, half_height = size.height / 2.0;
@@ -480,34 +426,5 @@ cv::Point2f Buff_Detector::detect_r_center(FanBlade & fanblade, const cv::Mat & 
   tools::draw_point(output, r_center, DETECTOR_COLOR_KEY, 2);
   return r_center;
 };
-
-// std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
-// {
-//   /// onnx 模型检测
-//   std::vector<YOLOV8KP::Object> results = MODE_.get_onecandidatebox(bgr_img);
-//   /// 处理未获得的情况
-//   if (results.empty()) {
-//     handle_lose();
-//     return std::nullopt;
-//   }
-//   /// results转扇叶FanBlade
-//   std::vector<FanBlade> fanblades;
-//   auto result = results[0];
-//   fanblades.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
-//   /// 生成PowerRune
-//   auto r_center = get_r_center(fanblades, bgr_img);
-//   PowerRune powerrune(fanblades, r_center, last_powerrune_);
-//   /// handle error
-//   if (powerrune.is_unsolve()) {
-//     handle_lose();
-//     return std::nullopt;
-//   }
-//   status_ = TRACK;
-//   lose_ = 0;
-//   std::optional<PowerRune> P;
-//   P.emplace(powerrune);
-//   last_powerrune_ = P;
-//   return P;
-// }
 
 }  // namespace auto_buff
