@@ -22,6 +22,8 @@
 #include "tools/trajectory.hpp"
 
 // 定义命令行参数
+// ./build/auto_buff_test ./records_25/big_buff -c=./configs/ascento.yaml
+// ./build/auto_buff_test ./records_25/ascento_warmup_UJS_1_output -c=./configs/ascento.yaml
 const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明 }"
   "{config-path c  | configs/standard4.yaml | yaml配置文件的路径}"
@@ -208,7 +210,7 @@ int main(int argc, char * argv[])
         data["w"] = x[8];
         data["angle0"] = x[9];
         data["spd0"] = target.spd;
-        data["delta_angle_rel"] = target.delta_angle_rel_debug * 57.3;
+        // data["delta_angle_rel"] = target.delta_angle_rel_debug * 57.3;
       }
     }
 
