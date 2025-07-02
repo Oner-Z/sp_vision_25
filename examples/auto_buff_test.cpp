@@ -170,29 +170,25 @@ int main(int argc, char * argv[])
       tools::draw_point(img, power_rune.r_center, {0, 0, 255}, 3);
 
       // 当前帧target更新后buff
+      // clang-format off
       auto Rxyz_in_world_now = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.0));
       image_points = solver.reproject_buff(Rxyz_in_world_now, target.ekf_x()[4], target.ekf_x()[5]);
-      tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4),
-        {255, 255, 0});
-      tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8),
-        {255, 255, 0});
-      tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 255, 0});
+      tools::draw_text(img, "update", {20, 40}, {255, 255, 0});
+      tools::draw_text(img, fmt::format("roll   {:.2f}", target.ekf_x()[5] * 57.3), image_points[0], {255, 255, 0});
+      tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {255, 255, 0});
+      tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8), {255, 255, 0});
+      tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 255, 0});
 
       // buff瞄准位置(预测)
       double dangle = target.ekf_x()[5] - target_pre.ekf_x()[5];
       auto Rxyz_in_world_pre = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.0));
-      image_points =
-        solver.reproject_buff(Rxyz_in_world_pre, target_pre.ekf_x()[4], target_pre.ekf_x()[5]);
-      tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {255, 0, 0});
-      tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8),
-        {255, 0, 0});
-      tools::draw_points(
-        img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 0, 0});
+      image_points = solver.reproject_buff(Rxyz_in_world_pre, target_pre.ekf_x()[4], target_pre.ekf_x()[5]);
+      tools::draw_text(img, "predict", {20, 20}, {255, 0, 0});
+      tools::draw_text(img, fmt::format("roll   {:.2f}", target_pre.ekf_x()[5] * 57.3), image_points[0], {255, 0, 0});
+      tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {255, 0, 0});
+      tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.begin() + 8), {255, 0, 0});
+      tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 0, 0});
+      // clang-format on
 
       // 观测器内部数据
       Eigen::VectorXd x = target.ekf_x();
@@ -203,13 +199,16 @@ int main(int argc, char * argv[])
       data["yaw"] = x[4] * 57.3;
       // pitch = 0
       data["angle"] = x[5] * 57.3;
+      std::cout << "target.ekf_x()[5] * 57.3:" << target.ekf_x()[5] * 57.3 << std::endl;
+      std::cout << "angle:" << x[5] * 57.3 << std::endl;
       data["spd"] = x[6] * 57.3;
       if (x.size() >= 10) {
         data["spd"] = x[6];
         data["a"] = x[7];
         data["w"] = x[8];
-        data["fi"] = x[9];
+        data["angle0"] = x[9];
         data["spd0"] = target.spd;
+        data["delta_angle_rel"] = target.delta_angle_rel_debug * 57.3;
       }
     }
 

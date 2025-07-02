@@ -117,7 +117,7 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
     gray_image = red - blue * 0.7;
   else
     gray_image = blue - red * 0.5;
-  imshow("Gray Image", gray_image);
+  // imshow("Gray Image", gray_image);
 
   // 二值化
   cv::Mat threshold_image;
@@ -130,7 +130,7 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & handled_img)
 
   // 膨胀操作 (让轮廓更完整)
   cv::dilate(threshold_image, threshold_image, element, cv::Point(-1, -1), dilate_size_);
-  cv::imshow("Threshold Image", threshold_image);
+  // cv::imshow("Threshold Image", threshold_image);
 
   handled_img = threshold_image;
 }
@@ -314,7 +314,7 @@ bool Buff_Detector::detect_fanblades_head(
     tools::draw_text(
       roi, fmt::format("width: {}, height: {}", bounding_box.width, bounding_box.height), {0, 40},
       cv::Scalar(255, 0, 0), 0.7, 1);
-    cv::imshow("roi_fanblade", roi);
+    // cv::imshow("roi_fanblade", roi);
 
     // 绘制所有检测的矩形
     cv::rectangle(output, bounding_box, DETECTOR_COLOR_DEBUG, 1);

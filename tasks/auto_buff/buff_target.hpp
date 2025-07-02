@@ -45,17 +45,17 @@ public:
 
   Eigen::Vector3d point_buff2world(const Eigen::Vector3d & point_in_buff) const;
 
-  bool is_unsolve() const;
+  bool is_unsolve() const { return unsolvable_; }
 
-  Eigen::VectorXd ekf_x() const;
+  Eigen::VectorXd ekf_x() const { return ekf_.x; }
+
+  double get_angle() const { return ekf_.x[5]; }
 
   double spd = 0;  //调试用
 
 protected:
-  virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
-
-  virtual void update(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
-
+  // virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
+  // virtual void update(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
   Eigen::VectorXd x0_;
   Eigen::MatrixXd P0_;
   Eigen::MatrixXd A_;
@@ -82,9 +82,9 @@ public:
   void predict(double dt) override;
 
 private:
-  void init(double nowtime, const PowerRune & p) override;
+  void init(double nowtime, const PowerRune & p);
 
-  void update(double nowtime, const PowerRune & p) override;
+  void update(double nowtime, const PowerRune & p);
 
   Eigen::MatrixXd h_jacobian() const;
 
@@ -115,22 +115,13 @@ public:
   void get_target(
     const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
 
-  void get_target_by_fitter(
-    const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp);
-
   void predict(double dt) override;
 
-  void predict_by_fitter(double dt);
+  double delta_angle_rel_debug = 0;
 
 private:
-  void init(double nowtime, const PowerRune & p) override;
-
-  void update(double nowtime, const PowerRune & p) override;
-
-  Eigen::MatrixXd h_jacobian() const;
-
   void fit();
-  bool fitOnce();
+  bool fit_once();
 
   std::array<double, 5> params_;  // 拟合参数
   Convexity convexity_;           // 拟合数据凹凸性
@@ -145,8 +136,12 @@ private:
 
   double last_angle_ = 0;
   int total_shift_ = 0;
+  double raw_row_ = 0;
 
   bool debug_ = false;
+
+  std::chrono::steady_clock::time_point start_timestamp_;
+  std::chrono::steady_clock::time_point now_timestamp_;
 };
 
 /**
@@ -180,7 +175,7 @@ public:
 };
 
 /**
-* @brief 拟合项
+* @brief 拟合项 residual = -a·cos(ω·(t+t₀)) + b·t + c – y;
 */
 class CostFunctor2 : public ceres::SizedCostFunction<1, 5>
 {
@@ -212,15 +207,15 @@ public:
   double t, y;
 };
 
-Convexity getConvexity(const std::vector<std::pair<double, double>> & data);
-std::array<double, 5> ransacFitting(
+Convexity get_convexity(const std::vector<std::pair<double, double>> & data);
+std::array<double, 5> ransac_fitting(
   const std::vector<std::pair<double, double>> & data, Convexity convexity);
-std::array<double, 5> leastSquareEstimate(
+std::array<double, 5> least_square_estimate(
   const std::vector<std::pair<double, double>> & data, const std::array<double, 5> & params,
   Convexity convexity);
 
 /**
- * @brief 得到大符角度，注意这里是利用参数计算出来的，相对于第一次识别的角度
+ * @brief 得到大符角度，注意这里是利用参数计算出来的，没有限制到-pi-pi
  * @param[in] time          时间
  * @param[in] params        参数
  * @return double
@@ -229,6 +224,12 @@ inline double getAngleBig(double time, const std::array<double, 5> & params) noe
 {
   return -params[0] * std::cos(params[1] * (time + params[2])) + params[3] * time + params[4];
 };
+
+inline double getRotationAngleBig(
+  double pre_gap, double now_gap, const std::array<double, 5> & params) noexcept
+{
+  return getAngleBig(pre_gap, params) - getAngleBig(now_gap, params);
+}
 
 }  // namespace auto_buff
 #endif

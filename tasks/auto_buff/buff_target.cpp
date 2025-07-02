@@ -8,7 +8,10 @@ Voter::Voter() : clockwise_(0) {}
 
 void Voter::vote(const double angle_last, const double angle_now)
 {
-  if (std::abs(clockwise_) > 50) return;
+  /*
+  投票函数，角度单位为弧度
+  */
+  if (std::abs(clockwise_) > 50 || (std::abs(angle_last - angle_now) > CV_PI)) return;
   if (angle_last > angle_now)
     clockwise_--;
   else
@@ -37,10 +40,6 @@ Eigen::Vector3d Target::point_buff2world(const Eigen::Vector3d & point_in_buff) 
                                      R_dis * std::sin(R_pitch));
   return point_in_world;
 }
-
-bool Target::is_unsolve() const { return unsolvable_; }
-
-Eigen::VectorXd Target::ekf_x() const { return ekf_.x; }
 
 /// SmallTarget
 
@@ -357,10 +356,7 @@ std::atomic<bool> STOP_THREAD(false);
 std::atomic<bool> VALID_PARAMS(false);
 std::mutex MUTEX;
 
-BigTarget::BigTarget() : Target()
-{
-  // fit_thread_ = std::thread(&BigTarget::fit, this);
-}
+BigTarget::BigTarget() : Target() { fit_thread_ = std::thread(&BigTarget::fit, this); }
 
 BigTarget::BigTarget(const BigTarget & other)
 : Target(other), params_(other.params_), convexity_(other.convexity_), fit_data_(other.fit_data_)
@@ -375,12 +371,30 @@ BigTarget::BigTarget(const BigTarget & other)
 
 BigTarget & BigTarget::operator=(const BigTarget & other)
 {
-  if (this != &other) {
-    Target::operator=(other);
-    params_ = other.params_;
-    convexity_ = other.convexity_;
+  if (this == &other) return *this;
+
+  // 1) 基类和简单成员
+  Target::operator=(other);
+  params_ = other.params_;
+  convexity_ = other.convexity_;
+  // last_angle_     = other.last_angle_;
+  // total_shift_ = other.total_shift_;
+  // first_in_ = other.first_in_;
+  start_timestamp_ = other.start_timestamp_;
+  now_timestamp_ = other.now_timestamp_;
+  debug_ = other.debug_;
+  delta_angle_rel_debug = other.delta_angle_rel_debug;
+  unsolvable_ = other.unsolvable_;
+  raw_row_ = other.raw_row_;
+
+  // 2) 拷贝容器（要加锁保护）
+  {
+    std::unique_lock lock(mutex_);
     fit_data_ = other.fit_data_;
   }
+
+  // 3) 拷贝 EKF 状态
+  ekf_ = other.ekf_;
   return *this;
 }
 
@@ -395,15 +409,21 @@ void BigTarget::get_target(
     return;
   }
 
-  static std::chrono::steady_clock::time_point start_timestamp = timestamp;
-  auto time_gap = tools::delta_time(timestamp, start_timestamp);
-
   // init
   if (first_in_) {
     unsolvable_ = true;
-    init(time_gap, p.value());
+    // init(time_gap, p.value());  // TODO 重新初始化
+    x0_.resize(10);
+    const PowerRune power_rune = p.value();
+    x0_ << power_rune.ypd_in_world[0], 0.0, power_rune.ypd_in_world[1], power_rune.ypd_in_world[2],
+      power_rune.ypr_in_world[0], power_rune.ypr_in_world[2], 1.1775, 0.9125, 1.942, 0.0;
+    ekf_.x = x0_;
+
     first_in_ = false;
+    start_timestamp_ = timestamp;
   }
+
+  now_timestamp_ = timestamp;
 
   // 处理识别时间间隔过大
   if (lost_cn > 6) {
@@ -414,136 +434,67 @@ void BigTarget::get_target(
     return;
   }
 
-  // kalman update
   unsolvable_ = false;
-  update(time_gap, p.value());
+  const PowerRune power_rune = p.value();
+  double now_angle = power_rune.ypr_in_world[2];
 
-  // 处理发散
-  if (
-    ekf_.x[7] > 1.045 * 1.5 || ekf_.x[7] < 0.78 / 1.5 || ekf_.x[8] > 2.0 * 1.5 ||
-    ekf_.x[8] < 1.884 / 1.5) {
-    tools::logger()->debug("[Target] 大符角度发散a: {:.2f}b:{:.2f}", ekf_.x[7], ekf_.x[8]);
-    first_in_ = true;
-    return;
-  }
-}
-
-void BigTarget::get_target_by_fitter(
-  const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp)
-{
-  // 如果没有识别，退出函数
-  static int lost_cn = 0;
-  if (!p.has_value()) {
-    unsolvable_ = true;
-    lost_cn++;
-    return;
-  }
-
-  static std::chrono::steady_clock::time_point start_timestamp = timestamp;
-  auto time_gap = tools::delta_time(timestamp, start_timestamp);
-
-  // init
-  if (first_in_) {
-    unsolvable_ = true;
-    first_in_ = false;
-  }
-
-  // 处理识别时间间隔过大
-  if (lost_cn > 6) {
-    unsolvable_ = true;
-    tools::logger()->debug("[Target] 丢失buff");
-    lost_cn = 0;
-    first_in_ = true;
-    return;
-  }
-
-  auto power_rune = p.value();
-  // 获取拟合数据
-  double now_angle = power_rune.ypr_in_world[2] * 57.3;
   voter.vote(last_angle_, now_angle);  // 计算旋转方向
+
+  // 获取拟合数据
+  // 存储相对于第一次识别的时间间隔和角度的绝对值，之后进行拟合
   double delta_angle = now_angle - last_angle_;
-  last_angle_ = now_angle;
-  int shift = std::round(delta_angle / 72);
+  int shift = std::round(delta_angle / (2 * CV_PI / 5));
   total_shift_ += shift;
-  double delta_angle_rel = now_angle - total_shift_ * 72;
-  double time = tools::delta_time(timestamp, start_timestamp);
+  double delta_angle_rel = now_angle - total_shift_ * (2 * CV_PI / 5);    // 单位:raw 单调递增或递减
+  double time_gap = tools::delta_time(now_timestamp_, start_timestamp_);  // s
 
   std::unique_lock lock(mutex_);
-  fit_data_.emplace_back(time, std::abs(delta_angle_rel));
+  fit_data_.emplace_back(time_gap, std::abs(delta_angle_rel));  // TODO abs?
+  delta_angle_rel_debug = delta_angle_rel;
+
+  last_angle_ = now_angle;
+
+  // TODO
+  if (!VALID_PARAMS.load()) return;
+
+  // debug show
+  ekf_.x[0] = power_rune.ypd_in_world[0];
+  ekf_.x[2] = power_rune.ypd_in_world[1];
+  ekf_.x[3] = power_rune.ypd_in_world[2];
+  ekf_.x[4] = power_rune.ypr_in_world[0];
+  MUTEX.lock();
+  ekf_.x[5] = tools::limit_rad(voter.clockwise() * getAngleBig(time_gap, params_));    // angle
+  ekf_.x[7] = params_[0] * params_[1];                                                 // a
+  ekf_.x[8] = params_[1];                                                              // w
+  ekf_.x[9] = params_[4];                                                              // angle0
+  ekf_.x[6] = ekf_.x[7] * std::sin(ekf_.x[8] * (time_gap + params_[2])) + params_[3];  // spd
+  MUTEX.unlock();
+
+  // 处理扇叶跳变 angle/row
+  raw_row_ = power_rune.ypr_in_world[2];  // R
+  if (abs(raw_row_ - ekf_.x[5]) > CV_PI / 12) {
+    for (int i = -5; i <= 5; i++) {
+      double angle_c = ekf_.x[5] + i * 2 * CV_PI / 5;
+      if (std::fabs(angle_c - raw_row_) < CV_PI / 5) {
+        ekf_.x[5] += i * 2 * CV_PI / 5;
+        break;
+      }
+    }
+  }
 }
 
 void BigTarget::predict(double dt)
 {
-  // 预测下一个状态
-  double spd = ekf_.x[6];
-  double a = ekf_.x[7];
-  double w = ekf_.x[8];
-  double fi = ekf_.x[9];
-  double t = lasttime_ + dt;
-  // clang-format off
-  A_ << 1.0,  dt, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_yaw
-        0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//v_R_yaw
-        0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_pitch
-        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,//R_dis
-        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,//yaw
-        0.0, 0.0, 0.0, 0.0, 0.0, 1.0, voter.clockwise() * dt , 0.0, 0.0, 0.0,//row
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, sin(w * t + fi) - 1, t * a * cos(w * t + fi), a * cos(w * t + fi),//spd
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,//a
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,//w
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;//theta
-        
-  // 过程噪声协方差矩阵                            //// 调整
-  auto v1 = 0.9;  // 角加速度方差
-  auto a1 = dt * dt * dt * dt / 4;
-  auto b1 = dt * dt * dt / 2;
-  auto c1 = dt * dt;
-  Q_ << a1 * v1, b1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-        b1 * v1, c1 * v1, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            0.0,     0.0, 0.0, 0.0, 0.0, 0.09,  0.0,  0.0,  0.0,  0.0,//row
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.5,  0.0,  0.0,  0.0,// spd 0.5  1
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,// a
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,// w
-            0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  1.0;// fi
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  1.0,  0.0,  0.0,  0.0,// spd  2
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  4.0;
+  std::chrono::duration<double> dd(dt);
+  auto di = std::chrono::duration_cast<std::chrono::steady_clock::duration>(dd);
+  auto predict_timestamp = now_timestamp_ + di;
+  double pre_gap = tools::delta_time(predict_timestamp, start_timestamp_);
+  double now_gap = tools::delta_time(now_timestamp_, start_timestamp_);
 
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 
-            // 0.0,     0.0, 0.0, 0.0, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0;
-  auto f = [&](const Eigen::VectorXd & x) -> Eigen::VectorXd {
-    Eigen::VectorXd x_prior = x;
-    x_prior[0] = tools::limit_rad(x_prior[0] + dt * x_prior[1]);
-    x_prior[2] = tools::limit_rad(x_prior[2]);
-    x_prior[4] = tools::limit_rad(x_prior[4]); // yaw
-    x_prior[5] = tools::limit_rad(x_prior[5] + voter.clockwise() * 
-    (-a / w * std::cos(w * t + fi) + a / w * std::cos(w * lasttime_ + fi) + (2.09 - a) * dt)); // roll
-    x_prior[6] = a * sin(w * t + fi) + 2.09 - a; // spd
-    return x_prior;
-  };
-  // clang-format on
-  ekf_.predict(A_, Q_, f);
-}
-
-void BigTarget::predict_by_fitter(double dt) {}
-
-void BigTarget::init(double nowtime, const PowerRune & p)
-{
-  // 初始化内部变量
-  lasttime_ = nowtime;
-  unsolvable_ = true;
-
-  // 初始状态协方差矩阵
-  x0_.resize(10);
-  P0_.resize(10, 10);
-  A_.resize(10, 10);
-  Q_.resize(10, 10);
-  H_.resize(7, 10);
-  R_.resize(7, 7);
+  if (VALID_PARAMS.load() == false) {
+    unsolvable_ = true;
+    return;
+  }
 
   // [R_yaw]
   // [v_R_yaw]
@@ -555,237 +506,42 @@ void BigTarget::init(double nowtime, const PowerRune & p)
   // [a]         0.78-1.045
   // [w]         1.884-2.000
   // [fi]
-
-  // clang-format off
-  // 初始状态
-  x0_ << p.ypd_in_world[0], 0.0, p.ypd_in_world[1], p.ypd_in_world[2],
-         p.ypr_in_world[0], p.ypr_in_world[2], 
-         1.1775, 0.9125, 1.942, 0.0;//std::atan((spd - 2.09) / 0.9125 + 1
-  // 初始状态协方差矩阵
-  P0_ << 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-          0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-          0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-          0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-          0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,  0.0,
-          0.0,  0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,  0.0,  0.0,
-          0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 100.0, 0.0,  0.0,  0.0,
-          0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 10.0,  0.0,  0.0,
-          0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 10.0,  0.0,
-          0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 400.0;
-  // 状态转移矩阵
-  // A_
-  // 过程噪声协方差矩阵                            //// 调整
-  // Q_
-  // 测量方程矩阵
-  // H_
-  // 测量噪声协方差矩阵                            //// 调整
-  // R_
-
-  // clang-format on
-
-  // 防止夹角求和出现异常值
-  auto x_add = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
-    Eigen::VectorXd c = a + b;
-    c[0] = tools::limit_rad(c[0]);
-    c[2] = tools::limit_rad(c[2]);
-    c[4] = tools::limit_rad(c[4]);
-    c[5] = tools::limit_rad(c[5]);
-    c[9] = tools::limit_rad(c[9]);
-    return c;
-  };
-  // 创建扩展卡尔曼滤波器对象
-  ekf_ = tools::ExtendedKalmanFilter(x0_, P0_, x_add);
-}
-
-void BigTarget::update(double nowtime, const PowerRune & p)
-{
-  // [R_yaw]
-  // [v_R_yaw]
-  // [R_pitch]
-  // [R_dis]
-  // [yaw]
-  // [angle/row] 角度
-  // [spd]       角速度 a*sin(wt) + 2.09 - a
-  // [a]         0.78-1.045
-  // [w]         1.884-2.000
-  // [fi]
-  const Eigen::VectorXd & R_ypd = p.ypd_in_world;  // R
-  const Eigen::VectorXd & ypr = p.ypr_in_world;
-  const Eigen::VectorXd & B_ypd = p.blade_ypd_in_world;  // center of blade
+  // params:a / w, w, x, b (2.09 - a), angle0
+  // -params[0] * std::cos(params[1] * (time + params[2])) + params[3] * time + params[4]
+  MUTEX.lock();
+  ekf_.x[5] +=
+    tools::limit_rad(voter.clockwise() * getRotationAngleBig(pre_gap, now_gap, params_));  // angle
+  ekf_.x[7] = params_[0] * params_[1];                                                     // a
+  ekf_.x[8] = params_[1];                                                                  // w
+  ekf_.x[9] = params_[4];                                                                  // angle0
+  ekf_.x[6] = ekf_.x[7] * std::sin(ekf_.x[8] * (pre_gap + params_[2])) + params_[3];       // spd
+  MUTEX.unlock();
 
   // 处理扇叶跳变 angle/row
-  if (abs(ypr[2] - ekf_.x[5]) > CV_PI / 12) {
+  if (abs(raw_row_ - ekf_.x[5]) > CV_PI / 12) {
     for (int i = -5; i <= 5; i++) {
       double angle_c = ekf_.x[5] + i * 2 * CV_PI / 5;
-      if (std::fabs(angle_c - ypr[2]) < CV_PI / 5) {
+      if (std::fabs(angle_c - raw_row_) < CV_PI / 5) {
         ekf_.x[5] += i * 2 * CV_PI / 5;
         break;
       }
     }
   }
-
-  // vote判断是顺时针还是逆时针旋转
-  voter.vote(ekf_.x[5], ypr[2]);
-
-  auto anglelast = ekf_.x[5];  ///
-
-  // 预测下一个状态
-  predict(nowtime - lasttime_);
-
-  // [R_yaw]     angle0
-  // [R_pitch]   angle1
-  // [R_dis]
-  // [angle/row] angle3
-  // [B_yaw]     angle4
-  // [B_pitch]   angle5
-  // [B_dis]
-
-  /// 1.
-
-  // [R_yaw]     angle0
-  // [R_pitch]   angle1
-  // [R_dis]
-  // [angle/row] angle3
-
-  // clang-format off
-  Eigen::MatrixXd H1{
-    {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, // R_yaw
-    {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, // R_pitch
-    {0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, // R_dis
-    {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0}  // roll
-  };
-
-  Eigen::MatrixXd R1{
-    {0.01, 0.0, 0.0,  0.0}, // R_yaw
-    {0.0, 0.01, 0.0,  0.0}, // R_pitch
-    {0.0,  0.0, 0.5,  0.0}, // R_dis
-    {0.0,  0.0, 0.0, 0.01}  // roll  1: 0.01 2:0.04
-  };
-  // clang-format on
-
-  // 防止夹角求差出现异常值
-  auto z_subtract1 = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
-    Eigen::VectorXd c = a - b;  //4 1
-    c[0] = tools::limit_rad(c[0]);
-    c[1] = tools::limit_rad(c[1]);
-    c[3] = tools::limit_rad(c[3]);
-    return c;
-  };
-
-  Eigen::VectorXd z1{{R_ypd[0], R_ypd[1], R_ypd[2], ypr[2]}};  // R_ypd roll
-
-  ekf_.update(z1, H1, R1, z_subtract1);
-
-  ///2.
-
-  // [B_yaw]     angle4
-  // [B_pitch]   angle5
-  // [B_dis]
-
-  // clang-format off
-  Eigen::MatrixXd H2 = h_jacobian();  // 3*10
-
-  Eigen::MatrixXd R2{
-    {0.01, 0.0, 0.0}, // B_yaw
-    {0.0, 0.01, 0.0}, // B_pitch
-    {0.0,  0.0, 0.5}  // B_dis
-  };
-  // clang-format on
-
-  // 定义非线性转换函数h: x -> z
-  auto h2 = [&](const Eigen::VectorXd & x) -> Eigen::Vector3d {
-    Eigen::VectorXd R_ypd{{x[0], x[2], x[3]}};
-    Eigen::VectorXd R_xyz = tools::ypd2xyz(R_ypd);
-    Eigen::VectorXd R_xyz_and_yr{{R_ypd[0], R_ypd[1], R_ypd[2], x[4], x[5]}};
-    Eigen::VectorXd B_xyz = point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
-    Eigen::VectorXd B_ypd = tools::xyz2ypd(B_xyz);
-    return B_ypd;
-  };
-
-  // 防止夹角求差出现异常值
-  auto z_subtract2 = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
-    Eigen::VectorXd c = a - b;  //6 1
-    c[0] = tools::limit_rad(c[0]);
-    c[1] = tools::limit_rad(c[1]);
-    return c;
-  };
-
-  Eigen::VectorXd z2{{B_ypd[0], B_ypd[1], B_ypd[2]}};
-
-  ekf_.update(z2, H2, R2, h2, z_subtract2);
-
-  spd = voter.clockwise() * (ekf_.x[5] - anglelast) / (nowtime - lasttime_);  ///
-  if (std::abs(spd) > 4) spd = 0;                                             ///
-
-  // 更新lasttime
-  lasttime_ = nowtime;
   unsolvable_ = false;
-  return;
-}
-
-Eigen::MatrixXd BigTarget::h_jacobian() const
-{
-  /// Z(3,1) = H3(3,3) * H2(3,5) * H1(5,5) * H0(5,10) * x(10,1)
-
-  // clang-format off
-  Eigen::MatrixXd H0{
-    {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    {0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    {0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    {0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0}
-  };// 5*7
-
-  Eigen::VectorXd R_ypd{{ekf_.x[0], ekf_.x[2], ekf_.x[3]}};
-  Eigen::MatrixXd H_ypd2xyz = tools::ypd2xyz_jacobian(R_ypd);  // 3*3
-  Eigen::MatrixXd H1{
-    {H_ypd2xyz(0, 0), H_ypd2xyz(0, 1), H_ypd2xyz(0, 2), 0.0, 0.0},
-    {H_ypd2xyz(1, 0), H_ypd2xyz(1, 1), H_ypd2xyz(1, 2), 0.0, 0.0},
-    {H_ypd2xyz(2, 0), H_ypd2xyz(2, 1), H_ypd2xyz(2, 2), 0.0, 0.0},
-    {            0.0,             0.0,             0.0, 1.0, 0.0},
-    {            0.0,             0.0,             0.0, 0.0, 1.0}
-  };// 5*5
-
-  // double pitch = 0;
-  double yaw = ekf_.x[4];
-  double roll = ekf_.x[5];
-  double cos_yaw = cos(yaw);
-  double sin_yaw = sin(yaw);
-  double cos_roll = cos(roll);
-  double sin_roll = sin(roll);
-  Eigen::MatrixXd H2{
-    {1.0, 0.0, 0.0, 0.7 * cos_yaw * sin_roll,  0.7 * sin_yaw * cos_roll},
-    {0.0, 1.0, 0.0, 0.7 * sin_yaw * sin_roll, -0.7 * cos_yaw * cos_roll},
-    {0.0, 0.0, 1.0,                      0.0,           -0.7 * sin_roll}
-  };// 3*5
-
-  Eigen::VectorXd B_xyz = point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
-  Eigen::MatrixXd H3 = tools::xyz2ypd_jacobian(B_xyz);// 3*3
-  // clang-format on
-
-  return H3 * H2 * H1 * H0;  // 3*7
-
-  // auto h2 = [&](const Eigen::VectorXd & x) -> Eigen::Vector3d {
-  //   Eigen::VectorXd R_ypd{{x[0], x[2], x[3]}};
-  //   Eigen::VectorXd R_xyz = tools::ypd2xyz(R_ypd);
-  //   Eigen::VectorXd R_xyz_and_yr{{R_ypd[0], R_ypd[1], R_ypd[2], x[4], x[5]}};
-  //   Eigen::VectorXd B_xyz = point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
-  //   Eigen::VectorXd B_ypd = tools::xyz2ypd(B_xyz);
-  //   return B_ypd;
-  // };
 }
 
 /**
  * @brief 拟合一次
  */
-bool BigTarget::fitOnce()
+bool BigTarget::fit_once()
 {
   // 如果数据量过少，则确定凹凸性
   if (fit_data_.size() < (size_t)2 * MIN_FIT_DATA_SIZE) {
-    convexity_ = getConvexity(fit_data_);
+    convexity_ = get_convexity(fit_data_);
   }
+
   // 利用 ransac 算法计算参数
-  params_ = ransacFitting(fit_data_, convexity_);
+  params_ = ransac_fitting(fit_data_, convexity_);
   return true;
 }
 
@@ -795,16 +551,18 @@ bool BigTarget::fitOnce()
 void BigTarget::fit()
 {
   decltype(fit_data_) fitData;
-  while (STOP_THREAD.load() == false) {
+  while (!STOP_THREAD.load()) {
+    // 1) 拷贝当前 fit_data_
     {
       std::shared_lock lock(mutex_);
       fitData = fit_data_;
     }
-    // 数据量过少时，直接返回
-    if (fit_data_.size() < (size_t)MIN_FIT_DATA_SIZE) {
-      continue;
-    }
-    bool result = fitOnce();
+
+    // 2) 如果数据量不足 MIN_FIT_DATA_SIZE，continue
+    if (fit_data_.size() < (size_t)MIN_FIT_DATA_SIZE) continue;
+
+    // 3) 调 fit_once() 进行一次拟合，得到新 params_,设置 VALID_PARAMS.store(true)
+    bool result = fit_once();
     VALID_PARAMS.store(result);
     if (debug_) {
       MUTEX.lock();
@@ -815,6 +573,8 @@ void BigTarget::fit()
       }
       MUTEX.unlock();
     }
+
+    // 4) 若数据过多则砍掉一半旧数据
     if (fit_data_.size() > (size_t)MAX_FIT_DATA_SIZE) {
       fit_data_.erase(fit_data_.begin(), fit_data_.begin() + fit_data_.size() / 2);
     }
@@ -824,10 +584,12 @@ void BigTarget::fit()
 
 /**
  * @brief 凹凸性计算
- * @param[in] data          角度数据
+          直线连接首尾点：计算每个点在直线之上or之下的数量
+          大多数点在直线上方 → CONVEX；大多数在下方 → CONCAVE；否则 UNKNOWN
+ * @param[in] data 角度数据
  * @return Convexity
  */
-Convexity getConvexity(const std::vector<std::pair<double, double>> & data)
+Convexity get_convexity(const std::vector<std::pair<double, double>> & data)
 {
   auto first{data.begin()}, last{data.end() - 1};
   double slope{(last->second - first->second) / (last->first - first->first)};
@@ -853,26 +615,26 @@ Convexity getConvexity(const std::vector<std::pair<double, double>> & data)
 * @param[in] convexity     凹凸性
 * @return std::array<double, 5>
 */
-std::array<double, 5> ransacFitting(
+std::array<double, 5> ransac_fitting(
   const std::vector<std::pair<double, double>> & data, Convexity convexity)
 {
-  // inliers 为符合要求的点，outliers 为不符合要求的点
-  std::vector<std::pair<double, double>> inliers, outliers;
-  // 初始时，inliers 为全部点
-  inliers.assign(data.begin(), data.end());
-  // 迭代次数
-  int iterTimes{data.size() < 400 ? 200 : 20};
-  // 初始参数
+  std::vector<std::pair<double, double>> inliers, outliers;  // 符合要求\不符合要求点
+
+  // 1) 初始化
+  inliers.assign(data.begin(), data.end());      // inliers 为全部点
+  int iter_times{data.size() < 400 ? 200 : 50};  // 迭代次数
   // [angle/row] 角度 -a / w * cos(wt + fi) + (2.09 - a) * t + c
   // [spd]       角速度 a*sin(wt + fi) + 2.09 - a
   // [a]         0.78-1.045 0.9125
   // [w]         1.884-2.000 1.942
-  // [fi]
   // -params[0] * std::cos(params[1] * (time + params[2])) + params[3] * time + params[4]
-  std::array<double, 5> params{0.470, 1.942, 0, 1.178, 0};  // a / w, w, x, b (2.09 - a), angle0
-  for (int i = 0; i < iterTimes; ++i) {
+  std::array<double, 5> params{0.470, 1.942, 0, 1.178, 0};  // a/w, w, time_gap, 2.09 - a, angle0
+
+  // 2) 迭代采样
+  for (int i = 0; i < iter_times; ++i) {
     decltype(inliers) sample;
-    // 如果数据点较多，则将数据打乱，取其中一部分
+
+    // 如果点数多于 400，从后 200 点随机采样；否则全量采样
     if (inliers.size() > 400) {
       std::shuffle(
         inliers.begin(), inliers.end() - 100,
@@ -881,27 +643,28 @@ std::array<double, 5> ransacFitting(
     } else {
       sample.assign(inliers.begin(), inliers.end());
     }
-    // 进行拟合
-    params = leastSquareEstimate(sample, params, convexity);
-    // 对 inliers 每一个计算误差
+
+    // 进行拟合 调用 least_square_estimate 得到一组新 params
+    params = least_square_estimate(sample, params, convexity);
+
+    // 计算所有 inliers 的误差，若误差过大则剔除；并尝试从 outliers 中“回收”误差较小的点
     std::vector<double> errors;
-    for (const auto & inlier : inliers) {
+    for (const auto & inlier : inliers)
       errors.push_back(std::abs(inlier.second - getAngleBig(inlier.first, params)));
-    }
-    // 如果数据量较大，则对点进行筛选
-    if (data.size() > 800) {
+
+    if (data.size() > 800) {  // 如果数据量较大，则对点进行筛选
       std::sort(errors.begin(), errors.end());
       const int index{static_cast<int>(errors.size() * 0.95)};
       const double threshold{errors[index]};
-      // 剔除 inliers 中不符合要求的点
-      for (size_t i = 0; i < inliers.size() - 100; ++i) {
+
+      for (size_t i = 0; i < inliers.size() - 100; ++i) {  // 剔除 inliers 中不符合要求的点
         if (std::abs(inliers[i].second - getAngleBig(inliers[i].first, params)) > threshold) {
           outliers.push_back(inliers[i]);
           inliers.erase(inliers.begin() + i);
         }
       }
-      // 将 outliers 中符合要求的点加进来
-      for (size_t i = 0; i < outliers.size(); ++i) {
+
+      for (size_t i = 0; i < outliers.size(); ++i) {  // 将 outliers 中符合要求的点加进来
         if (std::abs(outliers[i].second - getAngleBig(outliers[i].first, params)) < threshold) {
           inliers.emplace(inliers.begin(), outliers[i]);
           outliers.erase(outliers.begin() + i);
@@ -909,31 +672,44 @@ std::array<double, 5> ransacFitting(
       }
     }
   }
-  // 返回之前对所有 inliers 再拟合一次
+
+  // 3) 返回最终参数
+  params = least_square_estimate(inliers, params, convexity);
   return params;
 }
 
 /**
 * @brief 最小二乘拟合，返回参数列表
-* @param[in] points        数据点
-* @param[in] params        初始参数
+* @param[in] points        数据点 一组“inliers”数据点，每个元素是 (time, angle_offset)，对应模型y^i=−a*cos(ω*(ti+t0))+bt*i+c.
+* @param[in] params        初始参数格式依次为
+                            a/w —— 振幅/角频率  0.470
+                            ω —— 角频率  1.884-2.000 1.942
+                            t₀ —— 时间偏移
+                            b —— 线性斜率（“匀速”分量）
+                            c —— 常量偏移（角度零点）
 * @param[in] convexity     凹凸性
 * @return std::array<double, 5>
 */
-std::array<double, 5> leastSquareEstimate(
+std::array<double, 5> least_square_estimate(
   const std::vector<std::pair<double, double>> & points, const std::array<double, 5> & params,
   Convexity convexity)
 {
+  // Ceres 问题构造
   std::array<double, 5> ret = params;
-  ceres::Problem problem;
-  for (size_t i = 0; i < points.size(); i++) {
+  ceres::Problem problem;  // 用于添加残差块（Residual Block），构造最小二乘问题
+
+  // 1) 数据拟合残差 CostFunctor2: -a·cos(ω·(t+t₀)) + b·t + c-y
+  for (size_t i = 0; i < points.size(); i++) {  // 每个(ti, yi)加一个残差项
     ceres::CostFunction * costFunction = new CostFunctor2(points[i].first, points[i].second);
-    ceres::LossFunction * lossFunction = new ceres::SoftLOneLoss(0.1);
+    ceres::LossFunction * lossFunction =
+      new ceres::SoftLOneLoss(0.1);  // 鲁棒损失，对大误差施加小梯度减轻异常值影响
     problem.AddResidualBlock(costFunction, lossFunction, ret.begin());
   }
+
+  // 2) 惩罚 / 先验约束：CostFunctor1
+  // 让拟合不偏离先验值太远，兼顾不同参数的重要性，给 a, ω, b 三个维度额外加弱约束
   std::array<double, 3> omega;
-  if (points.size() < 100) {
-    // 在数据量较小时，可以利用凹凸性定参数边界
+  if (points.size() < 100) {  // 少量数据：依据 convexity 给 t₀ 加界
     if (convexity == Convexity::CONCAVE) {
       problem.SetParameterUpperBound(ret.begin(), 2, -2.8);
       problem.SetParameterLowerBound(ret.begin(), 2, -4);
@@ -942,22 +718,26 @@ std::array<double, 5> leastSquareEstimate(
       problem.SetParameterLowerBound(ret.begin(), 2, -2.3);
     }
     omega = {10., 1., 1.};
-  } else {
-    // 而数据量较多后，则不再需要凹凸性辅助拟合
+  } else {  // 数据充足：不对 t₀ 额外约束
     omega = {60., 50., 50.};
   }
+
+  // 3) 对 a (id=0)、ω (id=1)、b (id=3) 三个参数加惩罚
+  // clang-format off
   ceres::CostFunction * costFunction1 = new CostFunctor1(ret[0], 0);
-  ceres::LossFunction * lossFunction1 =
-    new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[0], ceres::TAKE_OWNERSHIP);
+  ceres::LossFunction * lossFunction1 = new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[0], ceres::TAKE_OWNERSHIP);
   problem.AddResidualBlock(costFunction1, lossFunction1, ret.begin());
+
   ceres::CostFunction * costFunction2 = new CostFunctor1(ret[1], 1);
-  ceres::LossFunction * lossFunction2 =
-    new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[1], ceres::TAKE_OWNERSHIP);
+  ceres::LossFunction * lossFunction2 = new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[1], ceres::TAKE_OWNERSHIP);
   problem.AddResidualBlock(costFunction2, lossFunction2, ret.begin());
+  
   ceres::CostFunction * costFunction3 = new CostFunctor1(ret[3], 3);
-  ceres::LossFunction * lossFunction3 =
-    new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[2], ceres::TAKE_OWNERSHIP);
+  ceres::LossFunction * lossFunction3 = new ceres::ScaledLoss(new ceres::HuberLoss(0.1), omega[2], ceres::TAKE_OWNERSHIP);
   problem.AddResidualBlock(costFunction3, lossFunction3, ret.begin());
+  // clang-format on
+
+  // 4) 求解配置与执行
   ceres::Solver::Options options;
   options.linear_solver_type = ceres::DENSE_QR;
   options.max_num_iterations = 50;
