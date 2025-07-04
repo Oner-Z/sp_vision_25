@@ -84,8 +84,11 @@ bool Aimer::get_send_angle(
   */
   // 考虑detecor所消耗的时间，此外假设aimer的用时可忽略不计
   // 如果 to_now 为 true，则根据当前时间和时间戳预测目标位置,deltatime = 现在时间减去当时照片时间，加上0.1
-  target.predict(to_now ? (detect_now_gap + AIM_TIME) : 0.1 + AIM_TIME);
-  angle = target.get_angle();
+  angle = target.get_predict(to_now ? (detect_now_gap + AIM_TIME) : 0.1 + AIM_TIME);
+  if (target.is_unsolve()) {
+    tools::logger()->debug("[Aimer] Unsolvable angle1");
+    return false;
+  }
 
   // 计算目标点的空间坐标
   auto aim_in_world = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
@@ -101,8 +104,11 @@ bool Aimer::get_send_angle(
   }
 
   // 根据第一个弹道飞行时间预测目标位置
-  target.predict(trajectory0.fly_time);
-  angle = target.get_angle();
+  angle = target.get_predict(trajectory0.fly_time);
+  if (target.is_unsolve()) {
+    tools::logger()->debug("[Aimer] Unsolvable angle2");
+    return false;
+  }
 
   // 计算新的目标点的空间坐标
   aim_in_world = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));

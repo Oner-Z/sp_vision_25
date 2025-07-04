@@ -41,7 +41,7 @@ public:
     const std::optional<PowerRune> & p,
     std::chrono::steady_clock::time_point & timestamp) = 0;  // 纯虚函数
 
-  virtual void predict(double dt) = 0;  // 纯虚函数
+  virtual double get_predict(double dt) = 0;  // 纯虚函数
 
   Eigen::Vector3d point_buff2world(const Eigen::Vector3d & point_in_buff) const;
 
@@ -51,7 +51,7 @@ public:
 
   double get_angle() const { return ekf_.x[5]; }
 
-  double spd = 0;  //调试用
+  double a, w, time0, fi, b, angle0, spd;
 
 protected:
   // virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
@@ -63,7 +63,11 @@ protected:
   Eigen::MatrixXd H_;
   Eigen::MatrixXd R_;
   tools::ExtendedKalmanFilter ekf_;
-  double lasttime_ = 0;
+
+  double last_time_ = 0;
+  double current_time_ = 0;
+  std::chrono::steady_clock::time_point start_timestamp_;
+
   Voter voter;  // 逆时针-1 顺时针1
   bool first_in_;
   bool unsolvable_;
@@ -76,15 +80,19 @@ class SmallTarget : public Target
 public:
   SmallTarget();
 
+  // 更新目标
   void get_target(
     const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
 
-  void predict(double dt) override;
+  // 预测dt之后角度
+  double get_predict(double dt) override;
 
 private:
-  void init(double nowtime, const PowerRune & p);
+  void init(const PowerRune & p);  // ekf init
 
-  void update(double nowtime, const PowerRune & p);
+  void update(double nowtime, const PowerRune & p);  // ekf update
+
+  void predict(double dt);  // ekf predict
 
   Eigen::MatrixXd h_jacobian() const;
 
@@ -112,15 +120,26 @@ public:
   BigTarget(const BigTarget & other);              // 拷贝构造
   BigTarget & operator=(const BigTarget & other);  // 拷贝赋值
 
+  // 更新目标
   void get_target(
     const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
 
-  void predict(double dt) override;
+  // 预测dt之后角度
+  double get_predict(double dt) override;
 
   double delta_angle_rel_debug = 0;
 
 private:
+  void init(const PowerRune & p);  // ekf init
+
+  void update(double nowtime, const PowerRune & p);  // ekf update
+
+  void predict(double dt);  // ekf predict
+
+  Eigen::MatrixXd h_jacobian() const;
+
   void fit();
+
   bool fit_once();
 
   std::array<double, 5> params_;  // 拟合参数
@@ -139,9 +158,6 @@ private:
   double raw_row_ = 0;
 
   bool debug_ = false;
-
-  std::chrono::steady_clock::time_point start_timestamp_;
-  std::chrono::steady_clock::time_point now_timestamp_;
 };
 
 /**

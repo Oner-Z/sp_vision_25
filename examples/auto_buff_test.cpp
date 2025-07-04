@@ -192,7 +192,7 @@ int main(int argc, char * argv[])
       tools::draw_points(img, std::vector<cv::Point2f>(image_points.begin() + 8, image_points.end()), {255, 0, 0});
       // clang-format on
 
-      // 观测器内部数据
+      std::cout << "1" << std::endl;
       Eigen::VectorXd x = target.ekf_x();
       data["R_yaw"] = x[0] * 57.3;
       data["R_V_yaw"] = x[1] * 57.3;
@@ -203,14 +203,15 @@ int main(int argc, char * argv[])
       data["angle"] = x[5] * 57.3;
       std::cout << "target.ekf_x()[5] * 57.3:" << target.ekf_x()[5] * 57.3 << std::endl;
       std::cout << "angle:" << x[5] * 57.3 << std::endl;
-      data["spd"] = x[6] * 57.3;
-      if (x.size() >= 10) {
-        data["spd"] = x[6];
-        data["a"] = x[7];
-        data["w"] = x[8];
-        data["angle0"] = x[9];
-        data["spd0"] = target.spd;
-        // data["delta_angle_rel"] = target.delta_angle_rel_debug * 57.3;
+      if (x.size() >= 7) {  // SmallTarget
+        data["spd"] = x[6] * 57.3;
+      } else if (x.size() == 6) {  // BigTarget
+        data["spd"] = target_pre.spd;
+        data["a"] = target_pre.a;
+        data["w"] = target_pre.w;
+        data["angle0"] = target_pre.angle0;
+        // data["spd0"] = target_pre.
+        // // data["delta_angle_rel"] = target.delta_angle_rel_debug * 57.3;
       }
     }
 
