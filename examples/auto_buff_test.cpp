@@ -280,7 +280,7 @@ int main(int argc, char * argv[])
 
     plotter.plot(data);
 
-    // cv::resize(img, img, cv::Size(img.size().width * 0.7, img.size().height * 0.7));
+    cv::resize(img, img, cv::Size(img.size().width * 0.5, img.size().height * 0.5));
     cv::imshow("result", img);
 
     int key = cv::waitKey(1);
