@@ -188,7 +188,7 @@ std::optional<FanBlade> Buff_Detector::detect_fanblades(const cv::Mat & handled_
 
   std::vector<cv::Point2f> kpt;
 
-  if (std::fabs(head_center.y - body_center.y) < 5) {
+  if (std::fabs(head_center.y - body_center.y) < 5) { // TODO
     tools::logger()->debug(
       "[Buff_Detector] 无法确认点位置! head_center.y: {} body_center.y: {}", head_center.y,
       body_center.y);
@@ -287,7 +287,7 @@ bool Buff_Detector::detect_fanblades_head(
 
     // 检查矩形的宽高是否在合理范围内，以避免将整个符作为一个闭合轮廓识别
     // todo: 更动态的约束条件
-    if (bounding_box.width > 110 || bounding_box.height > 110) {
+    if (bounding_box.width > 130 || bounding_box.height > 130) {
       tools::logger()->debug("head bbox out range");
       continue;
     }
