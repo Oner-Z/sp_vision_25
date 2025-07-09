@@ -64,13 +64,13 @@ int main(int argc, char * argv[])
         for (int i = 1; i < 3; i++) {
           int y = height * i / 3;
 
-          cv::line(frame, cv::Point(0, y), cv::Point(width, y), lineColor, 1);
+          cv::line(img_draw, cv::Point(0, y), cv::Point(width, y), lineColor, 1);
         }
 
         // 绘制竖线（将图像分成3份）
         for (int i = 1; i < 3; i++) {
           int x = width * i / 3;
-          cv::line(frame, cv::Point(x, 0), cv::Point(x, height), lineColor, 1);
+          cv::line(img_draw, cv::Point(x, 0), cv::Point(x, height), lineColor, 1);
         }
         recorder.record(img_draw, t);
       }
