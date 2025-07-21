@@ -37,6 +37,7 @@ public:
   Eigen::Quaterniond imu_at(std::chrono::steady_clock::time_point timestamp);
 
   void send(Command command) const;
+  void send(DartCommand command) const;
 
 private:
   struct IMUData

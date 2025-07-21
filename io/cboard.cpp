@@ -12,8 +12,8 @@ CBoard::CBoard(const std::string & config_path)
 // 注意: callback的运行会早于Cboard构造函数的完成
 {
   tools::logger()->info("[Cboard] Waiting for q...");
-  queue_.pop(data_ahead_);
-  queue_.pop(data_behind_);
+  // queue_.pop(data_ahead_);
+  // queue_.pop(data_behind_);
   tools::logger()->info("[Cboard] Opened.");
 }
 
@@ -60,7 +60,20 @@ void CBoard::send(Command command) const
     tools::logger()->warn("{}", e.what());
   }
 }
-
+void CBoard::send(DartCommand command) const
+{
+  can_frame frame;
+  frame.can_id = send_canid_;
+  frame.can_dlc = 8;
+  frame.data[2] = (int16_t)(command.yaw * 1e4) >> 8;
+  frame.data[3] = (int16_t)(command.yaw * 1e4);
+  tools::logger()->info("command_yaw: {}", command.yaw);
+  try {
+    can_.write(&frame);
+  } catch (const std::exception & e) {
+    tools::logger()->warn("{}", e.what());
+  }
+}
 void CBoard::callback(const can_frame & frame)
 {
   auto timestamp = std::chrono::steady_clock::now();
