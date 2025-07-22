@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 进入脚本所在目录
-cd /home/rm/Desktop/sp_vision_25 || exit 1
+cd /home/hero/Desktop/sp_vision_25 || exit 1
 
 # 进程崩溃重启上限
 MAX_RETRY=100
@@ -16,9 +16,9 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 while true; do
-  # 检查 standard 进程是否存在
-  if ! pidof standard > /dev/null; then
-    echo "standard 未运行，正在重启..."
+  # 检查 dart 进程是否存在
+  if ! pidof dart > /dev/null; then
+    echo "dart 未运行，正在重启..."
 
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ "$RETRY_COUNT" -gt "$MAX_RETRY" ]; then
@@ -29,7 +29,7 @@ while true; do
     sleep 1
 
     # 启动程序（后台运行）
-    ./build/standard ./configs/swerve.yaml 2>&1 &
+    ./build/dart ./configs/dart.yaml 2>&1 &
 
   else
     # 进程运行正常时重置崩溃计数器

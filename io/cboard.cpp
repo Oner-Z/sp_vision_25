@@ -12,8 +12,8 @@ CBoard::CBoard(const std::string & config_path)
 // 注意: callback的运行会早于Cboard构造函数的完成
 {
   tools::logger()->info("[Cboard] Waiting for q...");
-  queue_.pop(data_ahead_);
-  queue_.pop(data_behind_);
+  // queue_.pop(data_ahead_);
+  // queue_.pop(data_behind_);
   tools::logger()->info("[Cboard] Opened.");
 }
 
@@ -60,7 +60,19 @@ void CBoard::send(Command command) const
     tools::logger()->warn("{}", e.what());
   }
 }
-
+void CBoard::send(DartCommand command) const
+{
+  can_frame frame;
+  frame.can_id = send_canid_;
+  frame.can_dlc = 8;
+  frame.data[2] = (int16_t)(command.yaw * 1e4) >> 8;
+  frame.data[3] = (int16_t)(command.yaw * 1e4);
+  try {
+    can_.write(&frame);
+  } catch (const std::exception & e) {
+    tools::logger()->warn("{}", e.what());
+  }
+}
 void CBoard::callback(const can_frame & frame)
 {
   auto timestamp = std::chrono::steady_clock::now();
@@ -77,13 +89,11 @@ void CBoard::callback(const can_frame & frame)
     }
 
     queue_.push({{w, x, y, z}, timestamp});
-  }
-
-  else if (frame.can_id == bullet_speed_canid_) {
+  } else if (frame.can_id == bullet_speed_canid_) {
     bullet_speed = (int16_t)(frame.data[0] << 8 | frame.data[1]) / 1e2;
     mode = Mode(frame.data[2]);
-  } else if (frame.can_id == control_canid_) {
-    control = (bool)(frame.data[0] << 8 | frame.data[1]);
+  } else if (frame.can_id == offset_id_) {
+    offset = (int16_t)(frame.data[0] << 8 | frame.data[1]) / 1e4;
   }
 }
 
@@ -95,7 +105,7 @@ std::string CBoard::read_yaml(const std::string & config_path)
   quaternion_canid_ = yaml["quaternion_canid"].as<int>();
   bullet_speed_canid_ = yaml["bullet_speed_canid"].as<int>();
   send_canid_ = yaml["send_canid"].as<int>();
-  control_canid_ = yaml["control_canid"].as<int>();
+  offset_id_ = yaml["offset_id"].as<int>();
   if (!yaml["can_interface"]) {
     throw std::runtime_error("Missing 'can_interface' in YAML configuration.");
   }

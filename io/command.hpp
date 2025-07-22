@@ -10,7 +10,10 @@ struct Command
   double yaw;
   double pitch;
 };
-
+struct DartCommand
+{
+  double yaw;
+};
 }  // namespace io
 
 #endif  // IO__COMMAND_HPP

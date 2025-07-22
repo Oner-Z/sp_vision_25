@@ -29,7 +29,7 @@ class CBoard
 {
 public:
   double bullet_speed;
-  bool control;
+  double offset;
   Mode mode;
 
   CBoard(const std::string & config_path);
@@ -37,6 +37,7 @@ public:
   Eigen::Quaterniond imu_at(std::chrono::steady_clock::time_point timestamp);
 
   void send(Command command) const;
+  void send(DartCommand command) const;
 
 private:
   struct IMUData
@@ -50,7 +51,7 @@ private:
   IMUData data_ahead_;
   IMUData data_behind_;
 
-  int quaternion_canid_, bullet_speed_canid_, send_canid_, control_canid_;
+  int quaternion_canid_, bullet_speed_canid_, send_canid_, offset_id_;
 
   void callback(const can_frame & frame);
 
