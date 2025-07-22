@@ -18,6 +18,7 @@ using namespace std::chrono;
 
 const std::string keys =
   "{help h usage ? |                        | 输出命令行参数说明}"
+  "{help h usage ? |                        | 输出命令行参数说明}"
   "{@config-path   | configs/dart.yaml | 位置参数，yaml配置文件路径 }";
 
 int main(int argc, char * argv[])
@@ -37,6 +38,7 @@ int main(int argc, char * argv[])
   io::Camera camera(config_path);
   auto_dart::DartDetector detector(config_path);
   cv::Mat img;
+  Eigen::Quaterniond q;
   std::chrono::steady_clock::time_point t;
 
   while (!exiter.exit()) {

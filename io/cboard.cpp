@@ -14,6 +14,8 @@ CBoard::CBoard(const std::string & config_path)
   tools::logger()->info("[Cboard] Waiting for q...");
   // queue_.pop(data_ahead_);
   // queue_.pop(data_behind_);
+  // queue_.pop(data_ahead_);
+  // queue_.pop(data_behind_);
   tools::logger()->info("[Cboard] Opened.");
 }
 
