@@ -38,7 +38,6 @@ int main(int argc, char * argv[])
   io::Camera camera(config_path);
   auto_dart::DartDetector detector(config_path);
   cv::Mat img;
-  Eigen::Quaterniond q;
   std::chrono::steady_clock::time_point t;
 
   while (!exiter.exit()) {
